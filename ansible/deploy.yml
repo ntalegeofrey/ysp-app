@@ -1,6 +1,6 @@
 - name: Deploy YSP App
-  hosts: contabo
-  become: yes
+  hosts: all
+  become: true
   tasks:
     - name: Pull latest code from GitHub
       git:
@@ -10,7 +10,7 @@
         force: yes
 
     - name: Rebuild and restart containers
-      command: docker-compose up -d --build
+      command: docker-compose up -d --build --remove-orphans
       args:
         chdir: /opt/ysp-app
 
@@ -20,4 +20,3 @@
 
     - debug:
         var: output.stdout_lines
-
