@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: ysp-app-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+
+  postgres:
+    image: postgres:15
+    container_name: ysp-app-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: examplepass
+      POSTGRES_DB: ysp-app-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

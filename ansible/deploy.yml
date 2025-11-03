@@ -1,0 +1,23 @@
+- name: Deploy YSP App
+  hosts: contabo
+  become: yes
+  tasks:
+    - name: Pull latest code from GitHub
+      git:
+        repo: "https://github.com/ntalegeofrey/ysp-app.git"
+        dest: /opt/ysp-app
+        version: main
+        force: yes
+
+    - name: Rebuild and restart containers
+      command: docker-compose up -d --build
+      args:
+        chdir: /opt/ysp-app
+
+    - name: Show running containers
+      command: docker ps
+      register: output
+
+    - debug:
+        var: output.stdout_lines
+
