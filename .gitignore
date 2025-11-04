@@ -1,0 +1,7 @@
+# Folders to ignore
+node_modules/
+.next/
+dist/
+build/
+.env
+*.log
