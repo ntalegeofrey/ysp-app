@@ -1,16 +1,96 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Loading from '../components/loading';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
+    const loadUser = async () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      } else {
+        // redirect to login if no user data found
+        router.push('/');
+      }
+    };
+
+    loadUser();
+  }, [router]);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const interval = setInterval(() => {
+    const Highcharts = (window as any).Highcharts;
+    const repairsContainer = document.getElementById("repairs-trend-chart");
+    const watchContainer = document.getElementById("watch-chart");
+
+    // wait until both elements exist before rendering
+    if (Highcharts && repairsContainer && watchContainer) {
+      clearInterval(interval);
+
+      // ---- Repair & Behavior Changes Chart ----
+      Highcharts.chart("repairs-trend-chart", {
+        chart: { type: "line", backgroundColor: "transparent" },
+        title: { text: null },
+        credits: { enabled: false },
+        xAxis: {
+          categories: ["Week 1", "Week 2", "Week 3", "Week 4"],
+          title: { text: "Time Period" },
+        },
+        yAxis: {
+          title: { text: "Number of Incidents" },
+          min: 0,
+        },
+        colors: ["#CD0D0D", "#f6c51b", "#388557", "#14558f"],
+        series: [
+          { name: "New Repairs", data: [12, 8, 6, 4], color: "#CD0D0D" },
+          { name: "Repairs Resolved", data: [5, 7, 9, 8], color: "#388557" },
+          { name: "Behavioral Incidents", data: [15, 11, 8, 7], color: "#f6c51b" },
+          { name: "Positive Behaviors", data: [8, 12, 15, 18], color: "#14558f" },
+        ],
+        legend: { enabled: true },
+      });
+
+      // ---- Watch Status Chart ----
+      Highcharts.chart("watch-chart", {
+        chart: { type: "pie", backgroundColor: "transparent" },
+        title: { text: null },
+        credits: { enabled: false },
+        colors: ["#388557", "#f6c51b", "#CD0D0D", "#14558f"],
+        series: [
+          {
+            name: "Residents",
+            data: [
+              { name: "Normal", y: 11, color: "#388557" },
+              { name: "Sleep Log", y: 2, color: "#f6c51b" },
+              { name: "Alert", y: 1, color: "#f6c51b" },
+              { name: "Elevated", y: 1, color: "#CD0D0D" },
+            ],
+            showInLegend: true,
+          },
+        ],
+      });
     }
-  }, []);
+  }, 300); // check every 300ms until elements are ready
+
+  return () => clearInterval(interval);
+}, []);
+
+
+if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-mf-font-detail">
+        Loading...
+      </div>
+    );
+  }
 
   const stats = [
     { label: 'Total Residents', value: '156', icon: 'fa-users', color: 'bg-blue-100 text-blue-600', change: '+12' },
@@ -26,78 +106,376 @@ export default function DashboardPage() {
     { id: 4, type: 'repair', title: 'Repair request submitted', time: '3 hours ago', icon: 'fa-wrench', color: 'text-yellow-600' },
   ];
 
+  const handleAddResident = () => {
+    setIsLoading(true);
+    router.push('/dashboard/add-resident');
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h1 className="text-2xl font-bold text-font-heading mb-2">
-          Welcome back, {user?.name || 'User'}!
-        </h1>
-        <p className="text-font-detail">Here's what's happening in your facility today.</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.color}`}>
-                <i className={`fa-solid ${stat.icon} text-xl`}></i>
-              </div>
-              <span className="text-sm font-medium text-success">{stat.change}</span>
-            </div>
-            <p className="text-3xl font-bold text-font-heading mb-1">{stat.value}</p>
-            <p className="text-sm text-font-detail">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent Activities */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b border-bd">
-          <h2 className="text-lg font-bold text-font-heading">Recent Activities</h2>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-center gap-4 p-4 bg-bg-subtle rounded-lg">
-                <div className={`w-10 h-10 rounded-lg bg-white flex items-center justify-center ${activity.color}`}>
-                  <i className={`fa-solid ${activity.icon}`}></i>
+    <div className="flex flex-col min-h-screen">
+    {isLoading && <Loading />}
+    <div id="analytics-main" className="flex-1 p-6 overflow-auto">
+                <div id="overview-cards" className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                    <div className="bg-white rounded-lg border border-bd p-6">
+                        <div className="flex items-center">
+                            <i className="fa-solid fa-users text-primary text-2xl mr-4"></i>
+                            <div>
+                                <p className="text-2xl font-bold text-primary">15</p>
+                                <p className="text-sm text-font-detail">Total Residents</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-bd p-6">
+                        <div className="flex items-center">
+                            <i className="fa-solid fa-eye text-warning text-2xl mr-4"></i>
+                            <div>
+                                <p className="text-2xl font-bold text-warning">4</p>
+                                <p className="text-sm text-font-detail">On Watch</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-bd p-6">
+                        <div className="flex items-center">
+                            <i className="fa-solid fa-ban text-error text-2xl mr-4"></i>
+                            <div>
+                                <p className="text-2xl font-bold text-error">8</p>
+                                <p className="text-sm text-font-detail">On Repairs</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-bd p-6">
+                        <div className="flex items-center">
+                            <i className="fa-solid fa-gavel text-highlight text-2xl mr-4"></i>
+                            <div>
+                                <p className="text-2xl font-bold text-highlight">2</p>
+                                <p className="text-sm text-font-detail">Court Today</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-bd p-6">
+                        <div className="flex items-center">
+                            <i className="fa-solid fa-star text-success text-2xl mr-4"></i>
+                            <div>
+                                <p className="text-2xl font-bold text-success">850</p>
+                                <p className="text-sm text-font-detail">Avg Credits</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-font-base">{activity.title}</p>
-                  <p className="text-sm text-font-detail">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <button className="bg-primary text-white p-6 rounded-lg hover:bg-primary-light transition flex items-center gap-4">
-          <i className="fa-solid fa-user-plus text-2xl"></i>
-          <div className="text-left">
-            <p className="font-bold">New Resident</p>
-            <p className="text-sm opacity-90">Onboard resident</p>
-          </div>
-        </button>
-        <button className="bg-primary-alt text-white p-6 rounded-lg hover:bg-primary-alt-dark transition flex items-center gap-4">
-          <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
-          <div className="text-left">
-            <p className="font-bold">Report Incident</p>
-            <p className="text-sm opacity-90">Create new report</p>
-          </div>
-        </button>
-        <button className="bg-highlight text-font-dark p-6 rounded-lg hover:bg-highlight-lighter transition flex items-center gap-4">
-          <i className="fa-solid fa-pills text-2xl"></i>
-          <div className="text-left">
-            <p className="font-bold">Med Count</p>
-            <p className="text-sm opacity-90">Start medication count</p>
-          </div>
-        </button>
-      </div>
-    </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-white rounded-lg border border-bd">
+                        <div className="p-6 border-b border-bd">
+                            <h3 className="text-lg font-semibold text-font-base">Repair & Behavior Changes - Last Month</h3>
+                            <p className="text-sm text-font-detail mt-1">Tracking incidents and repair progression over 30 days</p>
+                        </div>
+                        <div className="p-6">
+                            <div id="repairs-trend-chart" className="h-64"></div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-bd">
+                        <div className="p-6 border-b border-bd">
+                            <h3 className="text-lg font-semibold text-font-base">Watch Status Overview</h3>
+                        </div>
+                        <div className="p-6">
+                            <div id="watch-chart" className="h-64"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="residents-table" className="bg-white rounded-lg border border-bd mb-8">
+                    <div className="p-6 border-b border-bd">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-font-base flex items-center">
+                                    <i className="fa-solid fa-table text-primary mr-3"></i>
+                                    Resident Management Overview
+                                </h3>
+                                <div className="mt-2 text-sm text-font-detail">
+                                    Complete resident information with room assignments and status tracking
+                                </div>
+                            </div>
+                            <button 
+                                onClick={handleAddResident}className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
+                                <i className="fa-solid fa-plus mr-2"></i>
+                                Add New Resident
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-6">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border border-bd">
+                                <thead className="bg-primary text-white">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Resident Name</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Credits</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Room #</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Pencils</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Advocate Staff</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Repairs</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Watch</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-bd">
+                                    <tr className="bg-white hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm font-medium text-font-base">Johnson, Marcus</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-success text-white px-2 py-1 rounded text-xs">950</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">101</td>
+                                        <td className="px-4 py-3 text-sm">P-1, P-3</td>
+                                        <td className="px-4 py-3 text-sm">Davis, L.</td>
+                                        <td className="px-4 py-3 text-sm">None</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-primary text-white px-2 py-1 rounded text-xs">Team Leader</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-success text-white px-2 py-1 rounded text-xs">Normal</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button className="text-primary hover:text-primary-light text-sm">
+                                                <i className="fa-solid fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm font-medium text-font-base">Rodriguez, Alex</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">650</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">102</td>
+                                        <td className="px-4 py-3 text-sm">P-2</td>
+                                        <td className="px-4 py-3 text-sm">Wilson, M.</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-error text-white px-2 py-1 rounded text-xs">R1</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">ALOYO</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">Alert</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button className="text-primary hover:text-primary-light text-sm">
+                                                <i className="fa-solid fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm font-medium text-font-base">Thompson, Kevin</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-error text-white px-2 py-1 rounded text-xs">450</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">103</td>
+                                        <td className="px-4 py-3 text-sm">None</td>
+                                        <td className="px-4 py-3 text-sm">Brown, P.</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-error text-white px-2 py-1 rounded text-xs">R2, R3</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-error text-white px-2 py-1 rounded text-xs">Restricted</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-error text-white px-2 py-1 rounded text-xs">Elevated</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button className="text-primary hover:text-primary-light text-sm">
+                                                <i className="fa-solid fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm font-medium text-font-base">Garcia, Luis</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-success text-white px-2 py-1 rounded text-xs">890</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">104</td>
+                                        <td className="px-4 py-3 text-sm">P-4</td>
+                                        <td className="px-4 py-3 text-sm">Martinez, R.</td>
+                                        <td className="px-4 py-3 text-sm">None</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-success text-white px-2 py-1 rounded text-xs">General Pop</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-success text-white px-2 py-1 rounded text-xs">Normal</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button className="text-primary hover:text-primary-light text-sm">
+                                                <i className="fa-solid fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-white hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-sm font-medium text-font-base">Williams, Chris</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">720</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">105</td>
+                                        <td className="px-4 py-3 text-sm">P-5, P-6</td>
+                                        <td className="px-4 py-3 text-sm">Johnson, D.</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">R1</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-highlight text-white px-2 py-1 rounded text-xs">Court</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <span className="bg-warning text-white px-2 py-1 rounded text-xs">Sleep Log</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button className="text-primary hover:text-primary-light text-sm">
+                                                <i className="fa-solid fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div className="mt-4 flex justify-center">
+                            <button className="text-primary hover:text-primary-light text-sm font-medium">
+                                <i className="fa-solid fa-chevron-down mr-2"></i>
+                                Load More Residents
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="separations-section" className="bg-white rounded-lg border border-bd mb-8">
+                    <div className="p-6 border-b border-bd">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-font-base flex items-center">
+                                    <i className="fa-solid fa-users-slash text-primary mr-3"></i>
+                                    Active Separations & Court Schedule
+                                </h3>
+                                <div className="mt-2 text-sm text-font-detail">
+                                    Current separation assignments and court appearances for today
+                                </div>
+                            </div>
+                            <div className="flex space-x-3">
+                                <button className="bg-highlight text-white px-4 py-2 rounded-lg hover:bg-yellow-500 text-sm">
+                                    <i className="fa-solid fa-gavel mr-2"></i>
+                                    Add Court Date
+                                </button>
+                                <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
+                                    <i className="fa-solid fa-edit mr-2"></i>
+                                    Edit Separations
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+                            <div className="bg-error-lightest border border-error rounded-lg p-4">
+                                <h4 className="font-semibold text-error mb-3 flex items-center">
+                                    <i className="fa-solid fa-chalkboard text-error mr-2"></i>
+                                    classNameroom 1
+                                </h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Rodriguez, Alex</div>
+                                        <div className="text-xs text-font-detail">Room 102 - R1 Repair</div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Thompson, Kevin</div>
+                                        <div className="text-xs text-font-detail">Room 103 - R2, R3 Repairs</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-warning-lightest border border-warning rounded-lg p-4">
+                                <h4 className="font-semibold text-warning mb-3 flex items-center">
+                                    <i className="fa-solid fa-chalkboard text-warning mr-2"></i>
+                                    classNameroom 2
+                                </h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Davis, Michael</div>
+                                        <div className="text-xs text-font-detail">Room 108 - R1 Repair</div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Wilson, Tyler</div>
+                                        <div className="text-xs text-font-detail">Room 111 - R2 Repair</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-primary-lightest border border-primary rounded-lg p-4">
+                                <h4 className="font-semibold text-primary mb-3 flex items-center">
+                                    <i className="fa-solid fa-users text-primary mr-2"></i>
+                                    Conference Room
+                                </h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Brown, Jason</div>
+                                        <div className="text-xs text-font-detail">Room 107 - R3 Repair</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-highlight-lightest border border-highlight rounded-lg p-4">
+                                <h4 className="font-semibold text-highlight mb-3 flex items-center">
+                                    <i className="fa-solid fa-gavel text-highlight mr-2"></i>
+                                    Court Today
+                                </h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Williams, Chris</div>
+                                        <div className="text-xs text-font-detail">10:00 AM - Family Court</div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="text-sm font-medium">Anderson, Jake</div>
+                                        <div className="text-xs text-font-detail">2:30 PM - Juvenile Court</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="repairs-section" className="bg-white rounded-lg border border-bd mb-8">
+                    <div className="p-6 border-b border-bd">
+                        <h3 className="text-lg font-semibold text-font-base flex items-center">
+                            <i className="fa-solid fa-tools text-error mr-3"></i>
+                            Residents on Repair Status
+                        </h3>
+                        <div className="mt-2 text-sm text-font-detail">
+                            Current behavioral repairs and restrictions
+                        </div>
+                    </div>
+                    
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            <div className="bg-error-lightest border border-error rounded-lg p-4">
+                                <h4 className="font-semibold text-error mb-3">R1 Repairs</h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded text-sm">Rodriguez, Alex - Room 102</div>
+                                    <div className="bg-white p-2 rounded text-sm">Davis, Michael - Room 108</div>
+                                    <div className="bg-white p-2 rounded text-sm">Williams, Chris - Room 105</div>
+                                </div>
+                            </div>
+                            <div className="bg-warning-lightest border border-warning rounded-lg p-4">
+                                <h4 className="font-semibold text-warning mb-3">R2 Repairs</h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded text-sm">Thompson, Kevin - Room 103</div>
+                                    <div className="bg-white p-2 rounded text-sm">Wilson, Tyler - Room 111</div>
+                                </div>
+                            </div>
+                            <div className="bg-highlight-lightest border border-highlight rounded-lg p-4">
+                                <h4 className="font-semibold text-highlight mb-3">R3 Repairs</h4>
+                                <div className="space-y-2">
+                                    <div className="bg-white p-2 rounded text-sm">Thompson, Kevin - Room 103</div>
+                                    <div className="bg-white p-2 rounded text-sm">Brown, Jason - Room 107</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div></div>
   );
 }

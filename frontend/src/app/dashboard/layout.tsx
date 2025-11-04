@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
 
 const menuItems = [
-  { icon: 'fa-house', label: 'Dashboard', href: '/dashboard', roles: ['admin', 'manager', 'staff', 'supervisor'] },
+  { icon: 'fa-house', label: 'Dashboard', href: '/dashboard', roles: ['admin', 'manager', 'staff', 'supervisor'],
+    matchPaths: ['/dashboard', '/dashboard/add-resident', '/dashboard/view-resident'],
+  },
   { icon: 'fa-user-plus', label: 'Resident & Staff Onboarding', href: '/dashboard/onboarding', roles: ['admin', 'manager'] },
   { icon: 'fa-users', label: 'Staff Management', href: '/dashboard/staff-management', roles: ['admin', 'manager'] },
   { icon: 'fa-brain', label: 'AI Insights', href: '/dashboard/ai-insights', roles: ['admin', 'manager'] },
@@ -34,7 +36,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // list of pages want the back button to appear on
+  const pagesWithBack = [
+    '/dashboard/add-resident',
+  ];
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -56,9 +62,11 @@ export default function DashboardLayout({
 
   if (!user) return null;
 
+  const showBackButton = pagesWithBack.includes(pathname);
+
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Mobile Overlay ... */}
+      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -94,24 +102,29 @@ export default function DashboardLayout({
         <nav className="flex-1 overflow-y-auto p-4">
           <div className="space-y-1">
             {filteredMenuItems.map((item) => {
-              const isActive = pathname === item.href;
+  const isDashboard = item.href === '/dashboard';
+  const isActive = item.matchPaths
+  ? item.matchPaths.some((p) => pathname === p)
+  : pathname === item.href;
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${
-                    isActive
-                      ? 'bg-primary-lightest text-primary font-medium'
-                      : 'text-font-base hover:bg-bg-subtle'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <i className={`fa-solid ${item.icon} w-5 text-center`}></i>
-                  <span className="flex-1">{item.label}</span>
-                </Link>
-              );
-            })}
+
+  return (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`flex items-center gap-3 px-3 py-2 text-font-detail rounded-lg transition-colors text-sm ${
+        isActive
+          ? 'bg-primary text-white font-medium'
+          : 'text-font-base hover:bg-primary-lightest'
+      }`}
+      onClick={() => setSidebarOpen(false)}
+    >
+      <i className={`fa-solid ${item.icon} w-4 mr-3 text-sm`}></i>
+      <span className="flex-1 text-sm">{item.label}</span>
+    </Link>
+  );
+})}
+
           </div>
         </nav>
 
@@ -153,10 +166,33 @@ export default function DashboardLayout({
                 <i className={`fa-solid ${sidebarOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
               </button>
               
+              {/* Back Button */}
+            {showBackButton && (
+              <button
+                onClick={() => router.back()}
+                className="mr-4 p-2 text-font-detail hover:text-primary hover:bg-primary-lightest rounded-lg"
+              >
+                <i className="fa-solid fa-arrow-left text-lg"></i>
+              </button>
+            )}
+              <div>
               {/* Page Title - Responsive text size */}
               <h2 className="text-lg sm:text-xl font-bold text-font-heading">
                 {menuItems.find(item => item.href === pathname)?.label || 'Dashboard'}
               </h2>
+              {/* Breadcrumb under title */}
+          <p className="text-sm text-font-detail mt-1">
+            Dashboard
+            {pathname !== '/dashboard' && (
+              <>
+                <span className="mx-2">•</span>
+                <span className="capitalize">
+                  {pathname.split('/').slice(-1)[0].replace('-', ' ')}
+                </span>
+              </>
+            )}
+          </p>
+          </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
