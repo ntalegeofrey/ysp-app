@@ -374,7 +374,7 @@ if (!user) {
                             <div className="bg-error-lightest border border-error rounded-lg p-4">
                                 <h4 className="font-semibold text-error mb-3 flex items-center">
                                     <i className="fa-solid fa-chalkboard text-error mr-2"></i>
-                                    classNameroom 1
+                                    Class room 1
                                 </h4>
                                 <div className="space-y-2">
                                     <div className="bg-white p-2 rounded border">
@@ -391,7 +391,7 @@ if (!user) {
                             <div className="bg-warning-lightest border border-warning rounded-lg p-4">
                                 <h4 className="font-semibold text-warning mb-3 flex items-center">
                                     <i className="fa-solid fa-chalkboard text-warning mr-2"></i>
-                                    classNameroom 2
+                                    Class room 2
                                 </h4>
                                 <div className="space-y-2">
                                     <div className="bg-white p-2 rounded border">

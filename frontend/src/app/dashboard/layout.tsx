@@ -9,7 +9,7 @@ const menuItems = [
   { icon: 'fa-house', label: 'Dashboard', href: '/dashboard', roles: ['admin', 'manager', 'staff', 'supervisor'],
     matchPaths: ['/dashboard', '/dashboard/add-resident', '/dashboard/view-resident'],
   },
-  { icon: 'fa-user-plus', label: 'Resident & Staff Onboarding', href: '/dashboard/onboarding', roles: ['admin', 'manager'] },
+  { icon: 'fa-user-plus', label: 'Unit Registry', href: '/dashboard/unit-registry', roles: ['admin', 'manager'] },
   { icon: 'fa-users', label: 'Staff Management', href: '/dashboard/staff-management', roles: ['admin', 'manager'] },
   { icon: 'fa-brain', label: 'AI Insights', href: '/dashboard/ai-insights', roles: ['admin', 'manager'] },
   { icon: 'fa-chart-line', label: 'Analytics', href: '/dashboard/analytics', roles: ['admin', 'manager'] },
@@ -75,6 +75,7 @@ export default function DashboardLayout({
       )}
 
       {/* Sidebar */}
+      {/* this is a comment */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-bd flex flex-col transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'

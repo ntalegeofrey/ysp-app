@@ -6,11 +6,51 @@ export default function StaffManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const staffMembers = [
-    { id: 1, name: 'John Doe', role: 'Supervisor', email: 'john.doe@mass.gov', phone: '(617) 555-0101', status: 'active', shift: 'Day' },
-    { id: 2, name: 'Jane Smith', role: 'Counselor', email: 'jane.smith@mass.gov', phone: '(617) 555-0102', status: 'active', shift: 'Evening' },
-    { id: 3, name: 'Mike Johnson', role: 'Security', email: 'mike.j@mass.gov', phone: '(617) 555-0103', status: 'active', shift: 'Night' },
-    { id: 4, name: 'Sarah Williams', role: 'Nurse', email: 'sarah.w@mass.gov', phone: '(617) 555-0104', status: 'active', shift: 'Day' },
-    { id: 5, name: 'Tom Brown', role: 'Administrator', email: 'tom.b@mass.gov', phone: '(617) 555-0105', status: 'on-leave', shift: 'Day' },
+    {
+      id: 1,
+      name: 'John Doe',
+      role: 'Supervisor',
+      email: 'john.doe@mass.gov',
+      phone: '(617) 555-0101',
+      status: 'active',
+      shift: 'Day',
+    },
+    {
+      id: 2,
+      name: 'Jane Smith',
+      role: 'Counselor',
+      email: 'jane.smith@mass.gov',
+      phone: '(617) 555-0102',
+      status: 'active',
+      shift: 'Evening',
+    },
+    {
+      id: 3,
+      name: 'Mike Johnson',
+      role: 'Security',
+      email: 'mike.j@mass.gov',
+      phone: '(617) 555-0103',
+      status: 'active',
+      shift: 'Night',
+    },
+    {
+      id: 4,
+      name: 'Sarah Williams',
+      role: 'Nurse',
+      email: 'sarah.w@mass.gov',
+      phone: '(617) 555-0104',
+      status: 'active',
+      shift: 'Day',
+    },
+    {
+      id: 5,
+      name: 'Tom Brown',
+      role: 'Administrator',
+      email: 'tom.b@mass.gov',
+      phone: '(617) 555-0105',
+      status: 'on-leave',
+      shift: 'Day',
+    },
   ];
 
   return (
@@ -52,13 +92,27 @@ export default function StaffManagementPage() {
           <table className="w-full">
             <thead className="bg-bg-subtle">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Shift</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Phone
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Shift
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-bd">
@@ -67,19 +121,34 @@ export default function StaffManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-medium mr-3">
-                        {staff.name.split(' ').map(n => n[0]).join('')}
+                        {staff.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')}
                       </div>
                       <div className="font-medium text-font-base">{staff.name}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">{staff.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">{staff.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">{staff.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">{staff.shift}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">
+                    {staff.role}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">
+                    {staff.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">
+                    {staff.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-font-detail">
+                    {staff.shift}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      staff.status === 'active' ? 'bg-success-lightest text-success' : 'bg-warning-lightest text-warning'
-                    }`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        staff.status === 'active'
+                          ? 'bg-success-lightest text-success'
+                          : 'bg-warning-lightest text-warning'
+                      }`}
+                    >
                       {staff.status}
                     </span>
                   </td>
