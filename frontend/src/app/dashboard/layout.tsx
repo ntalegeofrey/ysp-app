@@ -44,16 +44,22 @@ const menuItems = [
     ],
   },
   {
+    icon: 'fa-calendar-days',
+    label: 'Schedule',
+    href: '/dashboard/schedule',
+    roles: ['admin', 'manager', 'staff', 'supervisor'],
+  },
+  {
     icon: 'fa-brain',
     label: 'AI Insights',
     href: '/dashboard/ai-insights',
     roles: ['admin', 'manager'],
   },
   {
-    icon: 'fa-chart-line',
-    label: 'Analytics',
-    href: '/dashboard/analytics',
-    roles: ['admin', 'manager'],
+    icon: 'fa-clipboard-check',
+    label: 'Residential Census',
+    href: '/dashboard/residential-census',
+    roles: ['admin', 'manager', 'supervisor'],
   },
   {
     icon: 'fa-pills',
