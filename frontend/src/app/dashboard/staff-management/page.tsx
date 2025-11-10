@@ -1,12 +1,35 @@
 'use client';
 import Loading from '@/app/components/loading';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function StaffManagementPage() {
   const [activeTab, setActiveTab] = useState('schedule');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Week navigation state for Schedule Overview
+  const getStartOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sun
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - day); // start from Sunday
+    return d;
+  };
+  const [weekStart, setWeekStart] = useState<Date>(() => getStartOfWeek(new Date()));
+  const weekEnd = useMemo(() => {
+    const e = new Date(weekStart);
+    e.setDate(e.getDate() + 6);
+    return e;
+  }, [weekStart]);
+  const formatLabel = (start: Date, end: Date) => {
+    const fmt = (d: Date) =>
+      d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const year = end.getFullYear();
+    return `${fmt(start)} - ${fmt(end)}, ${year}`;
+  };
+  const goPrevWeek = () => setWeekStart((s) => new Date(s.getFullYear(), s.getMonth(), s.getDate() - 7));
+  const goNextWeek = () => setWeekStart((s) => new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7));
 
   const tabs = [
     { id: 'schedule', label: 'Schedule Overview', icon: 'fa-calendar-days' },
@@ -53,7 +76,7 @@ export default function StaffManagementPage() {
           <div id="schedule-tab" className="tab-content active">
             <div id="schedule-overview" className="bg-white rounded-lg border border-bd">
               <div className="p-6 border-b border-bd">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-font-base flex items-center">
                       <i className="fa-solid fa-calendar-days text-primary mr-3"></i>
@@ -63,24 +86,22 @@ export default function StaffManagementPage() {
                       Current week staffing schedule
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 flex-wrap">
                     <div className="flex items-center space-x-2">
                       <button
                         className="p-2 text-font-detail hover:text-primary border border-bd rounded-lg"
-                        onClick={() => {
-                          console.log('previous week');
-                        }}
+                        onClick={goPrevWeek}
+                        aria-label="Previous week"
                       >
                         <i className="fa-solid fa-chevron-left"></i>
                       </button>
                       <div className="px-4 py-2 bg-primary-lightest rounded-lg text-sm font-medium text-font-base">
-                        Nov 17 - Nov 23, 2024
+                        {formatLabel(weekStart, weekEnd)}
                       </div>
                       <button
                         className="p-2 text-font-detail hover:text-primary border border-bd rounded-lg"
-                        onClick={() => {
-                          console.log('next week');
-                        }}
+                        onClick={goNextWeek}
+                        aria-label="Next week"
                       >
                         <i className="fa-solid fa-chevron-right"></i>
                       </button>

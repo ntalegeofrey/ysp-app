@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
 
@@ -66,6 +66,18 @@ const menuItems = [
     label: 'Medication Count',
     href: '/dashboard/medication',
     roles: ['admin', 'manager', 'staff'],
+    subPages: [
+      {
+        path: '/dashboard/medication/all-medication-records',
+        title: 'All Medication Records',
+        breadcrumb: 'All Records',
+      },
+      {
+        path: '/dashboard/medication/medication-sheet',
+        title: 'Resident Med Sheet',
+        breadcrumb: 'Resident Med Sheet',
+      },
+    ],
   },
   {
     icon: 'fa-triangle-exclamation',
@@ -185,11 +197,12 @@ const getPageTitleAndBreadcrumb = (pathname: string) => {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   // list of pages want the back button to appear on
-  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule'];
+  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records'];
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -208,9 +221,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const filteredMenuItems = menuItems.filter((item) => user && item.roles.includes(user.role));
 
   if (!user) return null;
+  const showBackButtonDefault = pagesWithBack.includes(pathname);
+  let showBackButton = showBackButtonDefault;
+  let { title, breadcrumb } = getPageTitleAndBreadcrumb(pathname);
 
-  const showBackButton = pagesWithBack.includes(pathname);
-  const { title, breadcrumb } = getPageTitleAndBreadcrumb(pathname);
+  if (pathname.startsWith('/dashboard/medication/medication-sheet')) {
+    const residentId = searchParams.get('resident') || '';
+    showBackButton = true;
+    title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
+    breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
