@@ -153,6 +153,47 @@ const getPageTitleAndBreadcrumb = (pathname: string) => {
     };
   }
 
+  // Check if we're on a subpage
+  for (const item of menuItems) {
+    if (item.subPages) {
+      for (const subPage of item.subPages) {
+        if (pathname === subPage.path || pathname.startsWith(subPage.path + '/')) {
+          return {
+            title: subPage.title,
+            breadcrumb: `${item.label} • ${subPage.breadcrumb}`,
+          };
+        }
+      }
+    }
+  }
+
+  // Check if we're on a path that starts with a main menu item's href
+  const startsWithMatch = menuItems.find(
+    (item) => pathname.startsWith(item.href + '/') && pathname !== item.href
+  );
+
+  if (startsWithMatch) {
+    return {
+      title: startsWithMatch.label,
+      breadcrumb: startsWithMatch.label,
+    };
+  }
+
+  // Fallback - check if we're on dashboard or any dashboard sub-route
+  if (pathname.startsWith('/dashboard')) {
+    return {
+      title: 'Dashboard',
+      breadcrumb: 'Dashboard',
+    };
+  }
+
+  // Final fallback
+  return {
+    title: 'Dashboard',
+    breadcrumb: 'Dashboard',
+  };
+};
+
 function HeaderWithParams({
   baseTitle,
   baseBreadcrumb,
@@ -247,46 +288,6 @@ function HeaderWithParams({
   );
 }
 
-  // Check if we're on a subpage
-  for (const item of menuItems) {
-    if (item.subPages) {
-      for (const subPage of item.subPages) {
-        if (pathname === subPage.path || pathname.startsWith(subPage.path + '/')) {
-          return {
-            title: subPage.title,
-            breadcrumb: `${item.label} • ${subPage.breadcrumb}`,
-          };
-        }
-      }
-    }
-  }
-
-  // Check if we're on a path that starts with a main menu item's href
-  const startsWithMatch = menuItems.find(
-    (item) => pathname.startsWith(item.href + '/') && pathname !== item.href
-  );
-
-  if (startsWithMatch) {
-    return {
-      title: startsWithMatch.label,
-      breadcrumb: startsWithMatch.label,
-    };
-  }
-
-  // Fallback - check if we're on dashboard or any dashboard sub-route
-  if (pathname.startsWith('/dashboard')) {
-    return {
-      title: 'Dashboard',
-      breadcrumb: 'Dashboard',
-    };
-  }
-
-  // Final fallback
-  return {
-    title: 'Dashboard',
-    breadcrumb: 'Dashboard',
-  };
-};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

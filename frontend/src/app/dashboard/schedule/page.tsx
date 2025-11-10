@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
-export default function SchedulePage() {
+function ScheduleInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -528,5 +528,13 @@ export default function SchedulePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div className="space-y-6" />}> 
+      <ScheduleInner />
+    </Suspense>
   );
 }

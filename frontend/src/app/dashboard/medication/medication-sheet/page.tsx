@@ -1,8 +1,9 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function MedicationSheetPage() {
+function MedicationSheetInner() {
   const searchParams = useSearchParams();
   const residentId = searchParams.get('resident') || 'A01';
 
@@ -351,5 +352,13 @@ export default function MedicationSheetPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function MedicationSheetPage() {
+  return (
+    <Suspense fallback={<main className="flex-1 p-6 overflow-auto" />}> 
+      <MedicationSheetInner />
+    </Suspense>
   );
 }
