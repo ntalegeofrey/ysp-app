@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
@@ -153,6 +153,100 @@ const getPageTitleAndBreadcrumb = (pathname: string) => {
     };
   }
 
+function HeaderWithParams({
+  baseTitle,
+  baseBreadcrumb,
+  showBackButtonDefault,
+  onToggleSidebar,
+  sidebarOpen,
+  onLogout,
+}: {
+  baseTitle: string;
+  baseBreadcrumb: string;
+  showBackButtonDefault: boolean;
+  onToggleSidebar: () => void;
+  sidebarOpen: boolean;
+  onLogout: () => void;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  let title = baseTitle;
+  let breadcrumb = baseBreadcrumb;
+  let showBackButton = showBackButtonDefault;
+
+  if (pathname.startsWith('/dashboard/medication/medication-sheet')) {
+    const residentId = searchParams.get('resident') || '';
+    showBackButton = true;
+    title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
+    breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
+  }
+
+  return (
+    <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={onToggleSidebar}
+            className="lg:hidden p-2 rounded-lg hover:bg-bg-subtle transition-colors"
+          >
+            <i className={`fa-solid ${sidebarOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
+          </button>
+
+          {/* Back Button */}
+          {showBackButton && (
+            <button
+              onClick={() => router.back()}
+              className="mr-4 p-2 text-font-detail hover:text-primary hover:bg-primary-lightest rounded-lg"
+            >
+              <i className="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+          )}
+          <div>
+            {/* Page Title - Responsive text size */}
+            <h2 className="text-lg sm:text-xl font-bold text-font-heading">{title}</h2>
+
+            {/* Breadcrumb under title */}
+            <p className="text-sm text-font-detail mt-1">{breadcrumb}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Date Display - Hidden on mobile */}
+          <div className="hidden md:flex items-center gap-2 text-sm text-font-detail">
+            <i className="fa-solid fa-calendar text-primary"></i>
+            <span>
+              Current Date: <span className="font-medium">Nov 18, 2024</span>
+            </span>
+          </div>
+
+          {/* Notifications */}
+          <button className="relative p-2 rounded-lg hover:bg-bg-subtle transition-colors">
+            <i className="fa-solid fa-bell text-lg sm:text-xl text-font-base"></i>
+            <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
+          </button>
+
+          {/* Settings */}
+          <button className="p-2 rounded-lg hover:bg-bg-subtle transition-colors">
+            <i className="fa-solid fa-gear text-lg sm:text-xl text-font-base"></i>
+          </button>
+
+          {/* Logout Button - Text hidden on mobile */}
+          <button
+            onClick={onLogout}
+            className="px-3 sm:px-4 py-2 bg-error text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+          >
+            <i className="fa-solid fa-right-from-bracket"></i>
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
   // Check if we're on a subpage
   for (const item of menuItems) {
     if (item.subPages) {
@@ -197,7 +291,6 @@ const getPageTitleAndBreadcrumb = (pathname: string) => {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -222,15 +315,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
   const showBackButtonDefault = pagesWithBack.includes(pathname);
-  let showBackButton = showBackButtonDefault;
-  let { title, breadcrumb } = getPageTitleAndBreadcrumb(pathname);
-
-  if (pathname.startsWith('/dashboard/medication/medication-sheet')) {
-    const residentId = searchParams.get('resident') || '';
-    showBackButton = true;
-    title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
-    breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
-  }
+  const base = getPageTitleAndBreadcrumb(pathname);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -325,66 +410,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Top Navigation Bar */}
-        <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-bg-subtle transition-colors"
-              >
-                <i className={`fa-solid ${sidebarOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
-              </button>
-
-              {/* Back Button */}
-              {showBackButton && (
+        <Suspense fallback={
+          <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <button
-                  onClick={() => router.back()}
-                  className="mr-4 p-2 text-font-detail hover:text-primary hover:bg-primary-lightest rounded-lg"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden p-2 rounded-lg hover:bg-bg-subtle transition-colors"
                 >
-                  <i className="fa-solid fa-arrow-left text-lg"></i>
+                  <i className={`fa-solid ${sidebarOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
                 </button>
-              )}
-              <div>
-                {/* Page Title - Responsive text size */}
-                <h2 className="text-lg sm:text-xl font-bold text-font-heading">{title}</h2>
-
-                {/* Breadcrumb under title */}
-                <p className="text-sm text-font-detail mt-1">{breadcrumb}</p>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-font-heading">{base.title}</h2>
+                  <p className="text-sm text-font-detail mt-1">{base.breadcrumb}</p>
+                </div>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Date Display - Hidden on mobile */}
-              <div className="hidden md:flex items-center gap-2 text-sm text-font-detail">
-                <i className="fa-solid fa-calendar text-primary"></i>
-                <span>
-                  Current Date: <span className="font-medium">Nov 18, 2024</span>
-                </span>
-              </div>
-
-              {/* Notifications */}
-              <button className="relative p-2 rounded-lg hover:bg-bg-subtle transition-colors">
-                <i className="fa-solid fa-bell text-lg sm:text-xl text-font-base"></i>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
-              </button>
-
-              {/* Settings */}
-              <button className="p-2 rounded-lg hover:bg-bg-subtle transition-colors">
-                <i className="fa-solid fa-gear text-lg sm:text-xl text-font-base"></i>
-              </button>
-
-              {/* Logout Button - Text hidden on mobile */}
-              <button
-                onClick={handleLogout}
-                className="px-3 sm:px-4 py-2 bg-error text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-              >
-                <i className="fa-solid fa-right-from-bracket"></i>
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </header>
+          </header>
+        }>
+          <HeaderWithParams
+            baseTitle={base.title}
+            baseBreadcrumb={base.breadcrumb}
+            showBackButtonDefault={showBackButtonDefault}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            sidebarOpen={sidebarOpen}
+            onLogout={handleLogout}
+          />
+        </Suspense>
 
         {/* Page Content - Scrollable main area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
