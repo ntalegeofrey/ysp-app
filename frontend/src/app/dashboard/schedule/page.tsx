@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 function ScheduleInner() {
@@ -8,11 +8,11 @@ function ScheduleInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<'schedule' | 'overtime' | 'timeoff' | 'callout'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'overtime' | 'timeoff' | 'callout' | 'archive' | 'selfreport'>('schedule');
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'schedule' || t === 'overtime' || t === 'timeoff' || t === 'callout') {
+    if (t === 'schedule' || t === 'overtime' || t === 'timeoff' || t === 'callout' || t === 'archive' || t === 'selfreport') {
       setActiveTab(t);
     }
   }, [searchParams]);
@@ -21,12 +21,37 @@ function ScheduleInner() {
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  const handleTabChange = (tab: 'schedule' | 'overtime' | 'timeoff' | 'callout') => {
+  const handleTabChange = (tab: 'schedule' | 'overtime' | 'timeoff' | 'callout' | 'archive' | 'selfreport') => {
     setActiveTab(tab);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.set('tab', tab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
+
+  const overtimeRecords = useMemo(
+    () => [
+      { id: 1, staff: 'Johnson, Kevin (JJYDS II)', date: '2024-11-12', shift: 'Evening (3PM-11PM)', type: 'Mandatory', calledOut: false, forceStart: '2024-11-12 23:00', forceEnd: '2024-11-13 03:00', durationHrs: 4, notes: 'Shift coverage' },
+      { id: 2, staff: 'Smith, Jennifer (JJYDS I)', date: '2024-11-13', shift: 'Day (7AM-3PM)', type: 'Voluntary', calledOut: false, forceStart: '', forceEnd: '', durationHrs: 2, notes: 'Training overlap' },
+      { id: 3, staff: 'Rodriguez, Maria (JJYDS I)', date: '2024-11-14', shift: 'Overnight (11PM-7AM)', type: 'Mandatory', calledOut: true, forceStart: '2024-11-15 07:00', forceEnd: '2024-11-15 09:00', durationHrs: 2, notes: 'Backfill due to call-out' },
+      { id: 4, staff: 'Brown, Michael (Support)', date: '2024-11-15', shift: 'Evening (3PM-11PM)', type: 'Voluntary', calledOut: false, forceStart: '', forceEnd: '', durationHrs: 3, notes: 'Event coverage' },
+      { id: 5, staff: 'Anderson, James (JJYDS II)', date: '2024-11-16', shift: 'Day (7AM-3PM)', type: 'Mandatory', calledOut: false, forceStart: '2024-11-16 15:00', forceEnd: '2024-11-16 19:00', durationHrs: 4, notes: 'Mandatory force' },
+      { id: 6, staff: 'Lee, Samuel (JJYDS I)', date: '2024-11-17', shift: 'Evening (3PM-11PM)', type: 'Voluntary', calledOut: false, forceStart: '', forceEnd: '', durationHrs: 1, notes: 'Short coverage' },
+      { id: 7, staff: 'Taylor, Dana (JJYDS II)', date: '2024-11-18', shift: 'Overnight (11PM-7AM)', type: 'Mandatory', calledOut: false, forceStart: '2024-11-18 07:00', forceEnd: '2024-11-18 11:00', durationHrs: 4, notes: 'Coverage after call-out' },
+      { id: 8, staff: 'Wilson, Chris (JJYDS I)', date: '2024-11-19', shift: 'Day (7AM-3PM)', type: 'Voluntary', calledOut: false, forceStart: '', forceEnd: '', durationHrs: 2, notes: 'Project assistance' },
+      { id: 9, staff: 'Garcia, Paula (JJYDS II)', date: '2024-11-20', shift: 'Evening (3PM-11PM)', type: 'Mandatory', calledOut: true, forceStart: '2024-11-20 23:00', forceEnd: '2024-11-21 01:00', durationHrs: 2, notes: 'Emergency coverage' },
+      { id: 10, staff: 'Thompson, Alex (JJYDS III)', date: '2024-11-21', shift: 'Day (7AM-3PM)', type: 'Mandatory', calledOut: false, forceStart: '2024-11-21 15:00', forceEnd: '2024-11-21 17:00', durationHrs: 2, notes: 'Mandatory force' },
+      { id: 11, staff: 'Davis, Linda (JJYDS III)', date: '2024-11-22', shift: 'Overnight (11PM-7AM)', type: 'Voluntary', calledOut: false, forceStart: '', forceEnd: '', durationHrs: 3, notes: 'Overtime preference' },
+      { id: 12, staff: 'Martinez, Raul (JJYDS II)', date: '2024-11-23', shift: 'Evening (3PM-11PM)', type: 'Mandatory', calledOut: false, forceStart: '2024-11-23 23:00', forceEnd: '2024-11-24 03:00', durationHrs: 4, notes: 'Short staffed' },
+    ],
+    []
+  );
+  const [archivePage, setArchivePage] = useState(1);
+  const pageSize = 6;
+  const archiveTotalPages = Math.ceil(overtimeRecords.length / pageSize) || 1;
+  const paginatedRecords = useMemo(
+    () => overtimeRecords.slice((archivePage - 1) * pageSize, archivePage * pageSize),
+    [overtimeRecords, archivePage]
+  );
 
   return (
     <div className="space-y-6">
@@ -73,6 +98,20 @@ function ScheduleInner() {
             >
               <i className={`fa-solid fa-phone-slash mr-2 ${activeTab === 'callout' ? 'text-primary' : 'text-font-detail'}`}></i>
               Call-Out Logging
+            </button>
+            <button
+              className={`${tabBtnBase} ${activeTab === 'selfreport' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => handleTabChange('selfreport')}
+            >
+              <i className={`fa-solid fa-file-signature mr-2 ${activeTab === 'selfreport' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Self-Report Mandatory Force
+            </button>
+            <button
+              className={`${tabBtnBase} ${activeTab === 'archive' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => handleTabChange('archive')}
+            >
+              <i className={`fa-solid fa-folder mr-2 ${activeTab === 'archive' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Overtime Archive
             </button>
           </nav>
         </div>
@@ -522,6 +561,115 @@ function ScheduleInner() {
               <div className="lg:col-span-2 flex justify-end">
                 <button type="button" className="px-4 py-2 text-sm font-medium text-font-base border border-bd rounded-lg hover:bg-gray-50 mr-2">Cancel</button>
                 <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-light">Submit Call-Out</button>
+              </div>
+            </form>
+          )}
+
+          {activeTab === 'archive' && (
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full border border-bd text-sm">
+                  <thead className="bg-primary text-white">
+                    <tr>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">Staff</th>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">Date</th>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">Shift</th>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">Status</th>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">Start</th>
+                      <th className="px-3 py-3 text-left font-medium border-r border-primary-light">End</th>
+                      <th className="px-3 py-3 text-left font-medium">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-bd">
+                    {paginatedRecords.map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3">{r.staff}</td>
+                        <td className="px-3 py-3">{new Date(r.date).toLocaleDateString()}</td>
+                        <td className="px-3 py-3">{r.shift}</td>
+                        <td className="px-3 py-3">
+                          {r.calledOut ? (
+                            <span className="bg-error text-white px-2 py-1 rounded text-xs">Called Out</span>
+                          ) : r.type === 'Mandatory' ? (
+                            <span className="bg-error text-white px-2 py-1 rounded text-xs">Mandatory Force</span>
+                          ) : (
+                            <span className="bg-primary-alt text-white px-2 py-1 rounded text-xs">Voluntary OT</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">{r.calledOut ? (r.forceStart || r.date) : (r.forceStart || '-')}</td>
+                        <td className="px-3 py-3">{r.calledOut ? '-' : (r.forceEnd || '-')}</td>
+                        <td className="px-3 py-3">{r.durationHrs} hrs</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-font-detail">
+                  Page {archivePage} of {archiveTotalPages}
+                </div>
+                <div className="space-x-2">
+                  <button
+                    className="px-3 py-1 border border-bd rounded text-sm disabled:opacity-50"
+                    onClick={() => setArchivePage((p) => Math.max(1, p - 1))}
+                    disabled={archivePage === 1}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="px-3 py-1 border border-bd rounded text-sm disabled:opacity-50"
+                    onClick={() => setArchivePage((p) => Math.min(archiveTotalPages, p + 1))}
+                    disabled={archivePage === archiveTotalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'selfreport' && (
+            <form className="grid grid-cols-1 lg:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Staff Member</label>
+                  <select className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent">
+                    <option>Select staff member...</option>
+                    <option>Johnson, Kevin (JJYDS II)</option>
+                    <option>Smith, Jennifer (JJYDS I)</option>
+                    <option>Rodriguez, Maria (JJYDS I)</option>
+                    <option>Brown, Michael (Support)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
+                  <select className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent">
+                    <option>Day (7AM-3PM)</option>
+                    <option>Evening (3PM-11PM)</option>
+                    <option>Overnight (11PM-7AM)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Date</label>
+                  <input type="date" className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Force Start</label>
+                  <input type="datetime-local" className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Force End</label>
+                  <input type="datetime-local" className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Reason / Notes</label>
+                  <textarea className="w-full border border-bd-input rounded-lg px-3 py-2 focus:ring-2 ring-primary focus:border-transparent" rows={3} placeholder="Describe circumstances of the mandatory force..." />
+                </div>
+              </div>
+              <div className="lg:col-span-2 flex justify-end">
+                <button type="button" className="px-4 py-2 text-sm font-medium text-font-base border border-bd rounded-lg hover:bg-gray-50 mr-2">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-light">Submit Self-Report</button>
               </div>
             </form>
           )}
