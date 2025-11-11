@@ -5,166 +5,73 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
 
-const menuItems = [
+const menuGroups = [
   {
-    icon: 'fa-house',
-    label: 'Dashboard',
-    href: '/dashboard',
-    roles: ['admin', 'manager', 'staff', 'supervisor'],
-    subPages: [
+    id: 'overview',
+    label: 'Overview',
+    items: [
       {
-        path: '/dashboard/add-resident',
-        title: 'Add Resident',
-        breadcrumb: 'Add Resident',
+        icon: 'fa-house',
+        label: 'Dashboard',
+        href: '/dashboard',
+        roles: ['admin', 'manager', 'staff', 'supervisor'],
+        subPages: [
+          { path: '/dashboard/add-resident', title: 'Add Resident', breadcrumb: 'Add Resident' },
+          { path: '/dashboard/view-resident', title: 'Resident Overview', breadcrumb: 'Resident Overview' },
+        ],
       },
-      {
-        path: '/dashboard/view-resident',
-        title: 'Resident Overview',
-        breadcrumb: 'Resident Overview',
-      },
+      { icon: 'fa-brain', label: 'AI Insights', href: '/dashboard/ai-insights', roles: ['admin', 'manager'] },
     ],
   },
   {
-    icon: 'fa-user-plus',
-    label: 'Unit Registry',
-    href: '/dashboard/unit-registry',
-    roles: ['admin', 'manager'],
-  },
-  {
-    icon: 'fa-users',
-    label: 'Staff Management',
-    href: '/dashboard/staff-management',
-    roles: ['admin', 'manager'],
-    subPages: [
-      {
-        path: '/dashboard/staff-management/edit-schedule',
-        title: 'Create/Edit Schedule',
-        breadcrumb: 'Schedule Builder',
-      },
+    id: 'operations',
+    label: 'Operations',
+    items: [
+      { icon: 'fa-calendar-days', label: 'Schedule', href: '/dashboard/schedule', roles: ['admin', 'manager', 'staff', 'supervisor'] },
+      { icon: 'fa-users', label: 'Staff Management', href: '/dashboard/staff-management', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/staff-management/edit-schedule', title: 'Create/Edit Schedule', breadcrumb: 'Schedule Builder' } ] },
+      { icon: 'fa-clipboard-check', label: 'Residential Census', href: '/dashboard/residential-census', roles: ['admin', 'manager', 'supervisor'] },
+      { icon: 'fa-boxes-stacked', label: 'Inventory Management', href: '/dashboard/inventory', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/inventory/refill-request', title: 'Inventory Refill Request', breadcrumb: 'Create Refill Request' }, { path: '/dashboard/inventory/reorganize', title: 'Storage Reorganization', breadcrumb: 'Plan Reorganization' } ] },
+      { icon: 'fa-truck-medical', label: 'Medical Run Coordination', href: '/dashboard/medical-runs', roles: ['admin', 'manager', 'staff'] },
     ],
   },
   {
-    icon: 'fa-calendar-days',
-    label: 'Schedule',
-    href: '/dashboard/schedule',
-    roles: ['admin', 'manager', 'staff', 'supervisor'],
-  },
-  {
-    icon: 'fa-brain',
-    label: 'AI Insights',
-    href: '/dashboard/ai-insights',
-    roles: ['admin', 'manager'],
-  },
-  {
-    icon: 'fa-clipboard-check',
-    label: 'Residential Census',
-    href: '/dashboard/residential-census',
-    roles: ['admin', 'manager', 'supervisor'],
-  },
-  {
-    icon: 'fa-pills',
-    label: 'Medication Count',
-    href: '/dashboard/medication',
-    roles: ['admin', 'manager', 'staff'],
-    subPages: [
-      {
-        path: '/dashboard/medication/all-medication-records',
-        title: 'All Medication Records',
-        breadcrumb: 'All Records',
-      },
-      {
-        path: '/dashboard/medication/medication-sheet',
-        title: 'Resident Med Sheet',
-        breadcrumb: 'Resident Med Sheet',
-      },
+    id: 'resident',
+    label: 'Resident Care',
+    items: [
+      { icon: 'fa-pills', label: 'Medication Count', href: '/dashboard/medication', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/medication/all-medication-records', title: 'All Medication Records', breadcrumb: 'All Records' }, { path: '/dashboard/medication/medication-sheet', title: 'Resident Med Sheet', breadcrumb: 'Resident Med Sheet' } ] },
+      { icon: 'fa-phone', label: 'Visitation & Phone Log', href: '/dashboard/visitation', roles: ['admin', 'manager', 'staff'] },
+      { icon: 'fa-bed', label: 'Sleep Log & Watch', href: '/dashboard/sleep-log', roles: ['admin', 'manager', 'staff'] },
+      { icon: 'fa-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' } ] },
+      { icon: 'fa-book', label: 'Log Book & Events', href: '/dashboard/logbook', roles: ['admin', 'manager', 'staff'] },
     ],
   },
   {
-    icon: 'fa-triangle-exclamation',
-    label: 'Incident Management',
-    href: '/dashboard/incidents',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-boxes-stacked',
-    label: 'Inventory Management',
-    href: '/dashboard/inventory',
-    roles: ['admin', 'manager'],
-    subPages: [
-      {
-        path: '/dashboard/inventory/refill-request',
-        title: 'Inventory Refill Request',
-        breadcrumb: 'Create Refill Request',
-      },
-      {
-        path: '/dashboard/inventory/reorganize',
-        title: 'Storage Reorganization',
-        breadcrumb: 'Plan Reorganization',
-      },
+    id: 'safety',
+    label: 'Safety & Compliance',
+    items: [
+      { icon: 'fa-triangle-exclamation', label: 'Incident Management', href: '/dashboard/incidents', roles: ['admin', 'manager', 'staff'] },
+      { icon: 'fa-fire-extinguisher', label: 'Fire Plan Management', href: '/dashboard/fire-plan', roles: ['admin', 'manager'] },
+      { icon: 'fa-building', label: 'Unit Condition (UCR)', href: '/dashboard/ucr', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/ucr/notify', title: 'Notify Supervisor', breadcrumb: 'Notify Supervisor' } ] },
     ],
   },
   {
-    icon: 'fa-truck-medical',
-    label: 'Medical Run Coordination',
-    href: '/dashboard/medical-runs',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-fire-extinguisher',
-    label: 'Fire Plan Management',
-    href: '/dashboard/fire-plan',
-    roles: ['admin', 'manager'],
-  },
-  {
-    icon: 'fa-file-lines',
-    label: 'UCR Reports',
-    href: '/dashboard/ucr',
-    roles: ['admin', 'manager', 'staff'],
-    subPages: [
-      {
-        path: '/dashboard/ucr/notify',
-        title: 'Notify Supervisor',
-        breadcrumb: 'Notify Supervisor',
-      },
+    id: 'admin',
+    label: 'Administration',
+    items: [
+      { icon: 'fa-user-plus', label: 'Unit Registry', href: '/dashboard/unit-registry', roles: ['admin', 'manager'] },
+      { icon: 'fa-gear', label: 'System Admin', href: '/dashboard/system-admin', roles: ['admin'] },
     ],
   },
-  {
-    icon: 'fa-phone',
-    label: 'Visitation & Phone Log',
-    href: '/dashboard/visitation',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-bed',
-    label: 'Sleep Log & Watch',
-    href: '/dashboard/sleep-log',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-book',
-    label: 'Log Book & Events',
-    href: '/dashboard/logbook',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-wrench',
-    label: 'Repair Management',
-    href: '/dashboard/repairs',
-    roles: ['admin', 'manager', 'staff'],
-  },
-  {
-    icon: 'fa-headset',
-    label: 'Contact Support',
-    href: '/dashboard/support',
-    roles: ['admin', 'manager', 'staff', 'supervisor'],
-  },
-  { icon: 'fa-gear', label: 'System Admin', href: '/dashboard/system-admin', roles: ['admin'] },
 ];
 
 // Helper function to get page title and breadcrumb
 const getPageTitleAndBreadcrumb = (pathname: string) => {
   // First, check if we're on an exact match for a main menu item
-  const exactMainMatch = menuItems.find((item) => pathname === item.href);
+  let exactMainMatch: any = null;
+  for (const group of menuGroups) {
+    const match = group.items.find((item: any) => pathname === item.href);
+    if (match) { exactMainMatch = match; break; }
+  }
   if (exactMainMatch) {
     return {
       title: exactMainMatch.label,
@@ -173,23 +80,24 @@ const getPageTitleAndBreadcrumb = (pathname: string) => {
   }
 
   // Check if we're on a subpage
-  for (const item of menuItems) {
-    if (item.subPages) {
-      for (const subPage of item.subPages) {
-        if (pathname === subPage.path || pathname.startsWith(subPage.path + '/')) {
-          return {
-            title: subPage.title,
-            breadcrumb: `${item.label} • ${subPage.breadcrumb}`,
-          };
+  for (const group of menuGroups) {
+    for (const item of group.items as any[]) {
+      if (item.subPages) {
+        for (const subPage of item.subPages) {
+          if (pathname === subPage.path || pathname.startsWith(subPage.path + '/')) {
+            return { title: subPage.title, breadcrumb: `${item.label} • ${subPage.breadcrumb}` };
+          }
         }
       }
     }
   }
 
   // Check if we're on a path that starts with a main menu item's href
-  const startsWithMatch = menuItems.find(
-    (item) => pathname.startsWith(item.href + '/') && pathname !== item.href
-  );
+  let startsWithMatch: any = null;
+  for (const group of menuGroups) {
+    const match = (group.items as any[]).find((item) => pathname.startsWith(item.href + '/') && pathname !== item.href);
+    if (match) { startsWithMatch = match; break; }
+  }
 
   if (startsWithMatch) {
     return {
@@ -315,7 +223,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null);
 
   // list of pages want the back button to appear on
-  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify'];
+  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify', '/dashboard/repairs/award', '/dashboard/repairs/assign'];
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -331,7 +239,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/');
   };
 
-  const filteredMenuItems = menuItems.filter((item) => user && item.roles.includes(user.role));
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const filteredGroups = menuGroups.map((group) => ({
+    ...group,
+    items: group.items.filter((item: any) => user && item.roles.includes(user.role)),
+  })).filter((group) => group.items.length > 0);
+
+  useEffect(() => {
+    // Ensure the group containing the active route is open, but do not auto-close others
+    const updates: Record<string, boolean> = {};
+    for (const group of filteredGroups) {
+      const hasActive = (group.items as any[]).some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+      if (hasActive) updates[group.id] = true;
+    }
+    setExpandedGroups((prev) => ({ ...prev, ...updates }));
+  }, [pathname, user]);
 
   if (!user) return null;
   const showBackButtonDefault = pagesWithBack.includes(pathname);
@@ -369,35 +291,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation Menu */}
         <nav className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-1">
-            {filteredMenuItems.map((item) => {
-              // Check if current item is active
-              const isActive = item.subPages
-                ? (
-                    pathname === item.href ||
-                    item.subPages.some((subPage) =>
-                      pathname === subPage.path || pathname.startsWith(subPage.path + '/')
-                    )
-                  )
-                : (
-                    pathname === item.href ||
-                    pathname.startsWith(item.href + '/')
-                  );
-
+          <div className="space-y-3">
+            {filteredGroups.map((group) => {
+              const isGroupActive = (group.items as any[]).some((item) =>
+                item.subPages
+                  ? (pathname === item.href || item.subPages.some((sp: any) => pathname === sp.path || pathname.startsWith(sp.path + '/')))
+                  : (pathname === item.href || pathname.startsWith(item.href + '/'))
+              );
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 text-font-detail rounded-lg transition-colors text-sm ${
-                    isActive
-                      ? 'bg-primary text-white font-medium'
-                      : 'text-font-base hover:bg-primary-lightest'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <i className={`fa-solid ${item.icon} w-4 mr-3 text-sm`}></i>
-                  <span className="flex-1 text-sm">{item.label}</span>
-                </Link>
+                <div key={group.id}>
+                  <button
+                    className={`w-full flex items-center justify-between px-3 py-2 text-xs uppercase tracking-wide rounded-lg transition-colors ${
+                      isGroupActive
+                        ? 'bg-primary-lightest text-primary font-semibold'
+                        : 'text-font-detail hover:bg-primary-lightest'
+                    }`}
+                    onClick={() => setExpandedGroups((s) => ({ ...s, [group.id]: !s[group.id] }))}
+                    aria-expanded={!!expandedGroups[group.id]}
+                    aria-controls={`group-${group.id}`}
+                  >
+                    <span>{group.label}</span>
+                    <i className={`fa-solid ${expandedGroups[group.id] ? 'fa-chevron-up' : 'fa-chevron-down'} text-[11px] ${isGroupActive ? 'text-primary' : 'text-font-detail'}`}></i>
+                  </button>
+                  <div
+                    id={`group-${group.id}`}
+                    className={`collapsible ${expandedGroups[group.id] ? 'open' : ''}`}
+                  >
+                    <div className="pt-1 space-y-1">
+                      {(group.items as any[]).map((item) => {
+                        const isActive = item.subPages
+                          ? (pathname === item.href || item.subPages.some((sp: any) => pathname === sp.path || pathname.startsWith(sp.path + '/')))
+                          : (pathname === item.href || pathname.startsWith(item.href + '/'));
+                        const itemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm';
+                        const itemActive = 'bg-primary text-white font-medium';
+                        const itemInactive = 'text-font-base hover:bg-primary-lightest hover:text-primary';
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`${itemBase} ${isActive ? itemActive : itemInactive}`}
+                            onClick={() => setSidebarOpen(false)}
+                          >
+                            <i className={`fa-solid ${item.icon} w-4 mr-3 text-sm ${isActive ? 'text-white' : 'text-font-detail'}`}></i>
+                            <span className="flex-1 text-sm">{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -470,6 +412,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .overflow-y-auto {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        /* Smooth collapsible for sidebar groups */
+        .collapsible {
+          max-height: 0;
+          overflow: hidden;
+          opacity: 0;
+          transition: max-height 260ms ease, opacity 220ms ease;
+        }
+        .collapsible.open {
+          max-height: 1000px; /* enough for group items */
+          opacity: 1;
         }
       `}</style>
     </div>
