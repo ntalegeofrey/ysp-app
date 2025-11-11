@@ -41,7 +41,7 @@ const menuGroups = [
       { icon: 'fa-pills', label: 'Medication Count', href: '/dashboard/medication', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/medication/all-medication-records', title: 'All Medication Records', breadcrumb: 'All Records' }, { path: '/dashboard/medication/medication-sheet', title: 'Resident Med Sheet', breadcrumb: 'Resident Med Sheet' } ] },
       { icon: 'fa-phone', label: 'Visitation & Phone Log', href: '/dashboard/visitation', roles: ['admin', 'manager', 'staff'] },
       { icon: 'fa-bed', label: 'Sleep Log & Watch', href: '/dashboard/sleep-log', roles: ['admin', 'manager', 'staff'] },
-      { icon: 'fa-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' } ] },
+      { icon: 'fa-screwdriver-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' } ] },
       { icon: 'fa-book', label: 'Log Book & Events', href: '/dashboard/logbook', roles: ['admin', 'manager', 'staff'] },
     ],
   },
@@ -139,6 +139,7 @@ function HeaderWithParams({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [programName, setProgramName] = useState<string | null>(null);
 
   let title = baseTitle;
   let breadcrumb = baseBreadcrumb;
@@ -150,6 +151,16 @@ function HeaderWithParams({
     title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
     breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
   }
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('selectedProgram');
+      if (raw) {
+        const p = JSON.parse(raw);
+        setProgramName(p.name || null);
+      }
+    } catch {}
+  }, []);
 
   return (
     <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
@@ -182,12 +193,20 @@ function HeaderWithParams({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Date Display - Hidden on mobile */}
-          <div className="hidden md:flex items-center gap-2 text-sm text-font-detail">
-            <i className="fa-solid fa-calendar text-primary"></i>
-            <span>
-              Current Date: <span className="font-medium">Nov 18, 2024</span>
-            </span>
+          {/* Date Display with Program beneath - Hidden on mobile */}
+          <div className="hidden md:flex items-start gap-2 text-sm text-font-detail">
+            <i className="fa-solid fa-calendar text-primary mt-0.5"></i>
+            <div className="leading-tight">
+              <div>
+                Current Date: <span className="font-medium">Nov 18, 2024</span>
+              </div>
+              {programName && (
+                <div className="text-xs text-font-detail mt-0.5 flex items-center gap-1">
+                  <i className="fa-solid fa-building text-primary"></i>
+                  <span className="truncate">{programName}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Notifications */}
@@ -201,13 +220,13 @@ function HeaderWithParams({
             <i className="fa-solid fa-gear text-lg sm:text-xl text-font-base"></i>
           </button>
 
-          {/* Logout Button - Text hidden on mobile */}
+          {/* Logout - icon button */}
           <button
             onClick={onLogout}
-            className="px-3 sm:px-4 py-2 bg-error text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            className="p-2 rounded-lg hover:bg-bg-subtle transition-colors"
+            title="Logout"
           >
-            <i className="fa-solid fa-right-from-bracket"></i>
-            <span className="hidden sm:inline">Logout</span>
+            <i className="fa-solid fa-right-from-bracket text-lg"></i>
           </button>
         </div>
       </div>
@@ -246,13 +265,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })).filter((group) => group.items.length > 0);
 
   useEffect(() => {
-    // Ensure the group containing the active route is open, but do not auto-close others
-    const updates: Record<string, boolean> = {};
-    for (const group of filteredGroups) {
-      const hasActive = (group.items as any[]).some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
-      if (hasActive) updates[group.id] = true;
-    }
-    setExpandedGroups((prev) => ({ ...prev, ...updates }));
   }, [pathname, user]);
 
   if (!user) return null;
@@ -299,11 +311,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   : (pathname === item.href || pathname.startsWith(item.href + '/'))
               );
               return (
-                <div key={group.id}>
+                <div
+                  key={group.id}
+                  className={`rounded-lg transition-colors ${isGroupActive ? 'bg-active-group' : ''}`}
+                >
                   <button
-                    className={`w-full flex items-center justify-between px-3 py-2 text-xs uppercase tracking-wide rounded-lg transition-colors ${
+                    className={`w-full flex items-center justify-between px-2 py-2 text-xs uppercase tracking-wide rounded-md transition-colors ${
                       isGroupActive
-                        ? 'bg-primary-lightest text-primary font-semibold'
+                        ? 'text-primary font-semibold'
                         : 'text-font-detail hover:bg-primary-lightest'
                     }`}
                     onClick={() => setExpandedGroups((s) => ({ ...s, [group.id]: !s[group.id] }))}
@@ -317,7 +332,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     id={`group-${group.id}`}
                     className={`collapsible ${expandedGroups[group.id] ? 'open' : ''}`}
                   >
-                    <div className="pt-1 space-y-1">
+                    <div className="pt-1 pb-1 space-y-1">
                       {(group.items as any[]).map((item) => {
                         const isActive = item.subPages
                           ? (pathname === item.href || item.subPages.some((sp: any) => pathname === sp.path || pathname.startsWith(sp.path + '/')))
@@ -423,6 +438,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .collapsible.open {
           max-height: 1000px; /* enough for group items */
           opacity: 1;
+        }
+        /* Slightly lighter than #e8eef4 for active group background */
+        .bg-active-group {
+          background-color: #f0f4f8;
         }
       `}</style>
     </div>

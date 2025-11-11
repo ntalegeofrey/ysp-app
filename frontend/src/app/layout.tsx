@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { logoUrl } from "./utils/logo";
 
 export const metadata: Metadata = {
   title: "Mass. DYS - Youth Supervision Platform",
@@ -29,6 +30,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
           referrerPolicy="no-referrer"
         />
+        {/* Favicon */}
+        <link rel="icon" href={logoUrl} sizes="32x32" />
+        <link rel="icon" href={logoUrl} sizes="192x192" />
+        <link rel="apple-touch-icon" href={logoUrl} />
+        <meta name="theme-color" content="#14558f" />
       </head>
       <body>
         {/* 👇 Load Highcharts safely */}

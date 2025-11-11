@@ -1,0 +1,71 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { logoUrl } from '../utils/logo';
+
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // In a real app, trigger reset email here then navigate to reset page
+    window.location.href = '/reset-password';
+  };
+
+  return (
+    <div id="password-reset-page-container" className="flex items-center justify-center min-h-[900px] p-4">
+      <main id="password-reset-main" className="w-full max-w-6xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        <div id="info-panel" className="relative bg-mf-primary text-white p-12 hidden md:flex flex-col justify-between h-[800px]">
+          <div className="absolute inset-0 z-0">
+            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/c702e0abcd-c232e202142ccf4059a8.png" alt="Boston skyline background" className="w-full h-full object-cover opacity-10" />
+          </div>
+          <div className="relative z-10">
+            <h1 id="platform-title" className="text-3xl font-bold tracking-tight">Youth Supervision Platform</h1>
+            <p id="platform-subtitle" className="text-mf-primary-lighter mt-2">Commonwealth of Massachusetts</p>
+          </div>
+          <div id="mission-statement" className="relative z-10 max-w-md">
+            <h2 className="text-lg font-semibold text-mf-highlight">Our Mission</h2>
+            <p className="mt-2 text-mf-primary-lightest leading-relaxed">
+              As the Juvenile Justice agency for the Commonwealth of Massachusetts, the Department of Youth Services promotes positive change in the youth in our care and custody by engaging in partnerships with communities, families, and government and provider agencies.
+            </p>
+          </div>
+          <div className="relative z-10 text-xs text-mf-primary-lighter">© 2025 Commonwealth of Massachusetts. All rights reserved.</div>
+        </div>
+        <div id="password-reset-form-panel" className="p-8 sm:p-12 flex flex-col justify-center h-[800px]">
+          <div id="password-reset-header" className="text-center mb-8">
+            <img src={logoUrl} alt="DYS Logo" className="mx-auto h-24 w-24 mb-4" />
+            <h2 className="text-2xl font-bold text-mf-font-base">Forgot Your Password?</h2>
+            <p className="text-mf-font-detail mt-2">Enter your state email address and we'll send you a link to reset it.</p>
+          </div>
+          <form id="password-reset-form" onSubmit={handleSubmit} className="space-y-6">
+            <div id="email-input-group">
+              <label htmlFor="email" className="block text-sm font-medium text-mf-font-detail">State Government Email</label>
+              <div className="mt-1 relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <i className="fa-solid fa-envelope text-gray-400"></i>
+                </span>
+                <input id="email" name="email" type="email" autoComplete="email" required placeholder="example@mass.gov" value={email} onChange={(e)=>setEmail(e.target.value)} className="block w-full pl-10 pr-3 py-3 border border-mf-bd-input rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-mf-focus focus:border-mf-focus sm:text-sm" />
+              </div>
+            </div>
+            <div id="password-reset-action-group">
+              <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-mf-primary hover:bg-mf-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mf-primary-light transition-colors duration-300">
+                Send Password Reset Link
+              </button>
+            </div>
+          </form>
+          <div id="support-links" className="mt-8 text-center text-sm">
+            <Link href="/" className="font-medium text-mf-font-link hover:text-mf-primary flex items-center justify-center">
+              <i className="fa-solid fa-arrow-left mr-2"></i>
+              Back to Sign In
+            </Link>
+          </div>
+          <footer id="footer" className="mt-auto pt-8 text-center text-xs text-gray-400">
+            <p>This is an official Commonwealth of Massachusetts application.</p>
+            <p>Unauthorized access is strictly prohibited.</p>
+          </footer>
+        </div>
+      </main>
+    </div>
+  );
+}

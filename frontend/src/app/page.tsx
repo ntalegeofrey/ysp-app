@@ -22,7 +22,7 @@ export default function LoginPage() {
       name: formData.email.split('@')[0],
       rememberMe
     }));
-    router.push('/dashboard');
+    router.push('/mfa');
   };
 
 
@@ -98,13 +98,12 @@ export default function LoginPage() {
               </button></div>
           </form>
           <div id="support-links" className="mt-8 text-center">
-            <div className="text-sm"><a href="#"
-                className="font-medium text-mf-font-link hover:text-mf-primary">Forgot
-                your password?</a></div>
-            <div className="mt-4 text-xs text-mf-font-detail"><span>Having trouble
-                signing in?</span><a href="#"
-                className="font-medium text-mf-font-link hover:text-mf-primary ml-1">Contact
-                Support</a></div>
+            <div className="text-sm">
+              <a href="/forgot-password" className="font-medium text-mf-font-link hover:text-mf-primary">Forgot your password?</a>
+            </div>
+            <div className="mt-4 text-xs text-mf-font-detail">
+              <a href="/support" className="font-medium text-mf-font-link hover:text-mf-primary">Contact IT Support</a>
+            </div>
           </div>
           <footer id="footer" className="mt-12 text-center text-xs text-gray-400">
             <p>This is an official Commonwealth of Massachusetts application.
