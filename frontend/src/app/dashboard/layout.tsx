@@ -90,6 +90,18 @@ const menuItems = [
     label: 'Inventory Management',
     href: '/dashboard/inventory',
     roles: ['admin', 'manager'],
+    subPages: [
+      {
+        path: '/dashboard/inventory/refill-request',
+        title: 'Inventory Refill Request',
+        breadcrumb: 'Create Refill Request',
+      },
+      {
+        path: '/dashboard/inventory/reorganize',
+        title: 'Storage Reorganization',
+        breadcrumb: 'Plan Reorganization',
+      },
+    ],
   },
   {
     icon: 'fa-truck-medical',
@@ -108,6 +120,13 @@ const menuItems = [
     label: 'UCR Reports',
     href: '/dashboard/ucr',
     roles: ['admin', 'manager', 'staff'],
+    subPages: [
+      {
+        path: '/dashboard/ucr/notify',
+        title: 'Notify Supervisor',
+        breadcrumb: 'Notify Supervisor',
+      },
+    ],
   },
   {
     icon: 'fa-phone',
@@ -296,7 +315,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null);
 
   // list of pages want the back button to appear on
-  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records'];
+  const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify'];
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
