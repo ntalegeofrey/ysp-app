@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
+import Loading from '../components/loading';
 
 const menuGroups = [
   {
@@ -387,24 +388,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Top Navigation Bar */}
-        <Suspense fallback={
-          <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="lg:hidden p-2 rounded-lg hover:bg-bg-subtle transition-colors"
-                >
-                  <i className={`fa-solid ${sidebarOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
-                </button>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-font-heading">{base.title}</h2>
-                  <p className="text-sm text-font-detail mt-1">{base.breadcrumb}</p>
-                </div>
-              </div>
-            </div>
-          </header>
-        }>
+        <Suspense fallback={<Loading /> }>
           <HeaderWithParams
             baseTitle={base.title}
             baseBreadcrumb={base.breadcrumb}
