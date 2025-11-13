@@ -11,14 +11,32 @@ package-lock.json
 out/
 dist/
 build/
+backend/target/
 
 # environment files
 .env
 .env.local
+backend/.env
+backend/.env.local
+
+# IDE / editors
+.idea/
+.vscode/
+*.iml
 
 # logs
 *.log
+logs/
+coverage/
 
 # system files
 .DS_Store
 Thumbs.db
+
+# local binaries/tools
+mailhog
+mailpit
+
+# Ansible (keep encrypted vault.yml tracked; ignore local passwords)
+ansible/group_vars/vault.yml
+*.retry

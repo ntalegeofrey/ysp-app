@@ -45,7 +45,9 @@ services:
       - "${MAILPIT_WEB_PORT:-8025}:8025"    # Web UI
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: ysp-app-backend
     restart: always
     depends_on:
