@@ -1,13 +1,30 @@
 - name: Deploy YSP App
   hosts: all
   become: true
+  vars_files:
+    - group_vars/all.yml
+    - group_vars/vault.yml
   tasks:
+    - name: Ensure app directory exists
+      file:
+        path: /opt/ysp-app
+        state: directory
+        mode: '0755'
+
     - name: Pull latest code from GitHub
       git:
         repo: "https://github.com/ntalegeofrey/ysp-app.git"
         dest: /opt/ysp-app
         version: main
         force: yes
+
+    - name: Template docker-compose env
+      template:
+        src: templates/compose.env.j2
+        dest: /opt/ysp-app/.env
+        owner: root
+        group: root
+        mode: '0600'
 
     - name: Rebuild and restart containers
       command: docker compose up -d --build --remove-orphans

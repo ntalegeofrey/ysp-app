@@ -1,7 +1,24 @@
-# Folders to ignore
+# dependencies
 node_modules/
+.pnpm/
+.npm/
+package-lock.json
+.prettierrc
+.eslint.config.js
+
+# build output
 .next/
+out/
 dist/
 build/
+
+# environment files
 .env
+.env.local
+
+# logs
 *.log
+
+# system files
+.DS_Store
+Thumbs.db

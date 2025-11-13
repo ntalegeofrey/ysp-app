@@ -13,16 +13,40 @@ export default function LoginPage() {
     role: 'admin'
   });
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('user', JSON.stringify({
-      email: formData.email,
-      role: formData.role,
-      name: formData.email.split('@')[0],
-      rememberMe
-    }));
-    router.push('/mfa');
+    setError(null);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+      const res = await fetch(`${base}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: formData.password })
+      });
+      if (!res.ok) {
+        setError('Invalid credentials.');
+        return;
+      }
+      const data = await res.json();
+      if (data?.mfaRequired) {
+        localStorage.setItem('user', JSON.stringify({
+          email: formData.email,
+          role: formData.role,
+          name: formData.email.split('@')[0],
+          rememberMe
+        }));
+        router.push('/mfa');
+      } else if (data?.accessToken) {
+        localStorage.setItem('token', data.accessToken);
+        router.push('/terms');
+      } else {
+        setError('Unexpected response.');
+      }
+    } catch (err) {
+      setError('Unable to contact server.');
+    }
   };
 
 
@@ -92,6 +116,9 @@ export default function LoginPage() {
                   className="block w-full pl-10 pr-3 py-3 border border-mf-bd-input rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-mf-focus focus:border-mf-focus sm:text-sm"/>
               </div>
             </div>
+            {error && (
+              <div className="text-sm text-red-600">{error}</div>
+            )}
             <div id="login-action-group"><button type="submit"
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-mf-primary hover:bg-mf-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mf-primary-light transition-colors duration-300">
                 Sign In

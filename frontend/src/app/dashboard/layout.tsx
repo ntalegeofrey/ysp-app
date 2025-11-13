@@ -247,7 +247,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    if (!userData) {
+    const token = localStorage.getItem('token');
+    if (!userData || !token) {
       router.push('/');
     } else {
       setUser(JSON.parse(userData));
@@ -255,7 +256,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedProgram');
+    } catch {}
     router.push('/');
   };
 

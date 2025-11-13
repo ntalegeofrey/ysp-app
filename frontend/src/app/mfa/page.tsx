@@ -9,6 +9,8 @@ export default function MFAPage() {
   const inputsRef = useRef<(HTMLInputElement | null)[]>(new Array(5).fill(null));
   const [code, setCode] = useState<string[]>(['', '', '', '', '']);
   const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     inputsRef.current[0]?.focus();
@@ -39,13 +41,59 @@ export default function MFAPage() {
     inputsRef.current[focusIndex]?.focus();
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     const value = code.join('');
-    if (value === '12345') {
-      router.push('/terms');
-    } else {
-      setError('Invalid code. Please try 12345.');
+    if (value.length !== 5) {
+      setError('Please enter the 5-digit code.');
+      return;
+    }
+    try {
+      setVerifying(true);
+      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const email = user?.email;
+      const res = await fetch(`${base}/auth/mfa/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: value })
+      });
+      if (!res.ok) {
+        setError('Invalid or expired code.');
+        return;
+      }
+      const data = await res.json();
+      if (data?.accessToken) {
+        localStorage.setItem('token', data.accessToken);
+        router.push('/terms');
+      } else {
+        setError('Unexpected response.');
+      }
+    } catch (err) {
+      setError('Unable to contact server.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const resend = async () => {
+    setError('');
+    try {
+      setSending(true);
+      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const email = user?.email;
+      const res = await fetch(`${base}/auth/mfa/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) setError('Unable to resend code.');
+    } catch (e) {
+      setError('Unable to resend code.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -76,11 +124,15 @@ export default function MFAPage() {
               ))}
             </div>
             {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
-            <button type="submit" className="w-full bg-mf-primary text-white font-bold py-3 px-4 rounded-md hover:bg-mf-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mf-focus transition-colors duration-300">
+            <button disabled={verifying} type="submit" className="w-full bg-mf-primary text-white font-bold py-3 px-4 rounded-md hover:bg-mf-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-mf-focus transition-colors duration-300 disabled:opacity-60">
               Verify Code
             </button>
+            <div className="mt-4">
+              <button type="button" disabled={sending} onClick={resend} className="text-sm text-font-link hover:text-mf-primary disabled:opacity-60">
+                {sending ? 'Resending…' : 'Resend code'}
+              </button>
+            </div>
           </form>
-          <div className="mt-6 text-sm text-font-detail">Use demo code <span className="font-semibold text-font-link">12345</span>.</div>
         </div>
       </main>
       <footer className="mt-8 text-center text-font-detail text-sm">

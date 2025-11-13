@@ -29,11 +29,18 @@ export default function ProgramSelectionPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem('user');
-      if (raw) setRole(JSON.parse(raw).role || '');
+      const token = localStorage.getItem('token');
+      if (!raw || !token) {
+        router.push('/');
+        return;
+      }
+      setRole(JSON.parse(raw).role || '');
+      setReady(true);
     } catch {}
   }, []);
 
@@ -48,6 +55,7 @@ export default function ProgramSelectionPage() {
     router.push('/dashboard');
   };
 
+  if (!ready) return null;
   return (
     <div id="program-selection-container" className="min-h-screen hero-pattern">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
@@ -66,7 +74,7 @@ export default function ProgramSelectionPage() {
                 <p className="text-xs text-font-detail">Super Administrator</p>
               </div>
               <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="User" className="w-10 h-10 rounded-full border-2 border-primary-lighter" />
-              <button className="text-font-detail hover:text-primary ml-4" onClick={() => { localStorage.removeItem('user'); router.push('/'); }}>
+              <button className="text-font-detail hover:text-primary ml-4" onClick={() => { try { localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('selectedProgram'); } catch {}; router.push('/'); }}>
                 <i className="fa-solid fa-sign-out-alt text-lg"></i>
               </button>
             </div>
