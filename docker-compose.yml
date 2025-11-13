@@ -8,8 +8,8 @@ services:
     ports:
       - "${FRONTEND_PORT}:3000"
     environment:
-      # Frontend will call the backend from the browser on localhost
-      NEXT_PUBLIC_API_BASE: "http://localhost:${BACKEND_PORT}"
+      # Frontend calls backend via Nginx reverse proxy (same-origin)
+      NEXT_PUBLIC_API_BASE: "/api"
 
   postgres:
     image: postgres:15
