@@ -52,8 +52,8 @@ export default function AdminOperationsLayout({ children }: { children: React.Re
     let cancelled = false;
     const check = async () => {
       try {
-        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-        const res = await fetch(`${base}/permissions/check?module=${encodeURIComponent('System Admin')}` , {
+        const url = `/api/permissions/check?module=${encodeURIComponent('System Admin')}`;
+        const res = await fetch(url, {
           method: 'GET',
           credentials: 'include',
           headers: { 'Accept': 'application/json' }
