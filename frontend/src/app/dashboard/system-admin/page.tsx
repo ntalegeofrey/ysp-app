@@ -1,6 +1,165 @@
-'use client';
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type UserItem = {
+  id: number;
+  email: string;
+  role: string;
+  enabled: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  fullName?: string;
+  jobTitle?: string;
+  employeeNumber?: string;
+};
+
+type RoleItem = { id: number; name: string; description?: string; active?: boolean };
 
 export default function SystemAdminPage() {
+  const router = useRouter();
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [sendOtlBusy, setSendOtlBusy] = useState<number | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newJobTitle, setNewJobTitle] = useState("");
+  const [newJobTitleOther, setNewJobTitleOther] = useState("");
+  const [newRole, setNewRole] = useState("user");
+  const [newSendOtl, setNewSendOtl] = useState(true);
+  const [newEmployeeNumber, setNewEmployeeNumber] = useState("");
+
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+
+  const base = useMemo(() => process.env.NEXT_PUBLIC_API_BASE || "/api", []);
+  const token = useMemo(() => (typeof window !== "undefined" ? localStorage.getItem("token") : null), []);
+  const authHeader = useMemo(() => ({ Authorization: token ? `Bearer ${token}` : "" }), [token]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${base}/admin/users`, { headers: { ...authHeader } });
+      if (res.status === 401 || res.status === 403) {
+        router.push("/");
+        return;
+      }
+      if (!res.ok) throw new Error("Failed to load users");
+      const data = (await res.json()) as UserItem[];
+      setUsers(data);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      router.push("/");
+      return;
+    }
+    fetchUsers();
+    // load roles for dropdown
+    (async () => {
+      try {
+        const res = await fetch(`${base}/admin/roles`, { headers: { ...authHeader } });
+        if (res.ok) {
+          const data = (await res.json()) as RoleItem[];
+          setRoles(data.filter(r => r.active !== false));
+        }
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const createUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setCreating(true);
+      setError(null);
+      const res = await fetch(`${base}/admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({
+          email: newEmail,
+          role: newRole,
+          fullName: newFullName || undefined,
+          jobTitle: (newJobTitle === "Other" ? newJobTitleOther : newJobTitle) || undefined,
+          employeeNumber: newEmployeeNumber || undefined,
+          sendOneTimeLogin: newSendOtl,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create user");
+      setNewFullName("");
+      setNewEmail("");
+      setNewJobTitle("");
+      setNewJobTitleOther("");
+      setNewRole("user");
+      setNewSendOtl(true);
+      setNewEmployeeNumber("");
+      await fetchUsers();
+    } catch (e: any) {
+      setError(e?.message || "Failed to create user");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleEnabled = async (u: UserItem) => {
+    try {
+      setSavingId(u.id);
+      const res = await fetch(`${base}/admin/users/${u.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ enabled: !u.enabled }),
+      });
+      if (!res.ok) throw new Error("Failed to update user");
+      await fetchUsers();
+    } catch (e: any) {
+      setError(e?.message || "Failed to update user");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const changeRole = async (u: UserItem, role: string) => {
+    try {
+      setSavingId(u.id);
+      const res = await fetch(`${base}/admin/users/${u.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) throw new Error("Failed to change role");
+      await fetchUsers();
+    } catch (e: any) {
+      setError(e?.message || "Failed to change role");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const sendOtl = async (u: UserItem) => {
+    try {
+      setSendOtlBusy(u.id);
+      const res = await fetch(`${base}/admin/users/${u.id}/otl`, {
+        method: "POST",
+        headers: { ...authHeader },
+      });
+      if (!res.ok) throw new Error("Failed to send one-time login");
+    } catch (e: any) {
+      setError(e?.message || "Failed to send one-time login");
+    } finally {
+      setSendOtlBusy(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Overview cards */}
@@ -183,183 +342,134 @@ export default function SystemAdminPage() {
         </div>
       </div>
 
-      {/* Super User Management */}
+      {/* User Management (functional, preserving design) */}
       <div className="bg-white rounded-lg border border-bd mb-2">
         <div className="p-6 border-b border-bd">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-font-base flex items-center">
                 <i className="fa-solid fa-user-crown text-primary mr-3"></i>
-                Super User Management
+                User Management
               </h3>
               <div className="mt-2 text-sm text-font-detail">
-                Manage super users who can onboard and manage other staff members
+                Manage users who can onboard and manage other staff members
               </div>
             </div>
-            <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
+            <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm" onClick={(e)=>{}}>
               <i className="fa-solid fa-plus mr-2"></i>
-              Add Super User
+              Add New User
             </button>
           </div>
         </div>
 
         <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div className="bg-primary-lightest border border-primary rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center">
-                  <i className="fa-solid fa-crown text-primary mr-2"></i>
-                  <h4 className="font-semibold text-primary">Sarah Wilson</h4>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="text-primary hover:text-primary-light text-sm">
-                    <i className="fa-solid fa-edit"></i>
-                  </button>
-                  <span className="bg-success text-white px-2 py-1 rounded text-xs">Active</span>
-                </div>
-              </div>
-              <div className="text-sm text-font-detail space-y-1">
-                <p><strong>Email:</strong> sarah.wilson@mass.gov</p>
-                <p><strong>Employee ID:</strong> EMP-2024-001</p>
-                <p><strong>Title:</strong> System Administrator</p>
-                <p><strong>Last Login:</strong> Nov 18, 2024 - 8:30 AM</p>
-              </div>
-            </div>
-
-            <div className="bg-primary-lightest border border-primary rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center">
-                  <i className="fa-solid fa-crown text-primary mr-2"></i>
-                  <h4 className="font-semibold text-primary">Michael Chen</h4>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="text-primary hover:text-primary-light text-sm">
-                    <i className="fa-solid fa-edit"></i>
-                  </button>
-                  <span className="bg-success text-white px-2 py-1 rounded text-xs">Active</span>
-                </div>
-              </div>
-              <div className="text-sm text-font-detail space-y-1">
-                <p><strong>Email:</strong> michael.chen@mass.gov</p>
-                <p><strong>Employee ID:</strong> EMP-2024-002</p>
-                <p><strong>Title:</strong> IT Director</p>
-                <p><strong>Last Login:</strong> Nov 17, 2024 - 4:15 PM</p>
-              </div>
-            </div>
-          </div>
-
+          {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
           <div className="bg-gray-50 border border-bd rounded-lg p-4 mb-6">
             <h4 className="font-semibold text-font-base mb-3 flex items-center">
               <i className="fa-solid fa-user-plus text-primary mr-2"></i>
-              Add New Super User
+              Add New User
             </h4>
-            <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={createUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Full Name</label>
-                <input type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter full name" />
+                <input value={newFullName} onChange={(e)=>setNewFullName(e.target.value)} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter full name" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Government Email</label>
-                <input type="email" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="username@mass.gov" />
+                <label className="block text-sm font-medium text-font-base mb-2">Email</label>
+                <input value={newEmail} onChange={(e)=>setNewEmail(e.target.value)} type="email" required className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="user@example.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Employee Number</label>
-                <input type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="EMP-2024-XXX" />
+                <input value={newEmployeeNumber} onChange={(e)=>setNewEmployeeNumber(e.target.value)} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="EMP-2024-XXX" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Job Title</label>
-                <select className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                  <option>Select job title</option>
+                <select value={newJobTitle} onChange={(e)=>setNewJobTitle(e.target.value)} className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                  <option value="">Select job title</option>
                   <option>System Administrator</option>
                   <option>IT Director</option>
                   <option>Facility Manager</option>
                   <option>Operations Director</option>
                   <option>Security Administrator</option>
+                  <option>Clinical Staff</option>
+                  <option>Caseworker</option>
+                  <option>Support Staff</option>
+                  <option>Supervisor</option>
+                  <option>Other</option>
                 </select>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-font-base mb-2">Access Level</label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input type="radio" name="access_level" value="full" className="mr-2 text-primary" />
-                    <span className="text-sm">Full System Access</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input type="radio" name="access_level" value="staff_management" className="mr-2 text-primary" />
-                    <span className="text-sm">Staff Management Only</span>
-                  </label>
+              {newJobTitle === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Specify Title</label>
+                  <input value={newJobTitleOther} onChange={(e)=>setNewJobTitleOther(e.target.value)} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter job title" />
                 </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Role</label>
+                <select value={newRole} onChange={(e)=>setNewRole(e.target.value)} className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                  {[{id:0,name:'user'}, ...roles].map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
+                </select>
               </div>
-              <div className="md:col-span-2 flex justify-end space-x-3">
-                <button type="button" className="px-4 py-2 border border-bd rounded-lg text-font-detail hover:bg-gray-50">
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light">
-                  <i className="fa-solid fa-plus mr-2"></i>
-                  Add Super User
-                </button>
+              <div className="md:col-span-2 flex items-center justify-between">
+                <label className="flex items-center text-sm">
+                  <input id="sendOtl" type="checkbox" checked={newSendOtl} onChange={(e)=>setNewSendOtl(e.target.checked)} className="mr-2" />
+                  Send one-time login email
+                </label>
+                <div>
+                  <button type="submit" disabled={creating} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light">
+                    {creating ? "Creating…" : "Create User"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border border-bd">
-              <thead className="bg-primary text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Employee ID</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Job Title</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Access Level</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Last Login</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-bd">
-                <tr className="bg-white hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-font-base">David Rodriguez</td>
-                  <td className="px-4 py-3 text-sm">david.rodriguez@mass.gov</td>
-                  <td className="px-4 py-3 text-sm">EMP-2024-003</td>
-                  <td className="px-4 py-3 text-sm">Facility Manager</td>
-                  <td className="px-4 py-3 text-sm">Full System</td>
-                  <td className="px-4 py-3 text-sm">Nov 18, 2024</td>
-                  <td className="px-4 py-3">
-                    <span className="bg-success text-white px-2 py-1 rounded text-xs">Active</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="text-primary hover:text-primary-light text-sm mr-2">
-                      <i className="fa-solid fa-edit"></i>
-                    </button>
-                    <button className="text-error hover:text-red-700 text-sm">
-                      <i className="fa-solid fa-user-slash"></i>
-                    </button>
-                  </td>
-                </tr>
-                <tr className="bg-white hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-font-base">Jennifer Park</td>
-                  <td className="px-4 py-3 text-sm">jennifer.park@mass.gov</td>
-                  <td className="px-4 py-3 text-sm">EMP-2024-004</td>
-                  <td className="px-4 py-3 text-sm">Operations Director</td>
-                  <td className="px-4 py-3 text-sm">Staff Management</td>
-                  <td className="px-4 py-3 text-sm">Nov 16, 2024</td>
-                  <td className="px-4 py-3">
-                    <span className="bg-warning text-white px-2 py-1 rounded text-xs">Pending</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="text-primary hover:text-primary-light text-sm mr-2">
-                      <i className="fa-solid fa-edit"></i>
-                    </button>
-                    <button className="text-success hover:text-green-700 text-sm mr-2">
-                      <i className="fa-solid fa-check"></i>
-                    </button>
-                    <button className="text-error hover:text-red-700 text-sm">
-                      <i className="fa-solid fa-times"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            {loading ? (
+              <div>Loading…</div>
+            ) : (
+              <table className="w-full border border-bd">
+                <thead className="bg-primary text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Full Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Job Title</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Role</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Enabled</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Must Update</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-bd">
+                  {users.map((u) => (
+                    <tr key={u.id} className="bg-white hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-font-base">{u.fullName || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{u.jobTitle || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{u.email}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <select value={u.role} onChange={(e)=>changeRole(u, e.target.value)} disabled={savingId===u.id} className="border rounded px-2 py-1 bg-white">
+                          <option value="user">user</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button onClick={()=>toggleEnabled(u)} disabled={savingId===u.id} className="px-3 py-1 rounded border">
+                          {u.enabled ? "Disable" : "Enable"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{u.mustChangePassword ? 'Yes' : 'No'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <button onClick={()=>sendOtl(u)} disabled={sendOtlBusy===u.id} className="px-3 py-1 rounded bg-primary text-white">
+                          {sendOtlBusy===u.id ? 'Sending…' : 'Send OTL'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

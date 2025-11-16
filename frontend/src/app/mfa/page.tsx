@@ -51,7 +51,7 @@ export default function MFAPage() {
     }
     try {
       setVerifying(true);
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+      const base = process.env.NEXT_PUBLIC_API_BASE || '/api';
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const email = user?.email;
       const res = await fetch(`${base}/auth/mfa/verify`, {
@@ -81,7 +81,7 @@ export default function MFAPage() {
     setError('');
     try {
       setSending(true);
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+      const base = process.env.NEXT_PUBLIC_API_BASE || '/api';
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const email = user?.email;
       const res = await fetch(`${base}/auth/mfa/send`, {

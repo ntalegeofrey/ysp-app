@@ -60,7 +60,6 @@ const menuGroups = [
     label: 'Administration',
     items: [
       { icon: 'fa-user-plus', label: 'Unit Registry', href: '/dashboard/unit-registry', roles: ['admin', 'manager'] },
-      { icon: 'fa-gear', label: 'System Admin', href: '/dashboard/system-admin', roles: ['admin'] },
     ],
   },
 ];
@@ -248,11 +247,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const userData = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    if (!userData || !token) {
+    if (!token) {
       router.push('/');
-    } else {
-      setUser(JSON.parse(userData));
+      return;
     }
+    // Try fetching profile from backend
+    (async () => {
+      try {
+        const base = process.env.NEXT_PUBLIC_API_BASE || '/api';
+        const res = await fetch(`${base}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const profile = await res.json();
+          setUser({
+            email: profile.email,
+            role: profile.role,
+            name: profile.fullName || (profile.email ? String(profile.email).split('@')[0] : ''),
+            fullName: profile.fullName,
+            jobTitle: profile.jobTitle,
+          });
+          return;
+        }
+      } catch {}
+      // Fallback to local storage user
+      if (userData) {
+        try { setUser(JSON.parse(userData)); } catch {}
+      } else {
+        router.push('/');
+      }
+    })();
   }, [router]);
 
   const handleLogout = () => {
@@ -374,8 +396,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <i className="fa-solid fa-user text-white"></i>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-font-base truncate">{user.name}</p>
-                <p className="text-xs text-font-detail capitalize">{user.role}</p>
+                <p className="text-sm font-medium text-font-base truncate">{user.fullName || user.name || user.email}</p>
+                <p className="text-xs text-font-detail truncate">{user.jobTitle || (user.role ? String(user.role).toLowerCase() : '')}</p>
               </div>
             </div>
             {/* Logout Button in Sidebar */}
