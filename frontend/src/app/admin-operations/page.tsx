@@ -205,13 +205,14 @@ export default function AdminOperationsPage() {
     if (!roleModal) return;
     const basicId = roleForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const id = roleModal.mode === "edit" && roleModal.id ? roleModal.id : basicId || `role-${Date.now()}`;
+    const idStr = typeof id === 'string' ? id : String(id);
 
     // Update or add tile
     setRoleTiles((prev) => {
-      const exists = prev.some((t) => t.id === id) || prev.some((t) => t.name.toLowerCase() === roleForm.name.trim().toLowerCase());
+      const exists = prev.some((t) => t.id === idStr) || prev.some((t) => t.name.toLowerCase() === roleForm.name.trim().toLowerCase());
       const modulesCount = Object.values(roleForm.moduleAccess).filter((v) => v !== "None").length;
       const updated: RoleTile = {
-        id,
+        id: idStr,
         name: roleForm.name || "New Role",
         status: roleForm.status ? "Active" : "Inactive",
         description: roleForm.description || "",
@@ -221,23 +222,24 @@ export default function AdminOperationsPage() {
         tone: "primary",
       };
       if (roleModal.mode === "edit") {
-        return prev.map((t) => (t.id === (roleModal.id || id) ? { ...t, ...updated } : t));
+        const matchId = String(roleModal.id ?? idStr);
+        return prev.map((t) => (t.id === matchId ? { ...t, ...updated } : t));
       }
       return exists ? prev : [updated, ...prev];
     });
 
     // Ensure table row exists/updates
     setRoleRows((prev) => {
-      const exists = prev.some((r) => r.id === id);
+      const exists = prev.some((r) => r.id === idStr);
       const updated: RoleRow = {
-        id,
+        id: idStr,
         name: roleForm.name || "New Role",
         description: roleForm.description || "",
         users: 0,
         lastModified: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
         status: roleForm.status ? "Active" : "Inactive",
       };
-      return exists ? prev.map((r) => (r.id === id ? updated : r)) : [updated, ...prev];
+      return exists ? prev.map((r) => (r.id === idStr ? updated : r)) : [updated, ...prev];
     });
 
     // Persist to backend
@@ -274,7 +276,7 @@ export default function AdminOperationsPage() {
     } catch {}
 
     // Write selections to the permissions matrix for this role name
-    const roleName = roleForm.name.trim() || (typeof id === 'string' ? id : String(id));
+    const roleName = roleForm.name.trim() || idStr;
     setMatrix((prev) => {
       const next = {
         ...prev,
