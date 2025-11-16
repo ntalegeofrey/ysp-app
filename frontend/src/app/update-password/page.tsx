@@ -35,7 +35,7 @@ export default function UpdatePasswordPage() {
     }
     try {
       setSubmitting(true);
-      const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
+      const base = process.env.NEXT_PUBLIC_API_BASE || "/api";
       const res = await fetch(`${base}/auth/password/update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
