@@ -19,6 +19,10 @@ public class User {
     private String role; // admin, staff, etc.
 
     private Boolean enabled = true;
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+    @Column(name = "last_password_change_at")
+    private Instant lastPasswordChangeAt;
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
@@ -32,6 +36,10 @@ public class User {
     public void setRole(String role) { this.role = role; }
     public Boolean getEnabled() { return enabled; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
+    public Boolean getMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(Boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public Instant getLastPasswordChangeAt() { return lastPasswordChangeAt; }
+    public void setLastPasswordChangeAt(Instant lastPasswordChangeAt) { this.lastPasswordChangeAt = lastPasswordChangeAt; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

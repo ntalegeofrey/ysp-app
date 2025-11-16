@@ -2,6 +2,8 @@ package app.ysp.controller;
 
 import app.ysp.dto.*;
 import app.ysp.service.AuthService;
+import app.ysp.service.OneTimeLoginService;
+import app.ysp.repo.UserRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +15,14 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final OneTimeLoginService oneTimeLoginService;
+    private final UserRepository userRepository;
 
-    public AuthController(AuthService authService) { this.authService = authService; }
+    public AuthController(AuthService authService, OneTimeLoginService oneTimeLoginService, UserRepository userRepository) {
+        this.authService = authService;
+        this.oneTimeLoginService = oneTimeLoginService;
+        this.userRepository = userRepository;
+    }
 
     @Value("${app.admin.email}")
     private String adminEmail;
@@ -44,6 +52,15 @@ public class AuthController {
     public ResponseEntity<TokenResponse> verify(@Valid @RequestBody MfaVerifyRequest request) {
         String token = authService.verifyMfa(request.getEmail(), request.getCode());
         if (token == null) return ResponseEntity.status(401).build();
-        return ResponseEntity.ok(new TokenResponse(token));
+        var resp = new TokenResponse(token);
+        userRepository.findByEmail(request.getEmail()).ifPresent(u -> resp.setRequiresPasswordUpdate(Boolean.TRUE.equals(u.getMustChangePassword())));
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/password/update")
+    public ResponseEntity<?> updatePassword(@Valid @RequestBody UpdatePasswordRequest req) {
+        boolean ok = oneTimeLoginService.updatePasswordByToken(req.getToken(), req.getNewPassword());
+        if (!ok) return ResponseEntity.status(400).build();
+        return ResponseEntity.ok().build();
     }
 }

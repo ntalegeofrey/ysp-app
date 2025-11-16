@@ -70,4 +70,26 @@ public class MailService {
             System.err.println("[WARN] Failed to send MFA email: " + e.getMessage());
         }
     }
+
+    public void sendOneTimeLoginEmail(String to, String link) {
+        try {
+            String subject = "Your one-time login link";
+            String html = "<div style=\"font-family:Arial,sans-serif;\">" +
+                    "<h2>Support DYS</h2>" +
+                    "<p>Hello,</p>" +
+                    "<p>Click the button below to set your new password. This link will expire soon.</p>" +
+                    "<p><a href=\"" + link + "\" style=\"display:inline-block;padding:10px 16px;background:#0046AD;color:#fff;text-decoration:none;border-radius:6px;\">Set New Password</a></p>" +
+                    "<p>If you did not request this, please ignore this email.</p>" +
+                    "</div>";
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("[WARN] Failed to send OTL email: " + e.getMessage());
+        }
+    }
 }

@@ -70,6 +70,7 @@ services:
       # Admin bootstrap
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL}
       # SMTP points to Mailpit service inside compose
       SMTP_HOST: mailpit
       SMTP_PORT: 1025

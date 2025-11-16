@@ -125,10 +125,7 @@ export default function LoginPage() {
               </button></div>
           </form>
           <div id="support-links" className="mt-8 text-center">
-            <div className="text-sm">
-              <a href="/forgot-password" className="font-medium text-mf-font-link hover:text-mf-primary">Forgot your password?</a>
-            </div>
-            <div className="mt-4 text-xs text-mf-font-detail">
+            <div className="text-xs text-mf-font-detail">
               <a href="/support" className="font-medium text-mf-font-link hover:text-mf-primary">Contact IT Support</a>
             </div>
           </div>

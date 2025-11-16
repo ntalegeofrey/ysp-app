@@ -31,6 +31,11 @@
       args:
         chdir: /opt/ysp-app
 
+    - name: Restart nginx to refresh upstream DNS
+      command: docker compose restart nginx
+      args:
+        chdir: /opt/ysp-app
+
     - name: Show running containers
       command: docker ps
       register: output
