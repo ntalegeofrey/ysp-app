@@ -49,18 +49,42 @@ export default function AdminOperationsLayout({ children }: { children: React.Re
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    try {
-      const role = typeof window !== 'undefined' ? (localStorage.getItem('currentRole') || 'Admin') : 'Admin';
-      const sysAccess = typeof window !== 'undefined' ? (localStorage.getItem('systemAdminAccess') || 'None') : 'None';
-      if (role !== 'Admin' || sysAccess !== 'Full') {
-        router.replace('/access-denied');
-        setAllowed(false);
-      } else {
-        setAllowed(true);
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+        const res = await fetch(`${base}/permissions/check?module=${encodeURIComponent('System Admin')}` , {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) {
+          if (!cancelled) {
+            router.replace('/access-denied');
+            setAllowed(false);
+          }
+          return;
+        }
+        const data = await res.json();
+        const access = (data?.access || '').toUpperCase();
+        const isFull = access === 'FULL';
+        if (!cancelled) {
+          if (isFull) {
+            setAllowed(true);
+          } else {
+            router.replace('/access-denied');
+            setAllowed(false);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          router.replace('/access-denied');
+          setAllowed(false);
+        }
       }
-    } catch {
-      setAllowed(true);
-    }
+    };
+    check();
+    return () => { cancelled = true; };
   }, [router]);
 
   if (allowed === false) return null;

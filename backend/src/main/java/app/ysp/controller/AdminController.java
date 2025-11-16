@@ -37,6 +37,9 @@ public class AdminController {
         User u = new User();
         u.setEmail(req.getEmail());
         u.setRole(req.getRole() == null ? "user" : req.getRole());
+        u.setFullName(req.getFullName());
+        u.setJobTitle(req.getJobTitle());
+        u.setEmployeeNumber(req.getEmployeeNumber());
         u.setEnabled(true);
         u.setMustChangePassword(true);
         // Placeholder password until set; not used because mustChangePassword=true
@@ -55,6 +58,9 @@ public class AdminController {
                     if (req.getRole() != null) u.setRole(req.getRole());
                     if (req.getEnabled() != null) u.setEnabled(req.getEnabled());
                     if (req.getMustChangePassword() != null) u.setMustChangePassword(req.getMustChangePassword());
+                    if (req.getFullName() != null) u.setFullName(req.getFullName());
+                    if (req.getJobTitle() != null) u.setJobTitle(req.getJobTitle());
+                    if (req.getEmployeeNumber() != null) u.setEmployeeNumber(req.getEmployeeNumber());
                     User saved = userRepository.save(u);
                     if (Boolean.TRUE.equals(req.getSendOneTimeLogin())) {
                         otlService.createAndEmailToken(saved.getId(), 1800);
@@ -79,6 +85,9 @@ public class AdminController {
         r.setId(u.getId());
         r.setEmail(u.getEmail());
         r.setRole(u.getRole());
+        r.setFullName(u.getFullName());
+        r.setJobTitle(u.getJobTitle());
+        r.setEmployeeNumber(u.getEmployeeNumber());
         r.setEnabled(u.getEnabled());
         r.setMustChangePassword(u.getMustChangePassword());
         r.setCreatedAt(u.getCreatedAt());

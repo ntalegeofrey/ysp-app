@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AdminOperationsPage() {
   // Roles and modules per original design (frontend-only)
@@ -43,6 +43,45 @@ export default function AdminOperationsPage() {
   const [matrix, setMatrix] = useState(defaultMatrix);
   const [openCell, setOpenCell] = useState<null | { role: string; module: string }>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+  const toDisplay = (name: string) => {
+    if (!name) return name;
+    const n = name.replace(/_/g, " ");
+    if (/^jjyds/i.test(n)) return n.toUpperCase();
+    return n.replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+  const toApi = (display: string) => display.replace(/\s+/g, "_").toLowerCase();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include' });
+        if (!res.ok) return;
+        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
+        const names = rolesList.map(r => toDisplay(r.name));
+        setRoleNames(prev => Array.from(new Set([...prev, ...names])));
+        // fetch permissions for each role
+        const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
+        for (const r of rolesList) {
+          const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include' });
+          let map: Record<string, typeof accessLevels[number]> = {};
+          if (pr.ok) {
+            const arr: Array<{module:string; access:string}> = await pr.json();
+            for (const p of arr) {
+              const access = (p.access || '').toUpperCase();
+              const normalized = access === 'FULL' ? 'Full' : access === 'EDIT' ? 'Edit' : access === 'VIEW' ? 'View' : 'None';
+              map[p.module] = normalized as typeof accessLevels[number];
+            }
+          }
+          permsEntries.push([toDisplay(r.name), { ...Object.fromEntries(modules.map(m=>[m, 'View'] as const)), ...map }]);
+        }
+        setMatrix(prev => ({ ...prev, ...Object.fromEntries(permsEntries) }));
+      } catch {}
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ===== User management (frontend-only) =====
   type UserRow = { id: string; fullName: string; jobTitle: string; email: string; role: string; enabled: boolean; mustUpdate: boolean };
@@ -141,7 +180,7 @@ export default function AdminOperationsPage() {
     { id: "jjyds2", name: "JJYDS II", description: "Youth development specialist", users: 5, lastModified: "Nov 15, 2024", status: "Active" },
   ]);
 
-  const [roleModal, setRoleModal] = useState<null | { mode: "create" | "edit"; id?: string; prevName?: string }>(null);
+  const [roleModal, setRoleModal] = useState<null | { mode: "create" | "edit"; id?: string | number; prevName?: string }>(null);
   type AccessLevel = typeof accessLevels[number];
   const moduleDefaults: Record<string, AccessLevel> = Object.fromEntries(modules.map((m) => [m, "View"])) as Record<string, AccessLevel>;
   const [roleForm, setRoleForm] = useState<{ name: string; description: string; status: boolean; moduleAccess: Record<string, AccessLevel> }>({ name: "", description: "", status: true, moduleAccess: moduleDefaults });
@@ -162,7 +201,7 @@ export default function AdminOperationsPage() {
     }
     setRoleModal({ mode: "edit", id, prevName: roleName });
   };
-  const saveRole = () => {
+  const saveRole = async () => {
     if (!roleModal) return;
     const basicId = roleForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const id = roleModal.mode === "edit" && roleModal.id ? roleModal.id : basicId || `role-${Date.now()}`;
@@ -201,17 +240,49 @@ export default function AdminOperationsPage() {
       return exists ? prev.map((r) => (r.id === id ? updated : r)) : [updated, ...prev];
     });
 
+    // Persist to backend
+    try {
+      let roleId: number | undefined = typeof roleModal.id === 'number' ? roleModal.id : undefined;
+      if (roleModal.mode === 'create' || !roleId) {
+        const res = await fetch(`${apiBase}/admin/roles`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: toApi(roleForm.name), description: roleForm.description, active: roleForm.status })
+        });
+        if (res.ok) {
+          const created = await res.json();
+          roleId = created.id;
+        }
+      } else {
+        await fetch(`${apiBase}/admin/roles/${roleId}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: toApi(roleForm.name), description: roleForm.description, active: roleForm.status })
+        });
+      }
+      if (roleId) {
+        const putBody = modules.map(m => ({ module: m, access: (roleForm.moduleAccess[m] || 'None').toUpperCase() }));
+        await fetch(`${apiBase}/admin/roles/${roleId}/permissions`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(putBody)
+        });
+      }
+    } catch {}
+
     // Write selections to the permissions matrix for this role name
-    const roleName = roleForm.name.trim() || id;
+    const roleName = roleForm.name.trim() || (typeof id === 'string' ? id : String(id));
     setMatrix((prev) => {
       const next = {
         ...prev,
-        [roleName]: { ...(prev[roleName] || {}), ...roleForm.moduleAccess },
+        [roleName]: { ...(prev as any)[roleName], ...roleForm.moduleAccess },
       } as typeof prev;
       // Handle rename: remove old key if editing and name changed
       if (roleModal.mode === "edit" && roleModal.prevName && roleModal.prevName !== roleName) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [roleModal.prevName]: _, ...rest } = next as any;
+        const { [roleModal.prevName]: _removed, ...rest } = next as any;
         return rest;
       }
       return next;

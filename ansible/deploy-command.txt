@@ -1,0 +1,7 @@
+# Ansible deploy command (run from the ansible/ folder)
+# Replace the placeholders with your real values before running.
+
+ansible-playbook -i inventory.ini deploy.yml --extra-vars 'postgres_password=Amandagowa393 jwt_secret=CHANGE_ME_LONG_RANDOM'
+
+# Tip: generate a strong JWT secret (on mac/linux):
+#   openssl rand -base64 48

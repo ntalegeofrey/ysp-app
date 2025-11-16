@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/auth")
@@ -62,5 +64,26 @@ public class AuthController {
         boolean ok = oneTimeLoginService.updatePasswordByToken(req.getToken(), req.getNewPassword());
         if (!ok) return ResponseEntity.status(400).build();
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) return ResponseEntity.status(401).build();
+        return userRepository.findByEmail(auth.getName())
+                .map(u -> {
+                    var r = new UserResponse();
+                    r.setId(u.getId());
+                    r.setEmail(u.getEmail());
+                    r.setRole(u.getRole());
+                    r.setFullName(u.getFullName());
+                    r.setJobTitle(u.getJobTitle());
+                    r.setEmployeeNumber(u.getEmployeeNumber());
+                    r.setEnabled(u.getEnabled());
+                    r.setMustChangePassword(u.getMustChangePassword());
+                    r.setCreatedAt(u.getCreatedAt());
+                    return ResponseEntity.ok(r);
+                })
+                .orElse(ResponseEntity.status(404).build());
     }
 }

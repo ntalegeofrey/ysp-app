@@ -18,6 +18,15 @@ public class User {
     @Column(nullable = false)
     private String role; // admin, staff, etc.
 
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "job_title")
+    private String jobTitle;
+
+    @Column(name = "employee_number")
+    private String employeeNumber;
+
     private Boolean enabled = true;
     @Column(name = "must_change_password")
     private Boolean mustChangePassword = false;
@@ -34,6 +43,12 @@ public class User {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getJobTitle() { return jobTitle; }
+    public void setJobTitle(String jobTitle) { this.jobTitle = jobTitle; }
+    public String getEmployeeNumber() { return employeeNumber; }
+    public void setEmployeeNumber(String employeeNumber) { this.employeeNumber = employeeNumber; }
     public Boolean getEnabled() { return enabled; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
     public Boolean getMustChangePassword() { return mustChangePassword; }
@@ -43,3 +58,4 @@ public class User {
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }
+
