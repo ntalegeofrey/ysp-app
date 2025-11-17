@@ -94,7 +94,11 @@ export default function AdminOperationsPage() {
           lastModified: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
           status: (r.active ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
         }));
+        // initialize table rows (user counts filled below)
         setRoleRows(rows);
+        if (users && users.length) {
+          updateRoleUserCounts(users);
+        }
         // fetch permissions for each role
         const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
         for (const r of rolesList) {
@@ -139,6 +143,7 @@ export default function AdminOperationsPage() {
               mustUpdate: u.mustChangePassword,
             }));
             setUsers(mapped);
+          updateRoleUserCounts(mapped);
           }
         } catch {}
       } catch {}
@@ -358,6 +363,14 @@ export default function AdminOperationsPage() {
   // ===== User management (frontend-only) =====
   type UserRow = { id: string; fullName: string; jobTitle: string; email: string; role: string; enabled: boolean; mustUpdate: boolean };
   const [users, setUsers] = useState<UserRow[]>([]);
+  const updateRoleUserCounts = (usersArr: UserRow[]) => {
+    const counts: Record<string, number> = {};
+    for (const u of usersArr) {
+      const roleName = u.role;
+      counts[roleName] = (counts[roleName] || 0) + 1;
+    }
+    setRoleRows((prev) => prev.map(r => ({ ...r, users: counts[r.name] || 0 })));
+  };
   const [userForm, setUserForm] = useState({
     firstName: "",
     middleName: "",

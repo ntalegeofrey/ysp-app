@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function OnboardingPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -10,6 +10,30 @@ export default function OnboardingPage() {
   type ResidentInfo = { name: string; id: string; room: string; status: string; advocate: string; admissionDate: string };
   const [residentEdit, setResidentEdit] = useState<ResidentInfo | null>(null);
   const [residentAction, setResidentAction] = useState<null | { id: string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
+
+  // Staff search and autofill
+  type StaffLite = { id: string; fullName: string; email: string };
+  const [staffList, setStaffList] = useState<StaffLite[]>([]);
+  const [staffQuery, setStaffQuery] = useState<string>('');
+  const [emailVal, setEmailVal] = useState<string>('');
+  const [firstNameVal, setFirstNameVal] = useState<string>('');
+  const [lastNameVal, setLastNameVal] = useState<string>('');
+  const [employeeIdVal, setEmployeeIdVal] = useState<string>('');
+  const [selectedStaff, setSelectedStaff] = useState<StaffLite | null>(null);
+
+  useEffect(() => {
+    // Load staff from admin users
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/admin/users', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+        if (!res.ok) return;
+        const arr: Array<{ id:string|number; fullName:string; email:string }>= await res.json();
+        const mapped: StaffLite[] = arr.map(u => ({ id: typeof u.id === 'string' ? u.id : String(u.id), fullName: u.fullName, email: u.email }));
+        setStaffList(mapped);
+      } catch {}
+    })();
+  }, []);
 
   return (
     <div id="management-main" className="flex-1 p-6 overflow-auto">
@@ -580,6 +604,49 @@ export default function OnboardingPage() {
               </div>
             </div>
             <form className="space-y-4">
+              {/* Staff lookup by Email/Name */}
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-1">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="firstname.lastname@mass.gov"
+                  value={emailVal}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setEmailVal(v);
+                    setStaffQuery(v);
+                    if (!v) { setSelectedStaff(null); setFirstNameVal(''); setLastNameVal(''); setEmployeeIdVal(''); }
+                  }}
+                  className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                {/* Suggestions */}
+                {staffQuery && !selectedStaff && (
+                  <div className="mt-2 bg-white border border-bd rounded-lg max-h-48 overflow-auto">
+                    {staffList.filter(s => s.email.toLowerCase().includes(staffQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffQuery.toLowerCase())).slice(0,8).map(s => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between"
+                        onClick={() => {
+                          setSelectedStaff(s);
+                          setEmailVal(s.email);
+                          const parts = (s.fullName || '').trim().split(/\s+/);
+                          setFirstNameVal(parts[0] || '');
+                          setLastNameVal(parts.length > 1 ? parts[parts.length-1] : '');
+                          setEmployeeIdVal(s.id);
+                          setStaffQuery('');
+                        }}
+                      >
+                        <span className="text-sm text-font-base">{s.fullName}</span>
+                        <span className="text-xs text-font-detail">{s.email}</span>
+                      </button>
+                    ))}
+                    {staffList.filter(s => s.email.toLowerCase().includes(staffQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffQuery.toLowerCase())).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-font-detail">No matches</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">
@@ -587,14 +654,20 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={firstNameVal}
+                    readOnly={!!selectedStaff}
+                    onChange={(e) => setFirstNameVal(e.target.value)}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Last Name</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={lastNameVal}
+                    readOnly={!!selectedStaff}
+                    onChange={(e) => setLastNameVal(e.target.value)}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
                   />
                 </div>
               </div>
@@ -605,19 +678,13 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={employeeIdVal}
+                    readOnly={!!selectedStaff}
+                    onChange={(e) => setEmployeeIdVal(e.target.value)}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="firstname.lastname@mass.gov"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
-                </div>
+                <div className="hidden"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
