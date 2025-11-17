@@ -88,27 +88,47 @@ export default function ProgramSelectionPage() {
         if (cancelled) return;
         const typeLabel = (t?: string, other?: string) => {
           switch ((t || '').toString()) {
-            case 'secure': return 'Secure Treatment Facility';
-            case 'group-home': return 'Group Home';
-            case 'education': return 'Educational Services';
-            case 'detention': return 'Secure Detention';
-            case 'wilderness': return 'Wilderness Program';
-            case 'transitional': return 'Transitional Living';
-            case 'community': return 'Community-Based Program';
+            case 'detention': return 'Detention Program';
+            case 'treatment': return 'Treatment Program';
+            case 'assessment': return 'Assessment Program';
+            case 'revocation': return 'Revocation Program';
+            case 'community': return 'Community Program';
+            case 'independent-living': return 'Independent Living Program';
+            case 'day-reporting': return 'Day Reporting Program';
+            case 'transition': return 'Transition Program';
+            case 'short-term-treatment': return 'Short-Term Treatment Program';
+            case 'long-term-treatment': return 'Long-Term Treatment Program';
+            case 'hardware-secure': return 'Hardware Secure Program';
+            case 'staff-secure': return 'Staff Secure Program';
+            case 'group-home': return 'Group Home Program';
+            case 'diversion': return 'Diversion Program';
+            case 'female': return 'Female Program';
+            case 'specialized-treatment': return 'Specialized Treatment Program';
+            case 'education-vocational': return 'Education/Vocational Program';
             case 'other': return other || 'Other';
             default: return t || '';
           }
         };
         const typeIcon = (t?: string) => {
           switch ((t || '').toString()) {
-            case 'secure': return { icon: 'fa-building-lock', color: 'bg-primary' };
-            case 'group-home': return { icon: 'fa-home', color: 'bg-primary-alt' };
-            case 'education': return { icon: 'fa-graduation-cap', color: 'bg-highlight' };
             case 'detention': return { icon: 'fa-shield-halved', color: 'bg-primary' };
-            case 'wilderness': return { icon: 'fa-mountain', color: 'bg-primary-alt-dark' };
-            case 'transitional': return { icon: 'fa-person-walking', color: 'bg-primary' };
-            case 'community': return { icon: 'fa-people-roof', color: 'bg-primary-alt' };
-            case 'other': return { icon: 'fa-layer-group', color: 'bg-gray-600' };
+            case 'treatment': return { icon: 'fa-hands-holding-heart', color: 'bg-highlight' };
+            case 'assessment': return { icon: 'fa-clipboard-check', color: 'bg-primary-alt' };
+            case 'revocation': return { icon: 'fa-rotate-left', color: 'bg-primary' };
+            case 'community': return { icon: 'fa-people-group', color: 'bg-primary-alt' };
+            case 'independent-living': return { icon: 'fa-house-chimney', color: 'bg-primary' };
+            case 'day-reporting': return { icon: 'fa-sun', color: 'bg-primary' };
+            case 'transition': return { icon: 'fa-road', color: 'bg-primary' };
+            case 'short-term-treatment': return { icon: 'fa-clock', color: 'bg-primary' };
+            case 'long-term-treatment': return { icon: 'fa-hourglass-half', color: 'bg-primary-alt-dark' };
+            case 'hardware-secure': return { icon: 'fa-lock', color: 'bg-primary' };
+            case 'staff-secure': return { icon: 'fa-user-shield', color: 'bg-primary' };
+            case 'group-home': return { icon: 'fa-home', color: 'bg-primary-alt' };
+            case 'diversion': return { icon: 'fa-route', color: 'bg-primary' };
+            case 'female': return { icon: 'fa-venus', color: 'bg-highlight' };
+            case 'specialized-treatment': return { icon: 'fa-stethoscope', color: 'bg-primary-alt' };
+            case 'education-vocational': return { icon: 'fa-graduation-cap', color: 'bg-highlight' };
+            case 'other': return { icon: 'fa-layer-group', color: 'bg-primary' };
             default: return { icon: 'fa-building', color: 'bg-primary' };
           }
         };

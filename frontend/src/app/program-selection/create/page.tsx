@@ -31,6 +31,35 @@ export default function CreateProgramPage() {
   const [directorEmail, setDirectorEmail] = useState<string>('');
   const [assistantEmail, setAssistantEmail] = useState<string>('');
 
+  // Address autocomplete (MA only) using Mapbox if token provided
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string | undefined;
+  const [addrQuery, setAddrQuery] = useState<string>('');
+  const [addrResults, setAddrResults] = useState<Array<{ label: string; street: string; city: string; zip: string }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const q = addrQuery.trim();
+    if (!mapboxToken || q.length < 3) { setAddrResults([]); return; }
+    const h = setTimeout(async () => {
+      try {
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxToken}&country=US&limit=5&autocomplete=true&types=address&proximity=-71.0589,42.3601&bbox=-73.5081,41.1863,-69.861,42.8868`; // MA bbox
+        const resp = await fetch(url);
+        if (!resp.ok) { setAddrResults([]); return; }
+        const data = await resp.json();
+        const list = (data.features || []).map((f: any) => {
+          const ctx: Array<any> = f.context || [];
+          const placeText = f.text || '';
+          const number = (f.address || '').toString();
+          const label = f.place_name as string;
+          const city = (ctx.find(c => (c.id || '').startsWith('place'))?.text || ctx.find(c => (c.id || '').startsWith('locality'))?.text || '');
+          const zip = (ctx.find(c => (c.id || '').startsWith('postcode'))?.text || '');
+          return { label, street: [number, placeText].filter(Boolean).join(' '), city, zip };
+        });
+        if (!cancelled) setAddrResults(list);
+      } catch { if (!cancelled) setAddrResults([]); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [addrQuery, mapboxToken]);
+
   // Local toast notifications (success/error/info)
   type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -210,13 +239,23 @@ export default function CreateProgramPage() {
                 <label className="block text-sm font-medium text-font-base mb-2">Program Type *</label>
                 <select name="programType" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={programTypeSelected} onChange={(e)=>setProgramTypeSelected(e.target.value)}>
                   <option value="">Select program type</option>
-                  <option value="secure">Secure Treatment Facility</option>
-                  <option value="group-home">Group Home</option>
-                  <option value="education">Educational Services</option>
-                  <option value="detention">Secure Detention</option>
-                  <option value="wilderness">Wilderness Program</option>
-                  <option value="transitional">Transitional Living</option>
-                  <option value="community">Community-Based Program</option>
+                  <option value="detention">Detention Program</option>
+                  <option value="treatment">Treatment Program</option>
+                  <option value="assessment">Assessment Program</option>
+                  <option value="revocation">Revocation Program</option>
+                  <option value="community">Community Program</option>
+                  <option value="independent-living">Independent Living Program</option>
+                  <option value="day-reporting">Day Reporting Program</option>
+                  <option value="transition">Transition Program</option>
+                  <option value="short-term-treatment">Short-Term Treatment Program</option>
+                  <option value="long-term-treatment">Long-Term Treatment Program</option>
+                  <option value="hardware-secure">Hardware Secure Program</option>
+                  <option value="staff-secure">Staff Secure Program</option>
+                  <option value="group-home">Group Home Program</option>
+                  <option value="diversion">Diversion Program</option>
+                  <option value="female">Female Program (gender-specific services)</option>
+                  <option value="specialized-treatment">Specialized Treatment Program</option>
+                  <option value="education-vocational">Education/Vocational Program</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -274,7 +313,36 @@ export default function CreateProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-font-base mb-2">Street Address *</label>
-                <input name="street" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter street address" defaultValue={program?.street || ''} />
+                <input
+                  name="street"
+                  required
+                  type="text"
+                  className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="Start typing address (Massachusetts)"
+                  defaultValue={program?.street || ''}
+                  onChange={(e)=> setAddrQuery(e.target.value)}
+                />
+                {mapboxToken && addrResults.length > 0 && (
+                  <div className="mt-2 border border-bd rounded-lg bg-white shadow max-h-60 overflow-auto">
+                    {addrResults.map((r, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        className="w-full text-left px-3 py-2 hover:bg-bg-subtle text-sm"
+                        onClick={() => {
+                          const streetEl = document.querySelector('input[name=street]') as HTMLInputElement | null;
+                          const cityEl = document.querySelector('input[name=city]') as HTMLInputElement | null;
+                          const zipEl = document.querySelector('input[name=zip]') as HTMLInputElement | null;
+                          if (streetEl) streetEl.value = r.street;
+                          if (cityEl) cityEl.value = r.city;
+                          if (zipEl) zipEl.value = r.zip;
+                          setAddrResults([]);
+                          setAddrQuery(r.street);
+                        }}
+                      >{r.label}</button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -284,7 +352,7 @@ export default function CreateProgramPage() {
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">State</label>
-                <select name="state" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus-border-primary" defaultValue={program?.state || 'MA'}>
+                <select name="state" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus-border-primary" defaultValue={program?.state || 'MA'} disabled>
                   <option value="MA">Massachusetts</option>
                 </select>
               </div>
