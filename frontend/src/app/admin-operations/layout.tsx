@@ -6,6 +6,17 @@ import Loading from "../components/loading";
 import { logoUrl } from "../utils/logo";
 
 function AppBar() {
+  const onLogout = () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedProgram');
+      localStorage.setItem('logout', String(Date.now()));
+      window.location.href = '/';
+    } catch {
+      window.location.href = '/';
+    }
+  };
   return (
     <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
       <div className="flex items-center justify-between">
@@ -35,7 +46,7 @@ function AppBar() {
               <div className="text-xs text-font-detail">System Administrator</div>
             </div>
           </div>
-          <button className="p-2 rounded-lg hover:bg-bg-subtle transition-colors" title="Logout">
+          <button onClick={onLogout} className="p-2 rounded-lg hover:bg-bg-subtle transition-colors" title="Logout">
             <i className="fa-solid fa-right-from-bracket text-lg sm:text-xl text-font-base"></i>
           </button>
         </div>
@@ -53,10 +64,14 @@ export default function AdminOperationsLayout({ children }: { children: React.Re
     const check = async () => {
       try {
         const url = `/api/permissions/check?module=${encodeURIComponent('System Admin')}`;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const res = await fetch(url, {
           method: 'GET',
           credentials: 'include',
-          headers: { 'Accept': 'application/json' }
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         });
         if (!res.ok) {
           if (!cancelled) {

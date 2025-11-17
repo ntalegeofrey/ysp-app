@@ -15,11 +15,30 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // If already authenticated, never show login page
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const sel = localStorage.getItem('selectedProgram');
+          router.replace(sel ? '/dashboard' : '/program-selection');
+        }
+      } catch {}
+    };
+    check();
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
       const api = process.env.NEXT_PUBLIC_API_BASE || '/api';
       const res = await fetch(`${api}/auth/login`, {
         method: 'POST',
@@ -39,9 +58,11 @@ export default function LoginPage() {
           rememberMe
         }));
         router.push('/mfa');
-      } else if (data?.accessToken) {
-        localStorage.setItem('token', data.accessToken);
-        router.push('/terms');
+      } else if (data?.accessToken || data?.success) {
+        // Some backends return a token, ours may just set cookie. Store token if present.
+        if (data?.accessToken) localStorage.setItem('token', data.accessToken);
+        // Go straight to program selection; dashboard will be reachable after selection
+        router.push('/program-selection');
       } else {
         setError('Unexpected response.');
       }

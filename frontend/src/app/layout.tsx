@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import SessionSync from "./components/session-sync";
 import "./globals.css";
 import { logoUrl } from "./utils/logo";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
           src="https://code.highcharts.com/highcharts.js"
           strategy="afterInteractive"
         />
+        <SessionSync />
         {children}
         </body>
     </html>
