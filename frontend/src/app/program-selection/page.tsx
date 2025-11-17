@@ -18,12 +18,6 @@ type Program = {
   status?: { label: string; color: string; icon?: string };
 };
 
-const FALLBACK_PROGRAMS: Program[] = [
-  { name: 'Westborough Secure', subtitle: 'Secure Treatment Facility', location: 'Westborough, MA', capacity: 'Capacity: 32 Residents', hours: '24/7 Operations', icon: 'fa-building', color: 'bg-primary', status: { label: 'Active', color: 'bg-success' } },
-  { name: 'Worcester Group Home', subtitle: 'Community-Based Program', location: 'Worcester, MA', capacity: 'Capacity: 12 Residents', hours: 'Day Program', icon: 'fa-home', color: 'bg-primary-alt', status: { label: 'Active', color: 'bg-success' } },
-  { name: 'Springfield Education Center', subtitle: 'Educational Services', location: 'Springfield, MA', capacity: 'Capacity: 45 Students', hours: 'School Hours', icon: 'fa-graduation-cap', color: 'bg-highlight', status: { label: 'Active', color: 'bg-success' } },
-];
-
 export default function ProgramSelectionPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -31,7 +25,7 @@ export default function ProgramSelectionPage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [jobTitle, setJobTitle] = useState<string>('');
   const [ready, setReady] = useState(false);
-  const [programs, setPrograms] = useState<Program[]>(FALLBACK_PROGRAMS);
+  const [programs, setPrograms] = useState<Program[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,19 +86,58 @@ export default function ProgramSelectionPage() {
         if (!resp.ok) return;
         const data = await resp.json();
         if (cancelled) return;
-        const mapped: Program[] = (Array.isArray(data) ? data : []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          subtitle: p.programType,
-          location: [p.city, p.state].filter(Boolean).join(', '),
-          capacity: p.capacity ? `Capacity: ${p.capacity}` : undefined,
-          hours: p.operatingHours,
-          icon: 'fa-building',
-          color: 'bg-primary',
-          disabled: p.status && String(p.status).toLowerCase() === 'maintenance' ? true : false,
-          status: { label: (p.status ? String(p.status) : (p.active === false ? 'Inactive' : 'Active')).toString().replace(/\b\w/g, (l: string) => l.toUpperCase()), color: (p.active === false || (p.status && String(p.status).toLowerCase() === 'inactive')) ? 'bg-gray-400' : 'bg-success' }
-        }));
-        setPrograms(mapped.length ? mapped : FALLBACK_PROGRAMS);
+        const typeLabel = (t?: string, other?: string) => {
+          switch ((t || '').toString()) {
+            case 'secure': return 'Secure Treatment Facility';
+            case 'group-home': return 'Group Home';
+            case 'education': return 'Educational Services';
+            case 'detention': return 'Secure Detention';
+            case 'wilderness': return 'Wilderness Program';
+            case 'transitional': return 'Transitional Living';
+            case 'community': return 'Community-Based Program';
+            case 'other': return other || 'Other';
+            default: return t || '';
+          }
+        };
+        const typeIcon = (t?: string) => {
+          switch ((t || '').toString()) {
+            case 'secure': return { icon: 'fa-building-lock', color: 'bg-primary' };
+            case 'group-home': return { icon: 'fa-home', color: 'bg-primary-alt' };
+            case 'education': return { icon: 'fa-graduation-cap', color: 'bg-highlight' };
+            case 'detention': return { icon: 'fa-shield-halved', color: 'bg-primary' };
+            case 'wilderness': return { icon: 'fa-mountain', color: 'bg-primary-alt-dark' };
+            case 'transitional': return { icon: 'fa-person-walking', color: 'bg-primary' };
+            case 'community': return { icon: 'fa-people-roof', color: 'bg-primary-alt' };
+            case 'other': return { icon: 'fa-layer-group', color: 'bg-gray-600' };
+            default: return { icon: 'fa-building', color: 'bg-primary' };
+          }
+        };
+        const hoursLabel = (h?: string, custom?: string) => {
+          switch ((h || '').toString()) {
+            case '24-7': return '24/7 Operations';
+            case 'day': return 'Day Program (8 AM - 4 PM)';
+            case 'school': return 'School Hours (7 AM - 3 PM)';
+            case 'evening': return 'Evening Program (4 PM - 10 PM)';
+            case 'custom': return custom ? `Custom: ${custom}` : 'Custom Schedule';
+            default: return h || '';
+          }
+        };
+        const mapped: Program[] = (Array.isArray(data) ? data : []).map((p: any) => {
+          const ti = typeIcon(p.programType);
+          return {
+            id: p.id,
+            name: p.name,
+            subtitle: typeLabel(p.programType, p.programTypeOther),
+            location: [p.city, p.state].filter(Boolean).join(', '),
+            capacity: p.capacity ? `Capacity: ${p.capacity}` : undefined,
+            hours: hoursLabel(p.operatingHours, p.customSchedule),
+            icon: ti.icon,
+            color: ti.color,
+            disabled: p.status && String(p.status).toLowerCase() === 'maintenance' ? true : false,
+            status: { label: (p.status ? String(p.status) : (p.active === false ? 'Inactive' : 'Active')).toString().replace(/\b\w/g, (l: string) => l.toUpperCase()), color: (p.active === false || (p.status && String(p.status).toLowerCase() === 'inactive')) ? 'bg-gray-400' : 'bg-success' }
+          };
+        });
+        setPrograms(mapped);
       } catch {}
     };
     if (ready) loadPrograms();

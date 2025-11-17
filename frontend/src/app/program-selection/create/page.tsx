@@ -23,6 +23,8 @@ export default function CreateProgramPage() {
 
   // Program model for prefill in edit mode (uncontrolled inputs use defaultValue)
   const [program, setProgram] = useState<any>(null);
+  const [programTypeSelected, setProgramTypeSelected] = useState<string>('');
+  const [operatingHoursSelected, setOperatingHoursSelected] = useState<string>('');
   // Assignments
   const [regionalAdmins, setRegionalAdmins] = useState<Array<{ email: string; name?: string }>>([]);
   const [directorEmail, setDirectorEmail] = useState<string>('');
@@ -44,7 +46,11 @@ export default function CreateProgramPage() {
         const p = await fetch(`/api/programs/${editingId}`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
         if (p.ok) {
           const data = await p.json();
-          if (!cancelled) setProgram(data);
+          if (!cancelled) {
+            setProgram(data);
+            setProgramTypeSelected(data.programType || '');
+            setOperatingHoursSelected(data.operatingHours || '');
+          }
         }
         const a = await fetch(`/api/programs/${editingId}/assignments`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
         if (a.ok) {
@@ -87,6 +93,7 @@ export default function CreateProgramPage() {
     const body: any = {
       name: String(fd.get('programName') || ''),
       programType: String(fd.get('programType') || ''),
+      programTypeOther: String(fd.get('programTypeOther') || ''),
       capacity: fd.get('capacity') ? Number(fd.get('capacity')) : null,
       status: String(fd.get('status') || ''),
       description: String(fd.get('description') || ''),
@@ -96,9 +103,11 @@ export default function CreateProgramPage() {
       zip: String(fd.get('zip') || ''),
       county: String(fd.get('county') || ''),
       operatingHours: String(fd.get('operatingHours') || ''),
+      customSchedule: String(fd.get('customSchedule') || ''),
       securityLevel: String(fd.get('securityLevel') || ''),
       targetPopulation: String(fd.get('targetPopulation') || ''),
       expectedOpeningDate: String(fd.get('expectedOpeningDate') || ''),
+      gender: String(fd.get('gender') || ''),
       active: String(fd.get('status') || '').toLowerCase() !== 'inactive',
     };
     try {
@@ -161,6 +170,16 @@ export default function CreateProgramPage() {
                   <h1 className="text-xl font-bold text-primary">{editingId ? 'Edit Program' : 'Create New Program'}</h1>
                   <p className="text-sm text-font-detail">Department of Youth Services</p>
                 </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Gender *</label>
+                <select name="gender" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.gender || ''}>
+                  <option value="">Select gender</option>
+                  <option value="mixed">Mixed</option>
+                  <option value="boys">Boys</option>
+                  <option value="girls">Girls</option>
+                </select>
+              </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -193,7 +212,7 @@ export default function CreateProgramPage() {
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Program Type *</label>
-                <select name="programType" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.programType || ''}>
+                <select name="programType" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={programTypeSelected} onChange={(e)=>setProgramTypeSelected(e.target.value)}>
                   <option value="">Select program type</option>
                   <option value="secure">Secure Treatment Facility</option>
                   <option value="group-home">Group Home</option>
@@ -202,8 +221,16 @@ export default function CreateProgramPage() {
                   <option value="wilderness">Wilderness Program</option>
                   <option value="transitional">Transitional Living</option>
                   <option value="community">Community-Based Program</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
+
+              {programTypeSelected === 'other' && (
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Specify Program Type *</label>
+                  <input name="programTypeOther" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter program type" defaultValue={program?.programTypeOther || ''} />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Capacity *</label>
@@ -381,7 +408,7 @@ export default function CreateProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Operating Hours *</label>
-                <select name="operatingHours" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.operatingHours || ''}>
+                <select name="operatingHours" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={operatingHoursSelected} onChange={(e)=>setOperatingHoursSelected(e.target.value)}>
                   <option value="">Select operating schedule</option>
                   <option value="24-7">24/7 Operations</option>
                   <option value="day">Day Program (8 AM - 4 PM)</option>
@@ -390,6 +417,13 @@ export default function CreateProgramPage() {
                   <option value="custom">Custom Schedule</option>
                 </select>
               </div>
+
+              {operatingHoursSelected === 'custom' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-font-base mb-2">Describe Custom Schedule *</label>
+                  <textarea name="customSchedule" rows={3} className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Mon-Fri 10am-6pm; Sat 12pm-4pm" defaultValue={program?.customSchedule || ''}></textarea>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Security Level</label>
                 <select name="securityLevel" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.securityLevel || ''}>

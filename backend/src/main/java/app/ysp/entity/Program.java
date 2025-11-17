@@ -17,6 +17,9 @@ public class Program {
     @Column(name = "program_type")
     private String programType;
 
+    @Column(name = "program_type_other")
+    private String programTypeOther;
+
     private Integer capacity;
 
     private String status; // active, planning, construction, maintenance, inactive
@@ -34,12 +37,17 @@ public class Program {
     // Operations
     @Column(name = "operating_hours")
     private String operatingHours;
+    @Column(name = "custom_schedule")
+    private String customSchedule;
     @Column(name = "security_level")
     private String securityLevel;
     @Column(name = "target_population")
     private String targetPopulation;
     @Column(name = "expected_opening_date")
     private LocalDate expectedOpeningDate;
+
+    @Column(name = "gender")
+    private String gender; // mixed, boys, girls
 
     private Boolean active = Boolean.TRUE;
 
@@ -60,6 +68,9 @@ public class Program {
 
     public String getProgramType() { return programType; }
     public void setProgramType(String programType) { this.programType = programType; }
+
+    public String getProgramTypeOther() { return programTypeOther; }
+    public void setProgramTypeOther(String programTypeOther) { this.programTypeOther = programTypeOther; }
 
     public Integer getCapacity() { return capacity; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }
@@ -88,6 +99,9 @@ public class Program {
     public String getOperatingHours() { return operatingHours; }
     public void setOperatingHours(String operatingHours) { this.operatingHours = operatingHours; }
 
+    public String getCustomSchedule() { return customSchedule; }
+    public void setCustomSchedule(String customSchedule) { this.customSchedule = customSchedule; }
+
     public String getSecurityLevel() { return securityLevel; }
     public void setSecurityLevel(String securityLevel) { this.securityLevel = securityLevel; }
 
@@ -96,6 +110,9 @@ public class Program {
 
     public LocalDate getExpectedOpeningDate() { return expectedOpeningDate; }
     public void setExpectedOpeningDate(LocalDate expectedOpeningDate) { this.expectedOpeningDate = expectedOpeningDate; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
