@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { logoUrl } from '../../utils/logo';
 import { useEffect, useState } from 'react';
 
@@ -13,10 +13,20 @@ type Staff = {
 
 export default function CreateProgramPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingId = searchParams?.get('id') || '';
   const [staff, setStaff] = useState<Staff[]>([
     { name: '', position: '', email: '', responsibilities: '' },
   ]);
   const [userRole, setUserRole] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Program model for prefill in edit mode (uncontrolled inputs use defaultValue)
+  const [program, setProgram] = useState<any>(null);
+  // Assignments
+  const [regionalAdmins, setRegionalAdmins] = useState<Array<{ email: string; name?: string }>>([]);
+  const [directorEmail, setDirectorEmail] = useState<string>('');
+  const [assistantEmail, setAssistantEmail] = useState<string>('');
 
   useEffect(() => {
     try {
@@ -24,6 +34,38 @@ export default function CreateProgramPage() {
       if (raw) setUserRole(JSON.parse(raw).role || '');
     } catch {}
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadForEdit = async () => {
+      try {
+        if (!editingId) { setLoading(false); return; }
+        const token = localStorage.getItem('token') || '';
+        const p = await fetch(`/api/programs/${editingId}`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (p.ok) {
+          const data = await p.json();
+          if (!cancelled) setProgram(data);
+        }
+        const a = await fetch(`/api/programs/${editingId}/assignments`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
+        if (a.ok) {
+          const arr = await a.json();
+          const ras = (arr || []).filter((x: any) => x.roleType === 'REGIONAL_ADMIN').map((x: any) => ({ email: x.userEmail, name: '' }));
+          const dir = (arr || []).find((x: any) => x.roleType === 'PROGRAM_DIRECTOR');
+          const asst = (arr || []).find((x: any) => x.roleType === 'ASSISTANT_DIRECTOR');
+          if (!cancelled) {
+            setRegionalAdmins(ras);
+            setDirectorEmail(dir?.userEmail || '');
+            setAssistantEmail(asst?.userEmail || '');
+          }
+        }
+      } catch {}
+      finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadForEdit();
+    return () => { cancelled = true; };
+  }, [editingId]);
 
   const addStaff = () => setStaff((s) => [...s, { name: '', position: '', email: '', responsibilities: '' }]);
   const removeStaff = (idx: number) => setStaff((s) => (s.length > 1 ? s.filter((_, i) => i !== idx) : s));
@@ -38,13 +80,60 @@ export default function CreateProgramPage() {
     if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) router.back();
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    alert('Program created successfully! Redirecting to program selection...');
-    setTimeout(() => router.push('/program-selection'), 800);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const body: any = {
+      name: String(fd.get('programName') || ''),
+      programType: String(fd.get('programType') || ''),
+      capacity: fd.get('capacity') ? Number(fd.get('capacity')) : null,
+      status: String(fd.get('status') || ''),
+      description: String(fd.get('description') || ''),
+      street: String(fd.get('street') || ''),
+      city: String(fd.get('city') || ''),
+      state: String(fd.get('state') || 'MA'),
+      zip: String(fd.get('zip') || ''),
+      county: String(fd.get('county') || ''),
+      operatingHours: String(fd.get('operatingHours') || ''),
+      securityLevel: String(fd.get('securityLevel') || ''),
+      targetPopulation: String(fd.get('targetPopulation') || ''),
+      expectedOpeningDate: String(fd.get('expectedOpeningDate') || ''),
+      active: String(fd.get('status') || '').toLowerCase() !== 'inactive',
+    };
+    try {
+      const token = localStorage.getItem('token') || '';
+      let programId = editingId;
+      if (editingId) {
+        const resp = await fetch(`/api/programs/${editingId}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ ...(program || {}), ...body }) });
+        if (!resp.ok) { alert('Failed to save changes'); return; }
+      } else {
+        const resp = await fetch('/api/programs', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(body) });
+        if (!resp.ok) { alert('Failed to create program'); return; }
+        const created = await resp.json();
+        programId = created.id ? String(created.id) : '';
+      }
+      if (programId) {
+        const assignments: Array<{ userEmail: string; roleType: string }> = [];
+        regionalAdmins.filter(r => r.email).forEach(r => assignments.push({ userEmail: r.email, roleType: 'REGIONAL_ADMIN' }));
+        if (directorEmail) assignments.push({ userEmail: directorEmail, roleType: 'PROGRAM_DIRECTOR' });
+        if (assistantEmail) assignments.push({ userEmail: assistantEmail, roleType: 'ASSISTANT_DIRECTOR' });
+        await fetch(`/api/programs/${programId}/assignments`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+          body: JSON.stringify({ assignments })
+        });
+      }
+      alert(editingId ? 'Program updated successfully! Redirecting...' : 'Program created successfully! Redirecting...');
+      setTimeout(() => router.push('/program-selection'), 800);
+    } catch {
+      alert('An error occurred while saving');
+    }
   };
 
-  if (userRole !== 'admin') {
+  const isAdmin = (userRole || '').toString().trim().toLowerCase() === 'admin' || (userRole || '').toString().trim().toLowerCase() === 'administrator';
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8">
         <div className="max-w-md w-full bg-white border border-bd rounded-xl p-8 text-center shadow">
@@ -69,15 +158,15 @@ export default function CreateProgramPage() {
               <div className="flex items-center">
                 <img src={logoUrl} alt="DYS Logo" className="w-12 h-12 mr-4 rounded-full object-contain" />
                 <div>
-                  <h1 className="text-xl font-bold text-primary">Create New Program</h1>
+                  <h1 className="text-xl font-bold text-primary">{editingId ? 'Edit Program' : 'Create New Program'}</h1>
                   <p className="text-sm text-font-detail">Department of Youth Services</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-font-base">Sarah Wilson</p>
-                <p className="text-xs text-font-detail">Super Administrator</p>
+                <p className="text-sm font-medium text-font-base">Program Management</p>
+                <p className="text-xs text-font-detail">Admin Tools</p>
               </div>
               <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="User" className="w-10 h-10 rounded-full border-2 border-primary-lighter" />
             </div>
@@ -99,12 +188,12 @@ export default function CreateProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Program Name *</label>
-                <input required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter program name" />
+                <input name="programName" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter program name" defaultValue={program?.name || ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Program Type *</label>
-                <select required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                <select name="programType" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.programType || ''}>
                   <option value="">Select program type</option>
                   <option value="secure">Secure Treatment Facility</option>
                   <option value="group-home">Group Home</option>
@@ -118,12 +207,12 @@ export default function CreateProgramPage() {
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Capacity *</label>
-                <input required type="number" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Maximum residents/participants" />
+                <input name="capacity" required type="number" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Maximum residents/participants" defaultValue={program?.capacity ?? ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Status *</label>
-                <select required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                <select name="status" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.status || ''}>
                   <option value="">Select status</option>
                   <option value="active">Active</option>
                   <option value="planning">In Planning</option>
@@ -135,7 +224,7 @@ export default function CreateProgramPage() {
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-font-base mb-2">Program Description</label>
-                <textarea rows={4} className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Describe the program's mission and services"></textarea>
+                <textarea name="description" rows={4} className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Describe the program's mission and services" defaultValue={program?.description || ''}></textarea>
               </div>
             </div>
           </div>
@@ -152,29 +241,29 @@ export default function CreateProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-font-base mb-2">Street Address *</label>
-                <input required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter street address" />
+                <input name="street" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter street address" defaultValue={program?.street || ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">City *</label>
-                <input required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter city" />
+                <input name="city" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter city" defaultValue={program?.city || ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">State</label>
-                <select className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue="MA">
+                <select name="state" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus-border-primary" defaultValue={program?.state || 'MA'}>
                   <option value="MA">Massachusetts</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">ZIP Code *</label>
-                <input required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter ZIP code" />
+                <input name="zip" required type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter ZIP code" defaultValue={program?.zip || ''} />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">County</label>
-                <input type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter county" />
+                <input name="county" type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter county" defaultValue={program?.county || ''} />
               </div>
             </div>
           </div>
@@ -187,53 +276,44 @@ export default function CreateProgramPage() {
               </div>
               <h2 className="text-2xl font-bold text-font-heading">Regional Administrator</h2>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {staff.map((m, idx) => (
-                <div key={idx} className="md:col-span-2 staff-card bg-primary-lightest border border-primary-lighter rounded-lg p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Administrator Name *</label>
-                      <input required type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Staff name" value={m.name} onChange={(e)=>updateStaff(idx,'name',e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Position *</label>
-                      <select required className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={m.position} onChange={(e)=>updateStaff(idx,'position',e.target.value)}>
-                        <option value="">Select position</option>
-                        <option value="director">Program Director</option>
-                        <option value="assistant-director">Assistant Director</option>
-                        <option value="supervisor">Shift Supervisor</option>
-                        <option value="jjyds-iii">JJYDS III</option>
-                        <option value="jjyds-ii">JJYDS II</option>
-                        <option value="jjyds-i">JJYDS I</option>
-                        <option value="caseworker">Caseworker</option>
-                        <option value="clinician">Clinician</option>
-                        <option value="nurse">Nurse</option>
-                        <option value="support">Support Staff</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Email</label>
-                      <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Email address" value={m.email} onChange={(e)=>updateStaff(idx,'email',e.target.value)} />
-                    </div>
-                    <div className="flex items-end">
-                      <button type="button" className="remove-staff bg-error hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors" onClick={()=>removeStaff(idx)}>
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-font-base mb-2">Responsibilities</label>
-                    <textarea rows={2} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Describe key responsibilities and duties" value={m.responsibilities} onChange={(e)=>updateStaff(idx,'responsibilities',e.target.value)} />
-                  </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-font-base mb-2">Administrator Email *</label>
+                  <input type="email" id="ra-email" placeholder="admin@example.gov" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
-              ))}
-              <div className="flex justify-end md:col-span-2">
-                <button type="button" id="add-staff-btn" className="bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg font-medium flex items-center transition-colors" onClick={addStaff}>
-                  <i className="fa-solid fa-plus mr-2"></i>
-                  Add Staff Member
-                </button>
+                <div className="flex items-end">
+                  <button type="button" className="bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg" onClick={() => {
+                    const inp = (document.getElementById('ra-email') as HTMLInputElement | null);
+                    const email = inp?.value?.trim() || '';
+                    if (!email) return;
+                    setRegionalAdmins((prev) => prev.find(r => r.email.toLowerCase() === email.toLowerCase()) ? prev : [...prev, { email }]);
+                    if (inp) inp.value = '';
+                  }}>Add</button>
+                </div>
               </div>
+              {regionalAdmins.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-font-detail">
+                        <th className="py-2 pr-4">Email</th>
+                        <th className="py-2 pr-4">Role</th>
+                        <th className="py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {regionalAdmins.map((ra, idx) => (
+                        <tr key={idx} className="border-t border-bd">
+                          <td className="py-2 pr-4">{ra.email}</td>
+                          <td className="py-2 pr-4">Regional Administrator</td>
+                          <td className="py-2"><button type="button" className="text-error" onClick={() => setRegionalAdmins(prev => prev.filter((_, i) => i !== idx))}>Remove</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 
@@ -246,51 +326,47 @@ export default function CreateProgramPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-font-heading">Program Staff</h2>
               </div>
-              <button type="button" id="add-staff-btn" className="bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg font-medium flex items-center transition-colors" onClick={addStaff}>
-                <i className="fa-solid fa-plus mr-2"></i>
-                Add Staff Member
-              </button>
             </div>
-            <div id="staff-list" className="space-y-4">
-              {staff.map((m, idx) => (
-                <div key={idx} className="staff-card bg-primary-lightest border border-primary-lighter rounded-lg p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Name *</label>
-                      <input required type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Staff name" value={m.name} onChange={(e)=>updateStaff(idx,'name',e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Position *</label>
-                      <select required className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={m.position} onChange={(e)=>updateStaff(idx,'position',e.target.value)}>
-                        <option value="">Select position</option>
-                        <option value="director">Program Director</option>
-                        <option value="assistant-director">Assistant Director</option>
-                        <option value="supervisor">Shift Supervisor</option>
-                        <option value="jjyds-iii">JJYDS III</option>
-                        <option value="jjyds-ii">JJYDS II</option>
-                        <option value="jjyds-i">JJYDS I</option>
-                        <option value="caseworker">Caseworker</option>
-                        <option value="clinician">Clinician</option>
-                        <option value="nurse">Nurse</option>
-                        <option value="support">Support Staff</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Email</label>
-                      <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Email address" value={m.email} onChange={(e)=>updateStaff(idx,'email',e.target.value)} />
-                    </div>
-                    <div className="flex items-end">
-                      <button type="button" className="remove-staff bg-error hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors" onClick={()=>removeStaff(idx)}>
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-font-base mb-2">Responsibilities</label>
-                    <textarea rows={2} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Describe key responsibilities and duties" value={m.responsibilities} onChange={(e)=>updateStaff(idx,'responsibilities',e.target.value)} />
-                  </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Program Director Email *</label>
+                  <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="director@example.gov" value={directorEmail} onChange={(e)=>setDirectorEmail(e.target.value)} />
                 </div>
-              ))}
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Assistant Director Email</label>
+                  <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="assistant@example.gov" value={assistantEmail} onChange={(e)=>setAssistantEmail(e.target.value)} />
+                </div>
+              </div>
+              {(directorEmail || assistantEmail) && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-font-detail">
+                        <th className="py-2 pr-4">Email</th>
+                        <th className="py-2 pr-4">Role</th>
+                        <th className="py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {directorEmail && (
+                        <tr className="border-t border-bd">
+                          <td className="py-2 pr-4">{directorEmail}</td>
+                          <td className="py-2 pr-4">Program Director</td>
+                          <td className="py-2"><button type="button" className="text-error" onClick={() => setDirectorEmail('')}>Remove</button></td>
+                        </tr>
+                      )}
+                      {assistantEmail && (
+                        <tr className="border-t border-bd">
+                          <td className="py-2 pr-4">{assistantEmail}</td>
+                          <td className="py-2 pr-4">Assistant Director</td>
+                          <td className="py-2"><button type="button" className="text-error" onClick={() => setAssistantEmail('')}>Remove</button></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 
@@ -305,7 +381,7 @@ export default function CreateProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Operating Hours *</label>
-                <select required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                <select name="operatingHours" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.operatingHours || ''}>
                   <option value="">Select operating schedule</option>
                   <option value="24-7">24/7 Operations</option>
                   <option value="day">Day Program (8 AM - 4 PM)</option>
@@ -316,7 +392,7 @@ export default function CreateProgramPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Security Level</label>
-                <select className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                <select name="securityLevel" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.securityLevel || ''}>
                   <option value="">Select security level</option>
                   <option value="maximum">Maximum Security</option>
                   <option value="medium">Medium Security</option>
@@ -326,11 +402,11 @@ export default function CreateProgramPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Target Population</label>
-                <input type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Male adolescents 14-18" />
+                <input name="targetPopulation" type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Male adolescents 14-18" defaultValue={program?.targetPopulation || ''} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Expected Opening Date</label>
-                <input type="date" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
+                <input name="expectedOpeningDate" type="date" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.expectedOpeningDate || ''} />
               </div>
             </div>
           </div>
@@ -343,7 +419,7 @@ export default function CreateProgramPage() {
               Save Draft
             </button>
             <button type="submit" className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium">
-              Create Program
+              {editingId ? 'Save Changes' : 'Create Program'}
             </button>
           </div>
         </form>

@@ -503,8 +503,12 @@ export default function AdminOperationsPage() {
     // Persist to backend
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      let roleId: number | undefined = typeof roleModal.id === 'number' ? roleModal.id : undefined;
-      if (roleModal.mode === 'create' || !roleId) {
+      let roleId: number | undefined = undefined;
+      if (roleModal.mode === 'edit' && roleModal.id !== undefined) {
+        const parsed = Number(roleModal.id);
+        if (!Number.isNaN(parsed)) roleId = parsed;
+      }
+      if (roleModal.mode === 'create' || roleId === undefined) {
         const res = await fetch(`${apiBase}/admin/roles`, {
           method: 'POST',
           credentials: 'include',

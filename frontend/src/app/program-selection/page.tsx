@@ -6,24 +6,22 @@ import { logoUrl } from '../utils/logo';
 import { abbreviateTitle } from '../utils/titleAbbrev';
 
 type Program = {
+  id?: number;
   name: string;
-  subtitle: string;
-  location: string;
-  capacity: string;
-  hours: string;
-  icon: string; // fontawesome class
-  color: string; // bg color class
+  subtitle?: string;
+  location?: string;
+  capacity?: string | number;
+  hours?: string;
+  icon?: string; // fontawesome class
+  color?: string; // bg color class
   disabled?: boolean;
-  status: { label: string; color: string; icon?: string };
+  status?: { label: string; color: string; icon?: string };
 };
 
-const PROGRAMS: Program[] = [
+const FALLBACK_PROGRAMS: Program[] = [
   { name: 'Westborough Secure', subtitle: 'Secure Treatment Facility', location: 'Westborough, MA', capacity: 'Capacity: 32 Residents', hours: '24/7 Operations', icon: 'fa-building', color: 'bg-primary', status: { label: 'Active', color: 'bg-success' } },
   { name: 'Worcester Group Home', subtitle: 'Community-Based Program', location: 'Worcester, MA', capacity: 'Capacity: 12 Residents', hours: 'Day Program', icon: 'fa-home', color: 'bg-primary-alt', status: { label: 'Active', color: 'bg-success' } },
   { name: 'Springfield Education Center', subtitle: 'Educational Services', location: 'Springfield, MA', capacity: 'Capacity: 45 Students', hours: 'School Hours', icon: 'fa-graduation-cap', color: 'bg-highlight', status: { label: 'Active', color: 'bg-success' } },
-  { name: 'Boston Detention Center', subtitle: 'Secure Detention', location: 'Boston, MA', capacity: 'Capacity: 28 Residents', hours: '24/7 Operations', icon: 'fa-shield', color: 'bg-primary-light', status: { label: 'Active', color: 'bg-success' } },
-  { name: 'Berkshire Wilderness', subtitle: 'Outdoor Therapeutic Program', location: 'Pittsfield, MA', capacity: 'Capacity: 16 Participants', hours: 'Residential Program', icon: 'fa-tree', color: 'bg-primary-alt-dark', status: { label: 'Active', color: 'bg-success' } },
-  { name: 'Cape Cod Transitional', subtitle: 'Transitional Living', location: 'Hyannis, MA', capacity: 'Capacity: 8 Residents', hours: 'Independent Living', icon: 'fa-tools', color: 'bg-gray-400', disabled: true, status: { label: 'Maintenance', color: 'bg-warning', icon: 'fa-lock' } },
 ];
 
 export default function ProgramSelectionPage() {
@@ -33,6 +31,7 @@ export default function ProgramSelectionPage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [jobTitle, setJobTitle] = useState<string>('');
   const [ready, setReady] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>(FALLBACK_PROGRAMS);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,14 +80,45 @@ export default function ProgramSelectionPage() {
     return () => window.removeEventListener('storage', onStorage);
   }, [router]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrograms = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const r = (role || '').toString().trim().toLowerCase();
+        const isAdmin = r === 'admin' || r === 'administrator';
+        const url = isAdmin ? '/api/programs' : '/api/programs/my';
+        const resp = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (cancelled) return;
+        const mapped: Program[] = (Array.isArray(data) ? data : []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          subtitle: p.programType,
+          location: [p.city, p.state].filter(Boolean).join(', '),
+          capacity: p.capacity ? `Capacity: ${p.capacity}` : undefined,
+          hours: p.operatingHours,
+          icon: 'fa-building',
+          color: 'bg-primary',
+          disabled: p.status && String(p.status).toLowerCase() === 'maintenance' ? true : false,
+          status: { label: (p.status ? String(p.status) : (p.active === false ? 'Inactive' : 'Active')).toString().replace(/\b\w/g, (l: string) => l.toUpperCase()), color: (p.active === false || (p.status && String(p.status).toLowerCase() === 'inactive')) ? 'bg-gray-400' : 'bg-success' }
+        }));
+        setPrograms(mapped.length ? mapped : FALLBACK_PROGRAMS);
+      } catch {}
+    };
+    if (ready) loadPrograms();
+    return () => { cancelled = true; };
+  }, [ready, role]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return PROGRAMS.filter(p => p.name.toLowerCase().includes(q) || p.location.toLowerCase().includes(q));
+    return programs.filter(p => (p.name || '').toLowerCase().includes(q) || (p.location || '').toLowerCase().includes(q));
   }, [search]);
 
   const onSelect = (p: Program) => {
     if (p.disabled) return;
-    localStorage.setItem('selectedProgram', JSON.stringify({ name: p.name, location: p.location }));
+    localStorage.setItem('selectedProgram', JSON.stringify({ id: p.id, name: p.name, location: p.location }));
     router.push('/dashboard');
   };
 
@@ -154,15 +184,24 @@ export default function ProgramSelectionPage() {
 
         <div id="programs-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filtered.map((p) => (
-            <div key={p.name} className={`program-card bg-white rounded-xl shadow-md border border-bd p-6 cursor-pointer ${p.disabled ? 'opacity-75' : ''}`} onClick={() => onSelect(p)}>
+            <div key={(p.id ? String(p.id) : p.name)} className={`program-card bg-white rounded-xl shadow-md border border-bd p-6 cursor-pointer ${p.disabled ? 'opacity-75' : ''}`} onClick={() => onSelect(p)}>
               <div className="flex items-center mb-4">
-                <div className={`w-12 h-12 ${p.color} rounded-lg flex items-center justify-center mr-4`}>
-                  <i className={`fa-solid ${p.icon} text-white`}></i>
+                <div className={`w-12 h-12 ${p.color || 'bg-primary'} rounded-lg flex items-center justify-center mr-4`}>
+                  <i className={`fa-solid ${p.icon || 'fa-building'} text-white`}></i>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-font-base">{p.name}</h3>
-                  <p className="text-sm text-font-detail">{p.subtitle}</p>
+                  <p className="text-sm text-font-detail">{p.subtitle || ''}</p>
                 </div>
+                {isAdmin && (
+                  <button
+                    title="Edit program"
+                    className="ml-auto text-primary hover:text-primary-light p-2"
+                    onClick={(e) => { e.stopPropagation(); router.push(`/program-selection/create?id=${p.id ?? ''}`); }}
+                  >
+                    <i className="fa-solid fa-pen-to-square"></i>
+                  </button>
+                )}
               </div>
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-font-detail">
@@ -171,7 +210,7 @@ export default function ProgramSelectionPage() {
                 </div>
                 <div className="flex items-center text-sm text-font-detail">
                   <i className="fa-solid fa-users w-4 mr-2 text-primary"></i>
-                  <span>{p.capacity}</span>
+                  <span>{typeof p.capacity === 'number' ? `Capacity: ${p.capacity}` : (p.capacity || '')}</span>
                 </div>
                 <div className="flex items-center text-sm text-font-detail">
                   <i className="fa-solid fa-clock w-4 mr-2 text-primary"></i>
@@ -179,7 +218,7 @@ export default function ProgramSelectionPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`${p.status.color} text-white px-3 py-1 rounded-full text-xs font-medium`}>{p.status.label}</span>
+                <span className={`${p.status?.color || 'bg-success'} text-white px-3 py-1 rounded-full text-xs font-medium`}>{p.status?.label || 'Active'}</span>
                 {p.disabled ? (
                   <i className="fa-solid fa-lock text-gray-400"></i>
                 ) : (
@@ -193,11 +232,11 @@ export default function ProgramSelectionPage() {
         <div id="recent-programs" className="mt-16">
           <h3 className="text-2xl font-semibold text-font-base mb-6 text-center">Recently Accessed Programs</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {PROGRAMS.slice(0,3).map((p) => (
+            {programs.slice(0,3).map((p) => (
               <div key={p.name} className="bg-white rounded-lg border border-bd p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => onSelect(p)}>
                 <div className="flex items-center">
-                  <div className={`w-8 h-8 ${p.color} rounded-lg flex items-center justify-center mr-3`}>
-                    <i className={`fa-solid ${p.icon} text-white text-sm`}></i>
+                  <div className={`w-8 h-8 ${p.color || 'bg-primary'} rounded-lg flex items-center justify-center mr-3`}>
+                    <i className={`fa-solid ${p.icon || 'fa-building'} text-white text-sm`}></i>
                   </div>
                   <div>
                     <p className="font-medium text-font-base">{p.name}</p>
