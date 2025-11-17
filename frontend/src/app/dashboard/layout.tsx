@@ -256,6 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [moduleAccess, setModuleAccess] = useState<Record<string, string>>({});
 
   // list of pages want the back button to appear on
   const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify', '/dashboard/repairs/award', '/dashboard/repairs/assign'];
@@ -293,6 +294,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })();
   }, [router]);
 
+  // Load module access for all menu items; show items with FULL access regardless of role
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const modules = Array.from(new Set(menuGroups.flatMap((g: any) => (g.items as any[]).map((it) => it.label))));
+        const accessMap: Record<string, string> = {};
+        await Promise.all(modules.map(async (m) => {
+          try {
+            const res = await fetch(`/api/permissions/check?module=${encodeURIComponent(m)}`, {
+              method: 'GET',
+              credentials: 'include',
+              headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              accessMap[m] = (data?.access || '').toUpperCase();
+            }
+          } catch {}
+        }));
+        if (!cancelled) setModuleAccess(accessMap);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'logout') router.replace('/signin-required');
@@ -312,10 +341,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const filteredGroups = menuGroups.map((group) => ({
-    ...group,
-    items: group.items.filter((item: any) => user && item.roles.includes(user.role)),
-  })).filter((group) => group.items.length > 0);
+  const filteredGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: (group.items as any[]).filter((item: any) => {
+        if (!user) return false;
+        const roleAllowed = item.roles.includes(user.role);
+        const access = (moduleAccess[item.label] || '').toUpperCase();
+        const hasFull = access === 'FULL';
+        return roleAllowed || hasFull;
+      }),
+    }))
+    .filter((group) => (group.items as any[]).length > 0);
 
   useEffect(() => {
   }, [pathname, user]);
