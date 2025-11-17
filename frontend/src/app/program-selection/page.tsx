@@ -27,6 +27,15 @@ export default function ProgramSelectionPage() {
   const [ready, setReady] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  // local toast notifications
+  type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = (title: string, tone?: 'success' | 'error' | 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts((prev) => [...prev, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 5000);
+  };
+  const removeToast = (id: string) => setToasts((prev) => prev.filter(t => t.id !== id));
 
   useEffect(() => {
     let cancelled = false;
@@ -171,7 +180,7 @@ export default function ProgramSelectionPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return programs.filter(p => (p.name || '').toLowerCase().includes(q) || (p.location || '').toLowerCase().includes(q));
-  }, [search]);
+  }, [search, programs]);
 
   const SkeletonCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -194,8 +203,25 @@ export default function ProgramSelectionPage() {
     </div>
   );
 
-  const onSelect = (p: Program) => {
+  const onSelect = async (p: Program) => {
     if (p.disabled) return;
+    const r = (role || '').toString().trim().toLowerCase();
+    const isAdmin = r === 'admin' || r === 'administrator';
+    // If not admin, verify access by checking membership list
+    if (!isAdmin && p.id) {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch('/api/programs/my', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (resp.ok) {
+          const mine = await resp.json();
+          const allowed = Array.isArray(mine) && mine.some((x: any) => String(x.id) === String(p.id));
+          if (!allowed) {
+            addToast('Contact program Director', 'error');
+            return;
+          }
+        }
+      } catch {}
+    }
     localStorage.setItem('selectedProgram', JSON.stringify({ id: p.id, name: p.name, location: p.location }));
     router.push('/dashboard');
   };
@@ -350,6 +376,21 @@ export default function ProgramSelectionPage() {
           </div>
         </div>
       </footer>
+
+      {/* Toasts */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`px-4 py-3 rounded-lg shadow-md border ${t.tone === 'error' ? 'bg-red-50 border-red-200 text-red-800' : t.tone === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-white border-bd text-font-base'}`}>
+            <div className="flex items-center">
+              <i className={`fa-solid ${t.tone === 'error' ? 'fa-circle-exclamation text-red-500' : t.tone === 'success' ? 'fa-circle-check text-green-600' : 'fa-circle-info text-primary'} mr-2`}></i>
+              <span className="text-sm font-medium">{t.title}</span>
+              <button className="ml-3 text-xs text-font-detail hover:text-font-base" onClick={() => removeToast(t.id)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <style jsx>{`
         .program-card { transition: all 0.3s ease; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); }
