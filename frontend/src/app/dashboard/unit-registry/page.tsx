@@ -14,7 +14,8 @@ export default function OnboardingPage() {
   // Staff search and autofill
   type StaffLite = { id: string; fullName: string; email: string };
   const [staffList, setStaffList] = useState<StaffLite[]>([]);
-  const [staffQuery, setStaffQuery] = useState<string>('');
+  const [staffNameQuery, setStaffNameQuery] = useState<string>('');
+  const [staffEmailQuery, setStaffEmailQuery] = useState<string>('');
   const [emailVal, setEmailVal] = useState<string>('');
   const [firstNameVal, setFirstNameVal] = useState<string>('');
   const [lastNameVal, setLastNameVal] = useState<string>('');
@@ -603,26 +604,49 @@ export default function OnboardingPage() {
                 </p>
               </div>
             </div>
-            <form className="space-y-4">
-              {/* Staff lookup by Email/Name */}
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const sel = selectedStaff || (emailVal ? { id: employeeIdVal || '', fullName: `${firstNameVal} ${lastNameVal}`.trim(), email: emailVal } as StaffLite : null);
+                if (!sel || !sel.email) return;
+                const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+                const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+                const programId = sp?.id ? String(sp.id) : '';
+                if (!programId) { alert('No program selected'); return; }
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                // Get existing assignments, then append staff
+                const ga = await fetch(`/api/programs/${programId}/assignments`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                const existing: Array<{ userEmail:string; roleType:string }> = ga.ok ? await ga.json() : [];
+                const already = existing.some(x => x.userEmail?.toLowerCase() === sel.email.toLowerCase());
+                const next = already ? existing : [...existing, { userEmail: sel.email, roleType: 'STAFF' }];
+                await fetch(`/api/programs/${programId}/assignments`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
+                  body: JSON.stringify({ assignments: next })
+                });
+                alert('Staff added to program');
+              } catch {}
+            }}>
+              {/* Staff lookup by Name */}
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Email Address</label>
-                <input
-                  type="email"
-                  placeholder="firstname.lastname@mass.gov"
-                  value={emailVal}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setEmailVal(v);
-                    setStaffQuery(v);
-                    if (!v) { setSelectedStaff(null); setFirstNameVal(''); setLastNameVal(''); setEmployeeIdVal(''); }
-                  }}
-                  className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-                {/* Suggestions */}
-                {staffQuery && !selectedStaff && (
+                <label className="block text-sm font-medium text-font-base mb-1">Search staff by name</label>
+                <div className="relative">
+                  <i className="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-font-detail"></i>
+                  <input
+                    type="text"
+                    placeholder="Type a name..."
+                    value={staffNameQuery}
+                    onChange={(e) => {
+                      setStaffNameQuery(e.target.value);
+                      if (!e.target.value) { if (!staffEmailQuery) { setSelectedStaff(null); setFirstNameVal(''); setLastNameVal(''); setEmployeeIdVal(''); setEmailVal(''); } }
+                    }}
+                    className="w-full pl-9 pr-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                {staffNameQuery && !selectedStaff && (
                   <div className="mt-2 bg-white border border-bd rounded-lg max-h-48 overflow-auto">
-                    {staffList.filter(s => s.email.toLowerCase().includes(staffQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffQuery.toLowerCase())).slice(0,8).map(s => (
+                    {staffList.filter(s => s.fullName.toLowerCase().includes(staffNameQuery.toLowerCase())).slice(0,8).map(s => (
                       <button
                         type="button"
                         key={s.id}
@@ -634,14 +658,59 @@ export default function OnboardingPage() {
                           setFirstNameVal(parts[0] || '');
                           setLastNameVal(parts.length > 1 ? parts[parts.length-1] : '');
                           setEmployeeIdVal(s.id);
-                          setStaffQuery('');
+                          setStaffNameQuery('');
+                          setStaffEmailQuery('');
                         }}
                       >
                         <span className="text-sm text-font-base">{s.fullName}</span>
                         <span className="text-xs text-font-detail">{s.email}</span>
                       </button>
                     ))}
-                    {staffList.filter(s => s.email.toLowerCase().includes(staffQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffQuery.toLowerCase())).length === 0 && (
+                    {staffList.filter(s => s.fullName.toLowerCase().includes(staffNameQuery.toLowerCase())).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-font-detail">No matches</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="text-center text-sm text-font-detail">OR</div>
+              {/* Staff lookup by Email */}
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-1">Search by Email Address</label>
+                <input
+                  type="email"
+                  placeholder="firstname.lastname@mass.gov"
+                  value={emailVal}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setEmailVal(v);
+                    setStaffEmailQuery(v);
+                    if (!v) { if (!staffNameQuery) { setSelectedStaff(null); setFirstNameVal(''); setLastNameVal(''); setEmployeeIdVal(''); } }
+                  }}
+                  className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                {staffEmailQuery && !selectedStaff && (
+                  <div className="mt-2 bg-white border border-bd rounded-lg max-h-48 overflow-auto">
+                    {staffList.filter(s => s.email.toLowerCase().includes(staffEmailQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffEmailQuery.toLowerCase())).slice(0,8).map(s => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between"
+                        onClick={() => {
+                          setSelectedStaff(s);
+                          setEmailVal(s.email);
+                          const parts = (s.fullName || '').trim().split(/\s+/);
+                          setFirstNameVal(parts[0] || '');
+                          setLastNameVal(parts.length > 1 ? parts[parts.length-1] : '');
+                          setEmployeeIdVal(s.id);
+                          setStaffEmailQuery('');
+                          setStaffNameQuery('');
+                        }}
+                      >
+                        <span className="text-sm text-font-base">{s.fullName}</span>
+                        <span className="text-xs text-font-detail">{s.email}</span>
+                      </button>
+                    ))}
+                    {staffList.filter(s => s.email.toLowerCase().includes(staffEmailQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffEmailQuery.toLowerCase())).length === 0 && (
                       <div className="px-3 py-2 text-xs text-font-detail">No matches</div>
                     )}
                   </div>
@@ -655,9 +724,10 @@ export default function OnboardingPage() {
                   <input
                     type="text"
                     value={firstNameVal}
-                    readOnly={!!selectedStaff}
-                    onChange={(e) => setFirstNameVal(e.target.value)}
-                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
+                    readOnly
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50 cursor-not-allowed`}
                   />
                 </div>
                 <div>
@@ -665,9 +735,10 @@ export default function OnboardingPage() {
                   <input
                     type="text"
                     value={lastNameVal}
-                    readOnly={!!selectedStaff}
-                    onChange={(e) => setLastNameVal(e.target.value)}
-                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
+                    readOnly
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50 cursor-not-allowed`}
                   />
                 </div>
               </div>
@@ -679,9 +750,10 @@ export default function OnboardingPage() {
                   <input
                     type="text"
                     value={employeeIdVal}
-                    readOnly={!!selectedStaff}
-                    onChange={(e) => setEmployeeIdVal(e.target.value)}
-                    className={`w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${selectedStaff ? 'bg-gray-50' : ''}`}
+                    readOnly
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    className={`w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50 cursor-not-allowed`}
                   />
                 </div>
                 <div className="hidden"></div>
