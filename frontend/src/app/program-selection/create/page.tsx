@@ -25,10 +25,21 @@ export default function CreateProgramPage() {
   const [program, setProgram] = useState<any>(null);
   const [programTypeSelected, setProgramTypeSelected] = useState<string>('');
   const [operatingHoursSelected, setOperatingHoursSelected] = useState<string>('');
+  const [openingState, setOpeningState] = useState<string>(''); // 'active' | 'coming-soon' | 'date'
   // Assignments
   const [regionalAdmins, setRegionalAdmins] = useState<Array<{ email: string; name?: string }>>([]);
   const [directorEmail, setDirectorEmail] = useState<string>('');
   const [assistantEmail, setAssistantEmail] = useState<string>('');
+
+  // Local toast notifications (success/error/info)
+  type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = (title: string, tone?: 'success' | 'error' | 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts((prev) => [...prev, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 5000);
+  };
+  const removeToast = (id: string) => setToasts((prev) => prev.filter(t => t.id !== id));
 
   useEffect(() => {
     try {
@@ -50,6 +61,8 @@ export default function CreateProgramPage() {
             setProgram(data);
             setProgramTypeSelected(data.programType || '');
             setOperatingHoursSelected(data.operatingHours || '');
+            const est = (data && data.expectedOpeningDate) ? 'date' : ((data && (data.status || '').toLowerCase() === 'active') ? 'active' : 'coming-soon');
+            setOpeningState(est);
           }
         }
         const a = await fetch(`/api/programs/${editingId}/assignments`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -79,7 +92,7 @@ export default function CreateProgramPage() {
     setStaff((s) => s.map((it, i) => (i === idx ? { ...it, [key]: value } : it)));
 
   const saveDraft = () => {
-    alert('Draft saved successfully!');
+    addToast('Draft saved', 'success');
   };
 
   const cancel = () => {
@@ -90,6 +103,7 @@ export default function CreateProgramPage() {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
+    const opening = String(fd.get('openingState') || '');
     const body: any = {
       name: String(fd.get('programName') || ''),
       programType: String(fd.get('programType') || ''),
@@ -105,8 +119,7 @@ export default function CreateProgramPage() {
       operatingHours: String(fd.get('operatingHours') || ''),
       customSchedule: String(fd.get('customSchedule') || ''),
       securityLevel: String(fd.get('securityLevel') || ''),
-      targetPopulation: String(fd.get('targetPopulation') || ''),
-      expectedOpeningDate: String(fd.get('expectedOpeningDate') || ''),
+      expectedOpeningDate: opening === 'date' ? String(fd.get('expectedOpeningDate') || '') : '',
       gender: String(fd.get('gender') || ''),
       active: String(fd.get('status') || '').toLowerCase() !== 'inactive',
     };
@@ -115,10 +128,12 @@ export default function CreateProgramPage() {
       let programId = editingId;
       if (editingId) {
         const resp = await fetch(`/api/programs/${editingId}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ ...(program || {}), ...body }) });
-        if (!resp.ok) { alert('Failed to save changes'); return; }
+        if (resp.status === 403) { addToast('You do not have permission to update programs.', 'error'); return; }
+        if (!resp.ok) { addToast('Failed to save changes', 'error'); return; }
       } else {
         const resp = await fetch('/api/programs', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(body) });
-        if (!resp.ok) { alert('Failed to create program'); return; }
+        if (resp.status === 403) { addToast('You do not have permission to create programs.', 'error'); return; }
+        if (!resp.ok) { addToast('Failed to create program', 'error'); return; }
         const created = await resp.json();
         programId = created.id ? String(created.id) : '';
       }
@@ -127,17 +142,20 @@ export default function CreateProgramPage() {
         regionalAdmins.filter(r => r.email).forEach(r => assignments.push({ userEmail: r.email, roleType: 'REGIONAL_ADMIN' }));
         if (directorEmail) assignments.push({ userEmail: directorEmail, roleType: 'PROGRAM_DIRECTOR' });
         if (assistantEmail) assignments.push({ userEmail: assistantEmail, roleType: 'ASSISTANT_DIRECTOR' });
-        await fetch(`/api/programs/${programId}/assignments`, {
+        const assignResp = await fetch(`/api/programs/${programId}/assignments`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
           body: JSON.stringify({ assignments })
         });
+        if (!assignResp.ok) {
+          addToast('Program saved but failed to save assignments', 'error');
+        }
       }
-      alert(editingId ? 'Program updated successfully! Redirecting...' : 'Program created successfully! Redirecting...');
-      setTimeout(() => router.push('/program-selection'), 800);
+      addToast(editingId ? 'Program updated successfully' : 'Program created successfully', 'success');
+      setTimeout(() => router.push('/program-selection'), 1000);
     } catch {
-      alert('An error occurred while saving');
+      addToast('An error occurred while saving', 'error');
     }
   };
 
@@ -170,16 +188,6 @@ export default function CreateProgramPage() {
                   <h1 className="text-xl font-bold text-primary">{editingId ? 'Edit Program' : 'Create New Program'}</h1>
                   <p className="text-sm text-font-detail">Department of Youth Services</p>
                 </div>
-
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Gender *</label>
-                <select name="gender" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.gender || ''}>
-                  <option value="">Select gender</option>
-                  <option value="mixed">Mixed</option>
-                  <option value="boys">Boys</option>
-                  <option value="girls">Girls</option>
-                </select>
-              </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -235,6 +243,16 @@ export default function CreateProgramPage() {
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Capacity *</label>
                 <input name="capacity" required type="number" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Maximum residents/participants" defaultValue={program?.capacity ?? ''} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Gender *</label>
+                <select name="gender" required className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.gender || ''}>
+                  <option value="">Select gender</option>
+                  <option value="mixed">Mixed</option>
+                  <option value="boys">Boys</option>
+                  <option value="girls">Girls</option>
+                </select>
               </div>
 
               <div>
@@ -425,8 +443,25 @@ export default function CreateProgramPage() {
                 </div>
               )}
               <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Opening</label>
+                <select name="openingState" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" value={openingState} onChange={(e)=>setOpeningState(e.target.value)}>
+                  <option value="">Select opening state</option>
+                  <option value="active">Already Active</option>
+                  <option value="coming-soon">Coming Soon</option>
+                  <option value="date">Select Date</option>
+                </select>
+              </div>
+
+              {openingState === 'date' && (
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Expected Opening Date</label>
+                  <input name="expectedOpeningDate" type="date" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.expectedOpeningDate || ''} />
+                </div>
+              )}
+
+              <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Security Level</label>
-                <select name="securityLevel" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.securityLevel || ''}>
+                <select name="securityLevel" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus-border-primary" defaultValue={program?.securityLevel || ''}>
                   <option value="">Select security level</option>
                   <option value="maximum">Maximum Security</option>
                   <option value="medium">Medium Security</option>
@@ -434,13 +469,6 @@ export default function CreateProgramPage() {
                   <option value="community">Community-Based</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Target Population</label>
-                <input name="targetPopulation" type="text" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Male adolescents 14-18" defaultValue={program?.targetPopulation || ''} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Expected Opening Date</label>
-                <input name="expectedOpeningDate" type="date" className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue={program?.expectedOpeningDate || ''} />
               </div>
             </div>
           </div>
@@ -457,6 +485,18 @@ export default function CreateProgramPage() {
             </button>
           </div>
         </form>
+        {/* Toasts */}
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-3">
+          {toasts.map((t) => (
+            <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 ${t.tone === 'success' ? 'bg-white border-success' : t.tone === 'error' ? 'bg-white border-error' : 'bg-white border-bd'}`}>
+              <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+              <div className="flex-1 text-sm text-font-base">{t.title}</div>
+              <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );
