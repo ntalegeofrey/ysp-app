@@ -29,20 +29,46 @@ export default function ProgramSelectionPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('');
+  const [displayName, setDisplayName] = useState<string>('');
+  const [jobTitle, setJobTitle] = useState<string>('');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
-      if (!raw || !token) {
-        router.push('/');
-        return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        if (!raw || !token) {
+          router.push('/');
+          return;
+        }
+        try {
+          const u = JSON.parse(raw);
+          if (!cancelled) {
+            setRole((u.role || '').toString());
+            setDisplayName(u.fullName || u.name || u.email || '');
+            setJobTitle(u.jobTitle || u.position || '');
+          }
+        } catch {}
+        // Fetch authoritative profile
+        const res = await fetch('/api/auth/me', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
+        if (res.ok) {
+          const me = await res.json();
+          if (!cancelled) {
+            setRole((me.role || role || '').toString());
+            setDisplayName(me.fullName || me.name || me.email || displayName);
+            setJobTitle(me.jobTitle || me.position || jobTitle);
+            try { localStorage.setItem('user', JSON.stringify(me)); } catch {}
+          }
+        }
+        if (!cancelled) setReady(true);
+      } catch {
+        if (!cancelled) router.push('/');
       }
-      setRole(JSON.parse(raw).role || '');
-      setReady(true);
-    } catch {}
-  }, []);
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -56,6 +82,7 @@ export default function ProgramSelectionPage() {
   };
 
   if (!ready) return null;
+  const isAdmin = (role || '').toString().trim().toLowerCase() === 'admin' || (role || '').toString().trim().toLowerCase() === 'administrator';
   return (
     <div id="program-selection-container" className="min-h-screen hero-pattern">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
@@ -70,8 +97,8 @@ export default function ProgramSelectionPage() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-font-base">Welcome, Sarah Wilson</p>
-                <p className="text-xs text-font-detail">Super Administrator</p>
+                <p className="text-sm font-medium text-font-base">Welcome, {displayName || 'Authenticated User'}</p>
+                <p className="text-xs text-font-detail">{jobTitle || (isAdmin ? 'Administrator' : 'Staff')}</p>
               </div>
               <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="User" className="w-10 h-10 rounded-full border-2 border-primary-lighter" />
               <button className="text-font-detail hover:text-primary ml-4" onClick={() => { try { localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('selectedProgram'); } catch {}; router.push('/'); }}>
@@ -86,7 +113,7 @@ export default function ProgramSelectionPage() {
         <div id="welcome-section" className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
             <h2 className="text-4xl font-bold text-font-base">Select Your Program</h2>
-            {role === 'admin' && (
+            {isAdmin && (
               <button id="create-program-btn" className="ml-6 bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center" onClick={() => router.push('/program-selection/create')}>
                 <i className="fa-solid fa-plus mr-2"></i>
                 Create New Program
