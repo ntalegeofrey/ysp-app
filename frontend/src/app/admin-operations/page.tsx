@@ -79,12 +79,22 @@ export default function AdminOperationsPage() {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
         if (!res.ok) return;
-        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
+        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean; usersCount?: number}> = await res.json();
         const names = rolesList.map(r => toDisplay(r.name));
         setRoleNames(prev => Array.from(new Set([...prev, ...names])));
         const idMap: Record<string, number> = {};
         for (const r of rolesList) { idMap[toDisplay(r.name)] = r.id; }
         setRoleIdByName(idMap);
+        // populate roleRows table with all backend roles
+        const rows = rolesList.map(r => ({
+          id: String(r.id),
+          name: toDisplay(r.name),
+          description: r.description || '',
+          users: typeof r.usersCount === 'number' ? r.usersCount : 0,
+          lastModified: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          status: (r.active ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
+        }));
+        setRoleRows(rows);
         // fetch permissions for each role
         const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
         for (const r of rolesList) {
@@ -186,12 +196,22 @@ export default function AdminOperationsPage() {
         const token = getToken();
         const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
         if (!res.ok) return;
-        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
+        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean; usersCount?: number}> = await res.json();
         const names = rolesList.map(r => toDisplay(r.name));
         setRoleNames(prev => Array.from(new Set([...prev, ...names])));
         const idMap: Record<string, number> = {};
         for (const r of rolesList) { idMap[toDisplay(r.name)] = r.id; }
         setRoleIdByName(prev => ({ ...prev, ...idMap }));
+        // refresh roleRows from backend roles
+        const rows = rolesList.map(r => ({
+          id: String(r.id),
+          name: toDisplay(r.name),
+          description: r.description || '',
+          users: typeof r.usersCount === 'number' ? r.usersCount : 0,
+          lastModified: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+          status: (r.active ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
+        }));
+        setRoleRows(rows);
         const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
         for (const r of rolesList) {
           const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
@@ -403,59 +423,7 @@ export default function AdminOperationsPage() {
   };
 
   // ===== Role management (frontend-only) =====
-  type RoleTile = {
-    id: string;
-    name: string;
-    status: "Active" | "Inactive";
-    description: string;
-    users: number | string;
-    modules: number | string;
-    permissions: string;
-    tone: "primary" | "success";
-  };
-
-  const [roleTiles, setRoleTiles] = useState<RoleTile[]>([
-    {
-      id: "admin",
-      name: "Administrator",
-      status: "Active",
-      description: "Full system access and configuration rights",
-      users: 2,
-      modules: "All",
-      permissions: "Full",
-      tone: "primary",
-    },
-    {
-      id: "supervisor",
-      name: "Shift Supervisor",
-      status: "Active",
-      description: "Operational oversight and unit management",
-      users: 6,
-      modules: 10,
-      permissions: "Supervisor",
-      tone: "success",
-    },
-    {
-      id: "jjyds3",
-      name: "JJYDS III",
-      status: "Active",
-      description: "Senior youth development specialist",
-      users: 4,
-      modules: 8,
-      permissions: "Standard+",
-      tone: "primary",
-    },
-    {
-      id: "clinical",
-      name: "Clinical Staff",
-      status: "Active",
-      description: "Medical and behavioral health specialists",
-      users: 3,
-      modules: 6,
-      permissions: "Clinical",
-      tone: "success",
-    },
-  ]);
+  // Removed role tiles in favor of table-only view
 
   type RoleRow = {
     id: string;
@@ -466,9 +434,7 @@ export default function AdminOperationsPage() {
     status: "Active" | "Inactive";
   };
 
-  const [roleRows, setRoleRows] = useState<RoleRow[]>([
-    { id: "jjyds2", name: "JJYDS II", description: "Youth development specialist", users: 5, lastModified: "Nov 15, 2024", status: "Active" },
-  ]);
+  const [roleRows, setRoleRows] = useState<RoleRow[]>([]);
 
   const [roleModal, setRoleModal] = useState<null | { mode: "create" | "edit"; id?: string | number; prevName?: string }>(null);
   type AccessLevel = typeof accessLevels[number];
@@ -481,13 +447,11 @@ export default function AdminOperationsPage() {
     setRoleModal({ mode: "create" });
   };
   const openEditRole = (id: string) => {
-    // try tiles first then table
-    const tile = roleTiles.find((t) => t.id === id);
     const row = roleRows.find((r) => r.id === id);
-    const roleName = tile?.name || row?.name;
+    const roleName = row?.name;
     if (roleName) {
       const existing = matrix[roleName] as Record<string, AccessLevel> | undefined;
-      setRoleForm({ name: roleName, description: (tile?.description || row?.description) || "", status: (tile?.status || row?.status) === "Active", moduleAccess: existing ? { ...moduleDefaults, ...existing } : moduleDefaults });
+      setRoleForm({ name: roleName, description: (row?.description) || "", status: (row?.status) === "Active", moduleAccess: existing ? { ...moduleDefaults, ...existing } : moduleDefaults });
     }
     setRoleModal({ mode: "edit", id, prevName: roleName });
   };
@@ -496,27 +460,6 @@ export default function AdminOperationsPage() {
     const basicId = roleForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const id = roleModal.mode === "edit" && roleModal.id ? roleModal.id : basicId || `role-${Date.now()}`;
     const idStr = typeof id === 'string' ? id : String(id);
-
-    // Update or add tile
-    setRoleTiles((prev) => {
-      const exists = prev.some((t) => t.id === idStr) || prev.some((t) => t.name.toLowerCase() === roleForm.name.trim().toLowerCase());
-      const modulesCount = Object.values(roleForm.moduleAccess).filter((v) => v !== "None").length;
-      const updated: RoleTile = {
-        id: idStr,
-        name: roleForm.name || "New Role",
-        status: roleForm.status ? "Active" : "Inactive",
-        description: roleForm.description || "",
-        users: 0,
-        modules: modulesCount === modules.length ? "All" : modulesCount,
-        permissions: "Custom",
-        tone: "primary",
-      };
-      if (roleModal.mode === "edit") {
-        const matchId = String(roleModal.id ?? idStr);
-        return prev.map((t) => (t.id === matchId ? { ...t, ...updated } : t));
-      }
-      return exists ? prev : [updated, ...prev];
-    });
 
     // Ensure table row exists/updates
     setRoleRows((prev) => {
@@ -625,7 +568,6 @@ export default function AdminOperationsPage() {
     if (!confirmDelete) return;
     const { id } = confirmDelete;
     setRoleRows((prev) => prev.filter((r) => r.id !== id));
-    setRoleTiles((prev) => prev.filter((t) => t.id !== id));
     setConfirmDelete(null);
   };
 
@@ -721,26 +663,6 @@ export default function AdminOperationsPage() {
         </div>
 
         <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {roleTiles.map((t) => (
-              <div key={t.id} className={`${t.tone === "primary" ? "bg-primary-lightest border-primary" : "bg-success-lightest border-success"} border rounded-lg p-4`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className={`font-semibold ${t.tone === "primary" ? "text-primary" : "text-success"}`}>{t.name}</h4>
-                  <div className="flex items-center space-x-2">
-                    <button onClick={() => openEditRole(t.id)} className="text-primary hover:text-primary-light text-sm" title="Edit Role">
-                      <i className="fa-solid fa-edit"></i>
-                    </button>
-                    <span className={`${t.status === "Active" ? "bg-success text-white" : "bg-bg-subtle text-font-base border border-bd"} px-2 py-1 rounded text-xs`}>{t.status}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-font-detail mb-3">{t.description}</p>
-                <div className="text-xs text-font-detail">
-                  <strong>Users:</strong> {t.users} | <strong>Modules:</strong> {t.modules} | <strong>Permissions:</strong> {t.permissions}
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="overflow-x-auto">
             <table className="w-full border border-bd">
               <thead className="bg-primary text-white">
