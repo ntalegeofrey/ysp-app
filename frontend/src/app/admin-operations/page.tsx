@@ -43,7 +43,7 @@ export default function AdminOperationsPage() {
   const [matrix, setMatrix] = useState(defaultMatrix);
   const [openCell, setOpenCell] = useState<null | { role: string; module: string }>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const apiBase = "/api";
   const [metrics, setMetrics] = useState({ usersCount: 0, activeRoles: 0, permissionsCount: 0, pendingReviews: 0 });
   const [roleIdByName, setRoleIdByName] = useState<Record<string, number>>({});
 
