@@ -119,6 +119,204 @@ export default function AdminOperationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Live updates: polling + on-focus refresh
+  useEffect(() => {
+    let stopped = false;
+    const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+
+    const fetchMetrics = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (m.ok) {
+          const data = await m.json();
+          setMetrics({
+            usersCount: data.usersCount ?? 0,
+            activeRoles: data.activeRoles ?? 0,
+            permissionsCount: data.permissionsCount ?? 0,
+            pendingReviews: data.pendingReviews ?? 0,
+          });
+        }
+      } catch {}
+    };
+
+    const fetchUsers = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const ur = await fetch(`${apiBase}/admin/users`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (ur.ok) {
+          const arr: Array<{ id:number|string; fullName:string; jobTitle:string; email:string; role:string; enabled:boolean; mustChangePassword:boolean }>= await ur.json();
+          const mapped = arr.map(u => ({
+            id: typeof u.id === 'string' ? u.id : String(u.id),
+            fullName: u.fullName,
+            jobTitle: u.jobTitle,
+            email: u.email,
+            role: toDisplay(u.role),
+            enabled: u.enabled,
+            mustUpdate: u.mustChangePassword,
+          }));
+          setUsers(mapped);
+        }
+      } catch {}
+    };
+
+    const fetchRolesAndPerms = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (!res.ok) return;
+        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
+        const names = rolesList.map(r => toDisplay(r.name));
+        setRoleNames(prev => Array.from(new Set([...prev, ...names])));
+        const idMap: Record<string, number> = {};
+        for (const r of rolesList) { idMap[toDisplay(r.name)] = r.id; }
+        setRoleIdByName(prev => ({ ...prev, ...idMap }));
+        const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
+        for (const r of rolesList) {
+          const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+          let map: Record<string, typeof accessLevels[number]> = {};
+          if (pr.ok) {
+            const arr: Array<{module:string; access:string}> = await pr.json();
+            for (const p of arr) {
+              const access = (p.access || '').toUpperCase();
+              const normalized = access === 'FULL' ? 'Full' : access === 'EDIT' ? 'Edit' : access === 'VIEW' ? 'View' : 'None';
+              map[p.module] = normalized as typeof accessLevels[number];
+            }
+          }
+          permsEntries.push([toDisplay(r.name), { ...Object.fromEntries(modules.map(m=>[m, 'View'] as const)), ...map }]);
+        }
+        setMatrix(prev => ({ ...prev, ...Object.fromEntries(permsEntries) }));
+      } catch {}
+    };
+
+    const onFocus = () => {
+      if (document.hidden) return;
+      fetchMetrics();
+      fetchUsers();
+      fetchRolesAndPerms();
+    };
+
+    document.addEventListener('visibilitychange', onFocus);
+    const metricsTimer = setInterval(fetchMetrics, 15000);
+    const usersTimer = setInterval(fetchUsers, 30000);
+    const rolesTimer = setInterval(fetchRolesAndPerms, 60000);
+
+    // Initial kick to ensure freshness
+    fetchMetrics();
+
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(metricsTimer);
+      clearInterval(usersTimer);
+      clearInterval(rolesTimer);
+    };
+  }, [apiBase]);
+
+  // SSE: true real-time updates without reload
+  useEffect(() => {
+    let es: EventSource | null = null;
+    let stopped = false;
+    const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+
+    const fetchMetrics = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (m.ok) {
+          const data = await m.json();
+          setMetrics({
+            usersCount: data.usersCount ?? 0,
+            activeRoles: data.activeRoles ?? 0,
+            permissionsCount: data.permissionsCount ?? 0,
+            pendingReviews: data.pendingReviews ?? 0,
+          });
+        }
+      } catch {}
+    };
+    const fetchUsers = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const ur = await fetch(`${apiBase}/admin/users`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (ur.ok) {
+          const arr: Array<{ id:number|string; fullName:string; jobTitle:string; email:string; role:string; enabled:boolean; mustChangePassword:boolean }>= await ur.json();
+          const mapped = arr.map(u => ({
+            id: typeof u.id === 'string' ? u.id : String(u.id),
+            fullName: u.fullName,
+            jobTitle: u.jobTitle,
+            email: u.email,
+            role: toDisplay(u.role),
+            enabled: u.enabled,
+            mustUpdate: u.mustChangePassword,
+          }));
+          setUsers(mapped);
+        }
+      } catch {}
+    };
+    const fetchRolesAndPerms = async () => {
+      if (stopped) return;
+      try {
+        const token = getToken();
+        const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (!res.ok) return;
+        const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
+        const names = rolesList.map(r => toDisplay(r.name));
+        setRoleNames(prev => Array.from(new Set([...prev, ...names])));
+        const idMap: Record<string, number> = {};
+        for (const r of rolesList) { idMap[toDisplay(r.name)] = r.id; }
+        setRoleIdByName(prev => ({ ...prev, ...idMap }));
+        const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
+        for (const r of rolesList) {
+          const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+          let map: Record<string, typeof accessLevels[number]> = {};
+          if (pr.ok) {
+            const arr: Array<{module:string; access:string}> = await pr.json();
+            for (const p of arr) {
+              const access = (p.access || '').toUpperCase();
+              const normalized = access === 'FULL' ? 'Full' : access === 'EDIT' ? 'Edit' : access === 'VIEW' ? 'View' : 'None';
+              map[p.module] = normalized as typeof accessLevels[number];
+            }
+          }
+          permsEntries.push([toDisplay(r.name), { ...Object.fromEntries(modules.map(m=>[m, 'View'] as const)), ...map }]);
+        }
+        setMatrix(prev => ({ ...prev, ...Object.fromEntries(permsEntries) }));
+      } catch {}
+    };
+
+    try {
+      es = new EventSource('/api/admin/events', { withCredentials: true });
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          const type = data?.type as string | undefined;
+          if (!type) return;
+          if (type === 'metrics.changed') {
+            fetchMetrics();
+          } else if (type.startsWith('users.')) {
+            fetchUsers();
+            fetchMetrics();
+          } else if (type.startsWith('roles.') || type.startsWith('permissions.')) {
+            fetchRolesAndPerms();
+            fetchMetrics();
+          }
+        } catch {}
+      };
+      es.onerror = () => {
+        // Let the browser auto-reconnect; if it closes, we do nothing here
+      };
+    } catch {}
+
+    return () => {
+      stopped = true;
+      if (es) es.close();
+    };
+  }, [apiBase]);
+
   // ===== User management (frontend-only) =====
   type UserRow = { id: string; fullName: string; jobTitle: string; email: string; role: string; enabled: boolean; mustUpdate: boolean };
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -168,8 +366,20 @@ export default function AdminOperationsPage() {
         };
         setUsers((prev) => [newUser, ...prev]);
         setUserForm({ firstName: "", middleName: "", lastName: "", email: "", jobTitle: "", jobTitleOther: "", employeeNumber: "", role: "Admin", sendOtl: true });
-        // refresh metrics usersCount
-        setMetrics(m => ({ ...m, usersCount: m.usersCount + 1 }));
+        // refresh metrics
+        try {
+          const token2 = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token2? { Authorization: `Bearer ${token2}` }: {}) } });
+          if (m.ok) {
+            const data = await m.json();
+            setMetrics({
+              usersCount: data.usersCount ?? 0,
+              activeRoles: data.activeRoles ?? 0,
+              permissionsCount: data.permissionsCount ?? 0,
+              pendingReviews: data.pendingReviews ?? 0,
+            });
+          }
+        } catch {}
       }
     } catch {}
   };
@@ -338,15 +548,29 @@ export default function AdminOperationsPage() {
           headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify(putBody)
         });
+        // refresh metrics after permissions update
+        try {
+          const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+          if (m.ok) {
+            const data = await m.json();
+            setMetrics({
+              usersCount: data.usersCount ?? 0,
+              activeRoles: data.activeRoles ?? 0,
+              permissionsCount: data.permissionsCount ?? 0,
+              pendingReviews: data.pendingReviews ?? 0,
+            });
+          }
+        } catch {}
       }
     } catch {}
 
     // Write selections to the permissions matrix for this role name
     const roleName = roleForm.name.trim() || idStr;
     setMatrix((prev) => {
+      const base = (prev as any)[roleName] ?? moduleDefaults;
       const next = {
         ...prev,
-        [roleName]: { ...(prev as any)[roleName], ...roleForm.moduleAccess },
+        [roleName]: { ...base, ...roleForm.moduleAccess },
       } as typeof prev;
       // Handle rename: remove old key if editing and name changed
       if (roleModal.mode === "edit" && roleModal.prevName && roleModal.prevName !== roleName) {
@@ -397,7 +621,8 @@ export default function AdminOperationsPage() {
       : "bg-error text-white";
 
   const setAccess = async (role: string, module: string, level: typeof accessLevels[number]) => {
-    const nextRole = { ...matrix[role], [module]: level };
+    const base = matrix[role] ?? moduleDefaults;
+    const nextRole = { ...base, [module]: level };
     setMatrix((prev) => ({ ...prev, [role]: nextRole }));
     setOpenCell(null);
     const roleId = roleIdByName[role];
@@ -737,6 +962,14 @@ export default function AdminOperationsPage() {
                             headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
                             body: JSON.stringify({ role: toApi(newRole) })
                           });
+                          // refresh metrics (roles/users might impact counts indirectly)
+                          try {
+                            const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                            if (m.ok) {
+                              const data = await m.json();
+                              setMetrics({ usersCount: data.usersCount ?? 0, activeRoles: data.activeRoles ?? 0, permissionsCount: data.permissionsCount ?? 0, pendingReviews: data.pendingReviews ?? 0 });
+                            }
+                          } catch {}
                         } catch {}
                       }} className="border rounded px-2 py-1 bg-white">
                         {roleNames.map(r => (
@@ -756,6 +989,14 @@ export default function AdminOperationsPage() {
                             headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
                             body: JSON.stringify({ enabled: next })
                           });
+                          // refresh metrics (pending reviews/users may change depending on logic)
+                          try {
+                            const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                            if (m.ok) {
+                              const data = await m.json();
+                              setMetrics({ usersCount: data.usersCount ?? 0, activeRoles: data.activeRoles ?? 0, permissionsCount: data.permissionsCount ?? 0, pendingReviews: data.pendingReviews ?? 0 });
+                            }
+                          } catch {}
                         } catch {}
                       }} className="px-3 py-1 rounded border">{u.enabled? 'Disable':'Enable'}</button>
                     </td>
@@ -764,6 +1005,14 @@ export default function AdminOperationsPage() {
                       try { 
                         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                         await fetch(`${apiBase}/admin/users/${u.id}/otl`, { method: 'POST', credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } }); 
+                        // refresh metrics (pending reviews may change)
+                        try {
+                          const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                          if (m.ok) {
+                            const data = await m.json();
+                            setMetrics({ usersCount: data.usersCount ?? 0, activeRoles: data.activeRoles ?? 0, permissionsCount: data.permissionsCount ?? 0, pendingReviews: data.pendingReviews ?? 0 });
+                          }
+                        } catch {}
                       } catch {}
                     }} className="px-3 py-1 rounded bg-primary text-white">Send OTL</button></td>
                   </tr>
@@ -812,7 +1061,8 @@ export default function AdminOperationsPage() {
                       </thead>
                       <tbody className="divide-y divide-bd">
                         {roleNames.map((r) => {
-                          const val = matrix[r][mod];
+                          const row = matrix[r] ?? moduleDefaults;
+                          const val = (row as any)[mod] ?? 'View';
                           return (
                             <tr key={r}>
                               <td className="px-3 py-2 font-medium text-font-base">{r}</td>

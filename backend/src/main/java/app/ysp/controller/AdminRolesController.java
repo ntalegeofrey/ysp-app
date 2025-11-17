@@ -7,6 +7,7 @@ import app.ysp.dto.RolePermissionDto;
 import app.ysp.repo.RolePermissionRepository;
 import app.ysp.repo.RoleRepository;
 import org.springframework.http.ResponseEntity;
+import app.ysp.service.SseHub;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +21,12 @@ import java.util.stream.Collectors;
 public class AdminRolesController {
     private final RoleRepository roles;
     private final RolePermissionRepository perms;
+    private final SseHub sseHub;
 
-    public AdminRolesController(RoleRepository roles, RolePermissionRepository perms) {
+    public AdminRolesController(RoleRepository roles, RolePermissionRepository perms, SseHub sseHub) {
         this.roles = roles;
         this.perms = perms;
+        this.sseHub = sseHub;
     }
 
     @GetMapping
@@ -38,6 +41,8 @@ public class AdminRolesController {
         r.setDescription(req.getDescription());
         r.setActive(req.getActive() == null ? true : req.getActive());
         r = roles.save(r);
+        try { sseHub.broadcast(java.util.Map.of("type","roles.created","id", r.getId())); } catch (Exception ignored) {}
+        try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
         return ResponseEntity.created(URI.create("/admin/roles/" + r.getId())).body(toDto(r));
     }
 
@@ -48,7 +53,10 @@ public class AdminRolesController {
                     if (req.getName() != null) r.setName(req.getName());
                     if (req.getDescription() != null) r.setDescription(req.getDescription());
                     if (req.getActive() != null) r.setActive(req.getActive());
-                    return ResponseEntity.ok(toDto(roles.save(r)));
+                    Role saved = roles.save(r);
+                    try { sseHub.broadcast(java.util.Map.of("type","roles.updated","id", saved.getId())); } catch (Exception ignored) {}
+                    try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
+                    return ResponseEntity.ok(toDto(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -86,6 +94,8 @@ public class AdminRolesController {
                         perms.save(rp);
                     }
                     var out = perms.findByRole(r).stream().map(this::toDto).collect(Collectors.toList());
+                    try { sseHub.broadcast(java.util.Map.of("type","permissions.updated","roleId", r.getId())); } catch (Exception ignored) {}
+                    try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
                     return ResponseEntity.ok(out);
                 })
                 .orElse(ResponseEntity.notFound().build());

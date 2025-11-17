@@ -6,6 +6,7 @@ import app.ysp.dto.UpdateUserRequest;
 import app.ysp.dto.UserResponse;
 import app.ysp.repo.UserRepository;
 import app.ysp.service.OneTimeLoginService;
+import app.ysp.service.SseHub;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,10 +22,12 @@ import java.util.stream.Collectors;
 public class AdminController {
     private final UserRepository userRepository;
     private final OneTimeLoginService otlService;
+    private final SseHub sseHub;
 
-    public AdminController(UserRepository userRepository, OneTimeLoginService otlService) {
+    public AdminController(UserRepository userRepository, OneTimeLoginService otlService, SseHub sseHub) {
         this.userRepository = userRepository;
         this.otlService = otlService;
+        this.sseHub = sseHub;
     }
 
     @GetMapping
@@ -62,6 +65,9 @@ public class AdminController {
         if (req.isSendOneTimeLogin()) {
             otlService.createAndEmailToken(u.getId(), 1800);
         }
+        // broadcast events
+        try { sseHub.broadcast(java.util.Map.of("type","users.created","id", u.getId())); } catch (Exception ignored) {}
+        try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
         return ResponseEntity.created(URI.create("/admin/users/" + u.getId())).body(toDto(u));
     }
 
@@ -79,6 +85,8 @@ public class AdminController {
                     if (Boolean.TRUE.equals(req.getSendOneTimeLogin())) {
                         otlService.createAndEmailToken(saved.getId(), 1800);
                     }
+                    try { sseHub.broadcast(java.util.Map.of("type","users.updated","id", saved.getId())); } catch (Exception ignored) {}
+                    try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
                     return ResponseEntity.ok(toDto(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -89,6 +97,8 @@ public class AdminController {
         return userRepository.findById(id)
                 .map(u -> {
                     otlService.createAndEmailToken(u.getId(), 1800);
+                    try { sseHub.broadcast(java.util.Map.of("type","users.otl","id", u.getId())); } catch (Exception ignored) {}
+                    try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
                     return ResponseEntity.accepted().build();
                 })
                 .orElse(ResponseEntity.notFound().build());
