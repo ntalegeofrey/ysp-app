@@ -37,8 +37,22 @@ public class AdminController {
         User u = new User();
         u.setEmail(req.getEmail());
         u.setRole(req.getRole() == null ? "user" : req.getRole());
-        u.setFullName(req.getFullName());
-        u.setJobTitle(req.getJobTitle());
+        // Compose fullName from parts if not provided
+        String fullName = req.getFullName();
+        if (fullName == null || fullName.isBlank()) {
+            StringBuilder sb = new StringBuilder();
+            if (req.getFirstName() != null && !req.getFirstName().isBlank()) sb.append(req.getFirstName().trim());
+            if (req.getMiddleName() != null && !req.getMiddleName().isBlank()) sb.append(sb.length()>0?" ":"").append(req.getMiddleName().trim());
+            if (req.getLastName() != null && !req.getLastName().isBlank()) sb.append(sb.length()>0?" ":"").append(req.getLastName().trim());
+            fullName = sb.toString();
+        }
+        u.setFullName(fullName);
+        // If jobTitle is 'Other', use jobTitleOther
+        String jobTitle = req.getJobTitle();
+        if (jobTitle != null && jobTitle.equalsIgnoreCase("other")) {
+            jobTitle = req.getJobTitleOther();
+        }
+        u.setJobTitle(jobTitle);
         u.setEmployeeNumber(req.getEmployeeNumber());
         u.setEnabled(true);
         u.setMustChangePassword(true);

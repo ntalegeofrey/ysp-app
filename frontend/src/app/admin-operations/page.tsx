@@ -44,6 +44,8 @@ export default function AdminOperationsPage() {
   const [openCell, setOpenCell] = useState<null | { role: string; module: string }>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const [metrics, setMetrics] = useState({ usersCount: 0, activeRoles: 0, permissionsCount: 0, pendingReviews: 0 });
+  const [roleIdByName, setRoleIdByName] = useState<Record<string, number>>({});
 
   const toDisplay = (name: string) => {
     if (!name) return name;
@@ -61,6 +63,9 @@ export default function AdminOperationsPage() {
         const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
         const names = rolesList.map(r => toDisplay(r.name));
         setRoleNames(prev => Array.from(new Set([...prev, ...names])));
+        const idMap: Record<string, number> = {};
+        for (const r of rolesList) { idMap[toDisplay(r.name)] = r.id; }
+        setRoleIdByName(idMap);
         // fetch permissions for each role
         const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
         for (const r of rolesList) {
@@ -77,6 +82,37 @@ export default function AdminOperationsPage() {
           permsEntries.push([toDisplay(r.name), { ...Object.fromEntries(modules.map(m=>[m, 'View'] as const)), ...map }]);
         }
         setMatrix(prev => ({ ...prev, ...Object.fromEntries(permsEntries) }));
+        // metrics
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+          if (m.ok) {
+            const data = await m.json();
+            setMetrics({
+              usersCount: data.usersCount ?? 0,
+              activeRoles: data.activeRoles ?? 0,
+              permissionsCount: data.permissionsCount ?? 0,
+              pendingReviews: data.pendingReviews ?? 0,
+            });
+          }
+        } catch {}
+        // users
+        try {
+          const ur = await fetch(`${apiBase}/admin/users`, { credentials: 'include' });
+          if (ur.ok) {
+            const arr: Array<{ id:number|string; fullName:string; jobTitle:string; email:string; role:string; enabled:boolean; mustChangePassword:boolean }>= await ur.json();
+            const mapped = arr.map(u => ({
+              id: typeof u.id === 'string' ? u.id : String(u.id),
+              fullName: u.fullName,
+              jobTitle: u.jobTitle,
+              email: u.email,
+              role: toDisplay(u.role),
+              enabled: u.enabled,
+              mustUpdate: u.mustChangePassword,
+            }));
+            setUsers(mapped);
+          }
+        } catch {}
       } catch {}
     };
     load();
@@ -85,31 +121,56 @@ export default function AdminOperationsPage() {
 
   // ===== User management (frontend-only) =====
   type UserRow = { id: string; fullName: string; jobTitle: string; email: string; role: string; enabled: boolean; mustUpdate: boolean };
-  const [users, setUsers] = useState<UserRow[]>([
-    { id: "u1", fullName: "Sarah Wilson", jobTitle: "System Administrator", email: "sarah.wilson@mass.gov", role: "Admin", enabled: true, mustUpdate: false },
-  ]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [userForm, setUserForm] = useState({
-    fullName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     email: "",
     jobTitle: "",
+    jobTitleOther: "",
     employeeNumber: "",
     role: "Admin",
     sendOtl: true,
   });
-  const submitNewUser = (e: React.FormEvent) => {
+  const submitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const id = `u-${Date.now()}`;
-    const newUser: UserRow = {
-      id,
-      fullName: userForm.fullName || "-",
-      jobTitle: userForm.jobTitle || "-",
-      email: userForm.email || "-",
-      role: userForm.role || "Admin",
-      enabled: true,
-      mustUpdate: false,
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    setUserForm({ fullName: "", email: "", jobTitle: "", employeeNumber: "", role: "Admin", sendOtl: true });
+    try {
+      const body = {
+        email: userForm.email,
+        role: toApi(userForm.role),
+        firstName: userForm.firstName,
+        middleName: userForm.middleName,
+        lastName: userForm.lastName,
+        jobTitle: userForm.jobTitle,
+        jobTitleOther: userForm.jobTitle === 'Other' ? userForm.jobTitleOther : undefined,
+        employeeNumber: userForm.employeeNumber,
+        sendOneTimeLogin: userForm.sendOtl,
+      } as any;
+      const res = await fetch(`${apiBase}/admin/users`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        const created: { id:string|number; fullName:string; jobTitle:string; email:string; role:string; enabled:boolean; mustChangePassword:boolean } = await res.json();
+        const idStr = typeof created.id === 'string' ? created.id : String(created.id);
+        const newUser: UserRow = {
+          id: idStr,
+          fullName: created.fullName || `${userForm.firstName} ${userForm.middleName} ${userForm.lastName}`.replace(/\s+/g,' ').trim(),
+          jobTitle: created.jobTitle || userForm.jobTitleOther || userForm.jobTitle,
+          email: created.email,
+          role: toDisplay(created.role || toApi(userForm.role)),
+          enabled: created.enabled ?? true,
+          mustUpdate: created.mustChangePassword ?? false,
+        };
+        setUsers((prev) => [newUser, ...prev]);
+        setUserForm({ firstName: "", middleName: "", lastName: "", email: "", jobTitle: "", jobTitleOther: "", employeeNumber: "", role: "Admin", sendOtl: true });
+        // refresh metrics usersCount
+        setMetrics(m => ({ ...m, usersCount: m.usersCount + 1 }));
+      }
+    } catch {}
   };
 
   // ===== Role management (frontend-only) =====
@@ -255,6 +316,9 @@ export default function AdminOperationsPage() {
         if (res.ok) {
           const created = await res.json();
           roleId = created.id;
+          // map display name -> id for inline matrix persistence
+          const displayName = toDisplay(created.name || roleForm.name);
+          setRoleIdByName(prev => ({ ...prev, [displayName]: Number(roleId) }));
         }
       } else {
         await fetch(`${apiBase}/admin/roles/${roleId}`, {
@@ -297,6 +361,18 @@ export default function AdminOperationsPage() {
       }
       return prev.includes(roleName) ? prev : [...prev, roleName];
     });
+    // If renamed, update id map key
+    if (roleModal.mode === 'edit' && roleModal.prevName && roleModal.prevName !== roleName) {
+      const prevName = roleModal.prevName as string;
+      setRoleIdByName(prev => {
+        const copy: Record<string, number> = { ...prev };
+        if (copy[prevName] !== undefined) {
+          copy[roleName] = copy[prevName];
+          delete copy[prevName];
+        }
+        return copy;
+      });
+    }
 
     setRoleModal(null);
   };
@@ -318,12 +394,22 @@ export default function AdminOperationsPage() {
       ? "bg-primary text-white"
       : "bg-error text-white";
 
-  const setAccess = (role: string, module: string, level: typeof accessLevels[number]) => {
-    setMatrix((prev) => ({
-      ...prev,
-      [role]: { ...prev[role], [module]: level },
-    }));
+  const setAccess = async (role: string, module: string, level: typeof accessLevels[number]) => {
+    const nextRole = { ...matrix[role], [module]: level };
+    setMatrix((prev) => ({ ...prev, [role]: nextRole }));
     setOpenCell(null);
+    const roleId = roleIdByName[role];
+    if (roleId) {
+      const putBody = modules.map(m => ({ module: m, access: (nextRole[m] || 'None').toUpperCase() }));
+      try {
+        await fetch(`${apiBase}/admin/roles/${roleId}/permissions`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(putBody)
+        });
+      } catch {}
+    }
   };
 
   return (
@@ -334,7 +420,7 @@ export default function AdminOperationsPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-users text-primary text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-primary">24</p>
+              <p className="text-2xl font-bold text-primary">{metrics.usersCount}</p>
               <p className="text-sm text-font-detail">Total Users</p>
             </div>
           </div>
@@ -343,7 +429,7 @@ export default function AdminOperationsPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-user-shield text-success text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-success">8</p>
+              <p className="text-2xl font-bold text-success">{metrics.activeRoles}</p>
               <p className="text-sm text-font-detail">Active Roles</p>
             </div>
           </div>
@@ -352,7 +438,7 @@ export default function AdminOperationsPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-lock text-warning text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-warning">156</p>
+              <p className="text-2xl font-bold text-warning">{metrics.permissionsCount}</p>
               <p className="text-sm text-font-detail">Permissions</p>
             </div>
           </div>
@@ -361,7 +447,7 @@ export default function AdminOperationsPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-clock text-error text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-error">3</p>
+              <p className="text-2xl font-bold text-error">{metrics.pendingReviews}</p>
               <p className="text-sm text-font-detail">Pending Reviews</p>
             </div>
           </div>
@@ -556,8 +642,16 @@ export default function AdminOperationsPage() {
             </h4>
             <form onSubmit={submitNewUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Full Name</label>
-                <input value={userForm.fullName} onChange={(e)=>setUserForm({...userForm, fullName: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter full name" />
+                <label className="block text-sm font-medium text-font-base mb-2">First Name</label>
+                <input value={userForm.firstName} onChange={(e)=>setUserForm({...userForm, firstName: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="First name" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Middle Name</label>
+                <input value={userForm.middleName} onChange={(e)=>setUserForm({...userForm, middleName: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Middle name" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Last Name</label>
+                <input value={userForm.lastName} onChange={(e)=>setUserForm({...userForm, lastName: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Last name" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Email</label>
@@ -579,6 +673,12 @@ export default function AdminOperationsPage() {
                   <option>Other</option>
                 </select>
               </div>
+              {userForm.jobTitle === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Specify Job Title</label>
+                  <input value={userForm.jobTitleOther} onChange={(e)=>setUserForm({...userForm, jobTitleOther: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter job title" />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Employee Number</label>
                 <input value={userForm.employeeNumber} onChange={(e)=>setUserForm({...userForm, employeeNumber: e.target.value})} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="EMP-2024-XXX" />
@@ -586,14 +686,9 @@ export default function AdminOperationsPage() {
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Role</label>
                 <select value={userForm.role} onChange={(e)=>setUserForm({...userForm, role: e.target.value})} className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus-border-transparent">
-                  <option>Admin</option>
-                  <option>Supervisor</option>
-                  <option>JJYDS III</option>
-                  <option>JJYDS II</option>
-                  <option>JJYDS I</option>
-                  <option>Clinical</option>
-                  <option>Caseworker</option>
-                  <option>Support</option>
+                  {roleNames.map(r => (
+                    <option key={r}>{r}</option>
+                  ))}
                 </select>
               </div>
               <div className="md:col-span-2 flex items-center justify-between">
@@ -628,22 +723,41 @@ export default function AdminOperationsPage() {
                     <td className="px-4 py-3 text-sm">{u.jobTitle}</td>
                     <td className="px-4 py-3 text-sm">{u.email}</td>
                     <td className="px-4 py-3 text-sm">
-                      <select value={u.role} onChange={(e)=>setUsers(prev=>prev.map(p=>p.id===u.id? {...p, role: e.target.value}:p))} className="border rounded px-2 py-1 bg-white">
-                        <option>Admin</option>
-                        <option>Supervisor</option>
-                        <option>JJYDS III</option>
-                        <option>JJYDS II</option>
-                        <option>JJYDS I</option>
-                        <option>Clinical</option>
-                        <option>Caseworker</option>
-                        <option>Support</option>
+                      <select value={u.role} onChange={async (e)=>{
+                        const newRole = e.target.value;
+                        setUsers(prev=>prev.map(p=>p.id===u.id? {...p, role: newRole}:p));
+                        try {
+                          await fetch(`${apiBase}/admin/users/${u.id}`, {
+                            method: 'PATCH',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ role: toApi(newRole) })
+                          });
+                        } catch {}
+                      }} className="border rounded px-2 py-1 bg-white">
+                        {roleNames.map(r => (
+                          <option key={r}>{r}</option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <button onClick={()=>setUsers(prev=>prev.map(p=>p.id===u.id? {...p, enabled: !p.enabled}:p))} className="px-3 py-1 rounded border">{u.enabled? 'Disable':'Enable'}</button>
+                      <button onClick={async ()=>{
+                        const next = !u.enabled;
+                        setUsers(prev=>prev.map(p=>p.id===u.id? {...p, enabled: next}:p));
+                        try {
+                          await fetch(`${apiBase}/admin/users/${u.id}`, {
+                            method: 'PATCH',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ enabled: next })
+                          });
+                        } catch {}
+                      }} className="px-3 py-1 rounded border">{u.enabled? 'Disable':'Enable'}</button>
                     </td>
                     <td className="px-4 py-3 text-sm">{u.mustUpdate? 'Yes':'No'}</td>
-                    <td className="px-4 py-3 text-sm"><button className="px-3 py-1 rounded bg-primary text-white">Send OTL</button></td>
+                    <td className="px-4 py-3 text-sm"><button onClick={async ()=>{
+                      try { await fetch(`${apiBase}/admin/users/${u.id}/otl`, { method: 'POST', credentials: 'include' }); } catch {}
+                    }} className="px-3 py-1 rounded bg-primary text-white">Send OTL</button></td>
                   </tr>
                 ))}
               </tbody>
