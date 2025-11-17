@@ -295,31 +295,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router]);
 
   // Load module access for all menu items; show items with FULL access regardless of role
+  const loadModuleAccess = async () => {
+    if (!user) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const modules = Array.from(new Set(menuGroups.flatMap((g: any) => (g.items as any[]).map((it) => it.label))));
+      const accessMap: Record<string, string> = {};
+      await Promise.all(modules.map(async (m) => {
+        try {
+          const res = await fetch(`/api/permissions/check?module=${encodeURIComponent(m)}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            accessMap[m] = (data?.access || '').toUpperCase();
+          }
+        } catch {}
+      }));
+      setModuleAccess(accessMap);
+    } catch {}
+  };
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const modules = Array.from(new Set(menuGroups.flatMap((g: any) => (g.items as any[]).map((it) => it.label))));
-        const accessMap: Record<string, string> = {};
-        await Promise.all(modules.map(async (m) => {
-          try {
-            const res = await fetch(`/api/permissions/check?module=${encodeURIComponent(m)}`, {
-              method: 'GET',
-              credentials: 'include',
-              headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-            });
-            if (res.ok) {
-              const data = await res.json();
-              accessMap[m] = (data?.access || '').toUpperCase();
-            }
-          } catch {}
-        }));
-        if (!cancelled) setModuleAccess(accessMap);
-      } catch {}
-    })();
+    (async () => { if (!cancelled) await loadModuleAccess(); })();
     return () => { cancelled = true; };
+  }, [user]);
+
+  // Refresh module access on tab visibility change and on cross-tab permissions update
+  useEffect(() => {
+    const onVis = () => { if (!document.hidden) loadModuleAccess(); };
+    const onStorage = (e: StorageEvent) => { if (e.key === 'perms-bump') loadModuleAccess(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('storage', onStorage);
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('storage', onStorage); };
   }, [user]);
 
   useEffect(() => {

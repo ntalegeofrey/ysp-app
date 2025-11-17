@@ -417,6 +417,7 @@ export default function AdminOperationsPage() {
         };
         setUsers((prev) => [newUser, ...prev]);
         setUserForm({ firstName: "", middleName: "", lastName: "", email: "", jobTitle: "", jobTitleOther: "", employeeNumber: "", role: "Admin", sendOtl: true });
+        if (userForm.sendOtl) { addToast('One-time login (OTL) sent', 'success'); }
         // refresh metrics
         try {
           const token2 = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -454,6 +455,17 @@ export default function AdminOperationsPage() {
   const moduleDefaults: Record<string, AccessLevel> = Object.fromEntries(modules.map((m) => [m, "View"])) as Record<string, AccessLevel>;
   const [roleForm, setRoleForm] = useState<{ name: string; description: string; status: boolean; moduleAccess: Record<string, AccessLevel> }>({ name: "", description: "", status: true, moduleAccess: moduleDefaults });
   const [confirmDelete, setConfirmDelete] = useState<null | { id: string; name: string }>(null);
+
+  // Toast notifications
+  type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = (title: string, tone: 'success' | 'error' | 'info' = 'success') => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const t = { id, title, tone } as Toast;
+    setToasts((prev) => [t, ...prev]);
+    setTimeout(() => { setToasts((prev) => prev.filter(x => x.id !== id)); }, 4000);
+  };
+  const removeToast = (id: string) => setToasts((prev) => prev.filter(t => t.id !== id));
 
   const openCreateRole = () => {
     setRoleForm({ name: "", description: "", status: true, moduleAccess: moduleDefaults });
@@ -522,6 +534,8 @@ export default function AdminOperationsPage() {
           headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify(putBody)
         });
+        try { localStorage.setItem('perms-bump', String(Date.now())); } catch {}
+        addToast('Role permissions saved', 'success');
         // refresh metrics after permissions update
         try {
           const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
@@ -609,6 +623,8 @@ export default function AdminOperationsPage() {
           headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify(putBody)
         });
+        try { localStorage.setItem('perms-bump', String(Date.now())); } catch {}
+        addToast('Permissions updated', 'success');
       } catch {}
     }
   };
@@ -624,6 +640,19 @@ export default function AdminOperationsPage() {
               <p className="text-2xl font-bold text-primary">{metrics.usersCount}</p>
               <p className="text-sm text-font-detail">Total Users</p>
             </div>
+
+      {/* Toasts */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 ${t.tone === 'success' ? 'bg-white border-success' : t.tone === 'error' ? 'bg-white border-error' : 'bg-white border-bd'}`}>
+            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+            <div className="flex-1 text-sm text-font-base">{t.title}</div>
+            <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        ))}
+      </div>
           </div>
         </div>
         <div className="bg-white rounded-lg border border-bd p-6">
