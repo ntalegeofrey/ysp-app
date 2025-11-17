@@ -58,7 +58,8 @@ export default function AdminOperationsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include' });
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`${apiBase}/admin/roles`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
         if (!res.ok) return;
         const rolesList: Array<{id:number; name:string; description?:string; active?:boolean}> = await res.json();
         const names = rolesList.map(r => toDisplay(r.name));
@@ -69,7 +70,7 @@ export default function AdminOperationsPage() {
         // fetch permissions for each role
         const permsEntries: Array<[string, Record<string, typeof accessLevels[number]>]> = [];
         for (const r of rolesList) {
-          const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include' });
+          const pr = await fetch(`${apiBase}/admin/roles/${r.id}/permissions`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
           let map: Record<string, typeof accessLevels[number]> = {};
           if (pr.ok) {
             const arr: Array<{module:string; access:string}> = await pr.json();
@@ -84,7 +85,6 @@ export default function AdminOperationsPage() {
         setMatrix(prev => ({ ...prev, ...Object.fromEntries(permsEntries) }));
         // metrics
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
           const m = await fetch(`/api/admin/metrics`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
           if (m.ok) {
             const data = await m.json();
@@ -98,7 +98,7 @@ export default function AdminOperationsPage() {
         } catch {}
         // users
         try {
-          const ur = await fetch(`${apiBase}/admin/users`, { credentials: 'include' });
+          const ur = await fetch(`${apiBase}/admin/users`, { credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
           if (ur.ok) {
             const arr: Array<{ id:number|string; fullName:string; jobTitle:string; email:string; role:string; enabled:boolean; mustChangePassword:boolean }>= await ur.json();
             const mapped = arr.map(u => ({
@@ -136,6 +136,7 @@ export default function AdminOperationsPage() {
   const submitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const body = {
         email: userForm.email,
         role: toApi(userForm.role),
@@ -150,7 +151,7 @@ export default function AdminOperationsPage() {
       const res = await fetch(`${apiBase}/admin/users`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
         body: JSON.stringify(body)
       });
       if (res.ok) {
@@ -305,12 +306,13 @@ export default function AdminOperationsPage() {
 
     // Persist to backend
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       let roleId: number | undefined = typeof roleModal.id === 'number' ? roleModal.id : undefined;
       if (roleModal.mode === 'create' || !roleId) {
         const res = await fetch(`${apiBase}/admin/roles`, {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify({ name: toApi(roleForm.name), description: roleForm.description, active: roleForm.status })
         });
         if (res.ok) {
@@ -324,7 +326,7 @@ export default function AdminOperationsPage() {
         await fetch(`${apiBase}/admin/roles/${roleId}`, {
           method: 'PATCH',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify({ name: toApi(roleForm.name), description: roleForm.description, active: roleForm.status })
         });
       }
@@ -333,7 +335,7 @@ export default function AdminOperationsPage() {
         await fetch(`${apiBase}/admin/roles/${roleId}/permissions`, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify(putBody)
         });
       }
@@ -402,10 +404,11 @@ export default function AdminOperationsPage() {
     if (roleId) {
       const putBody = modules.map(m => ({ module: m, access: (nextRole[m] || 'None').toUpperCase() }));
       try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         await fetch(`${apiBase}/admin/roles/${roleId}/permissions`, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
           body: JSON.stringify(putBody)
         });
       } catch {}
@@ -727,10 +730,11 @@ export default function AdminOperationsPage() {
                         const newRole = e.target.value;
                         setUsers(prev=>prev.map(p=>p.id===u.id? {...p, role: newRole}:p));
                         try {
+                          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                           await fetch(`${apiBase}/admin/users/${u.id}`, {
                             method: 'PATCH',
                             credentials: 'include',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
                             body: JSON.stringify({ role: toApi(newRole) })
                           });
                         } catch {}
@@ -745,10 +749,11 @@ export default function AdminOperationsPage() {
                         const next = !u.enabled;
                         setUsers(prev=>prev.map(p=>p.id===u.id? {...p, enabled: next}:p));
                         try {
+                          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                           await fetch(`${apiBase}/admin/users/${u.id}`, {
                             method: 'PATCH',
                             credentials: 'include',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
                             body: JSON.stringify({ enabled: next })
                           });
                         } catch {}
@@ -756,7 +761,10 @@ export default function AdminOperationsPage() {
                     </td>
                     <td className="px-4 py-3 text-sm">{u.mustUpdate? 'Yes':'No'}</td>
                     <td className="px-4 py-3 text-sm"><button onClick={async ()=>{
-                      try { await fetch(`${apiBase}/admin/users/${u.id}/otl`, { method: 'POST', credentials: 'include' }); } catch {}
+                      try { 
+                        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                        await fetch(`${apiBase}/admin/users/${u.id}/otl`, { method: 'POST', credentials: 'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } }); 
+                      } catch {}
                     }} className="px-3 py-1 rounded bg-primary text-white">Send OTL</button></td>
                   </tr>
                 ))}
