@@ -26,6 +26,7 @@ export default function ProgramSelectionPage() {
   const [jobTitle, setJobTitle] = useState<string>('');
   const [ready, setReady] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,29 +38,25 @@ export default function ProgramSelectionPage() {
           router.push('/');
           return;
         }
+        const u = JSON.parse(raw);
+        setRole(u.role || '');
+        setDisplayName(u.fullName || u.email?.split('@')[0] || '');
+        setJobTitle(u.jobTitle || '');
+        setReady(true);
+        // Try to hydrate from cache immediately
         try {
-          const u = JSON.parse(raw);
-          if (!cancelled) {
-            setRole((u.role || '').toString());
-            setDisplayName(u.fullName || u.name || u.email || '');
-            setJobTitle(u.jobTitle || u.position || '');
+          const cacheKey = ((u.role || '').toString().trim().toLowerCase() === 'admin' || (u.role || '').toString().trim().toLowerCase() === 'administrator') ? 'programs_cache_all' : 'programs_cache_my';
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed?.items)) {
+              setPrograms(parsed.items as Program[]);
+              setLoading(false);
+            }
           }
         } catch {}
-        // Fetch authoritative profile
-        const res = await fetch('/api/auth/me', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
-        if (res.ok) {
-          const me = await res.json();
-          if (!cancelled) {
-            setRole((me.role || role || '').toString());
-            setDisplayName(me.fullName || me.name || me.email || displayName);
-            setJobTitle(me.jobTitle || me.position || jobTitle);
-            try { localStorage.setItem('user', JSON.stringify(me)); } catch {}
-          }
-        }
-        if (!cancelled) setReady(true);
-      } catch {
-        if (!cancelled) router.push('/');
-      }
+      } catch {}
+      if (!cancelled) setReady(true);
     })();
     return () => { cancelled = true; };
   }, [router]);
@@ -77,6 +74,7 @@ export default function ProgramSelectionPage() {
   useEffect(() => {
     let cancelled = false;
     const loadPrograms = async () => {
+      setLoading(true);
       try {
         const token = localStorage.getItem('token') || '';
         const r = (role || '').toString().trim().toLowerCase();
@@ -158,6 +156,12 @@ export default function ProgramSelectionPage() {
           };
         });
         setPrograms(mapped);
+        setLoading(false);
+        // Save to cache for instant next load
+        try {
+          const cacheKey = isAdmin ? 'programs_cache_all' : 'programs_cache_my';
+          localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: mapped }));
+        } catch {}
       } catch {}
     };
     if (ready) loadPrograms();
@@ -168,6 +172,27 @@ export default function ProgramSelectionPage() {
     const q = search.toLowerCase();
     return programs.filter(p => (p.name || '').toLowerCase().includes(q) || (p.location || '').toLowerCase().includes(q));
   }, [search]);
+
+  const SkeletonCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="border border-bd rounded-xl p-5 bg-white animate-pulse">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-bg-subtle" />
+              <div>
+                <div className="h-4 w-40 bg-bg-subtle rounded mb-2" />
+                <div className="h-3 w-24 bg-bg-subtle rounded" />
+              </div>
+            </div>
+            <div className="h-4 w-6 bg-bg-subtle rounded" />
+          </div>
+          <div className="h-3 w-48 bg-bg-subtle rounded mb-2" />
+          <div className="h-3 w-32 bg-bg-subtle rounded" />
+        </div>
+      ))}
+    </div>
+  );
 
   const onSelect = (p: Program) => {
     if (p.disabled) return;
@@ -235,51 +260,57 @@ export default function ProgramSelectionPage() {
           </div>
         </div>
 
-        <div id="programs-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filtered.map((p) => (
-            <div key={(p.id ? String(p.id) : p.name)} className={`program-card bg-white rounded-xl shadow-md border border-bd p-6 cursor-pointer ${p.disabled ? 'opacity-75' : ''}`} onClick={() => onSelect(p)}>
-              <div className="flex items-center mb-4">
-                <div className={`w-12 h-12 ${p.color || 'bg-primary'} rounded-lg flex items-center justify-center mr-4`}>
-                  <i className={`fa-solid ${p.icon || 'fa-building'} text-white`}></i>
+        <div id="programs-grid" className="min-h-[280px]">
+          {loading ? (
+            <SkeletonCards />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filtered.map((p) => (
+                <div key={(p.id ? String(p.id) : p.name)} className={`program-card bg-white rounded-xl shadow-md border border-bd p-6 cursor-pointer ${p.disabled ? 'opacity-75' : ''}`} onClick={() => onSelect(p)}>
+                  <div className="flex items-center mb-4">
+                    <div className={`w-12 h-12 ${p.color || 'bg-primary'} rounded-lg flex items-center justify-center mr-4`}>
+                      <i className={`fa-solid ${p.icon || 'fa-building'} text-white`}></i>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-font-base">{p.name}</h3>
+                      <p className="text-sm text-font-detail">{p.subtitle || ''}</p>
+                    </div>
+                    {isAdmin && (
+                      <button
+                        title="Edit program"
+                        className="ml-auto text-primary hover:text-primary-light p-2"
+                        onClick={(e) => { e.stopPropagation(); router.push(`/program-selection/create?id=${p.id ?? ''}`); }}
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-font-detail">
+                      <i className="fa-solid fa-map-marker-alt w-4 mr-2 text-primary"></i>
+                      <span>{p.location}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-font-detail">
+                      <i className="fa-solid fa-users w-4 mr-2 text-primary"></i>
+                      <span>{typeof p.capacity === 'number' ? `Capacity: ${p.capacity}` : (p.capacity || '')}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-font-detail">
+                      <i className="fa-solid fa-clock w-4 mr-2 text-primary"></i>
+                      <span>{p.hours}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`${p.status?.color || 'bg-success'} text-white px-3 py-1 rounded-full text-xs font-medium`}>{p.status?.label || 'Active'}</span>
+                    {p.disabled ? (
+                      <i className="fa-solid fa-lock text-gray-400"></i>
+                    ) : (
+                      <i className="fa-solid fa-arrow-right text-primary"></i>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-font-base">{p.name}</h3>
-                  <p className="text-sm text-font-detail">{p.subtitle || ''}</p>
-                </div>
-                {isAdmin && (
-                  <button
-                    title="Edit program"
-                    className="ml-auto text-primary hover:text-primary-light p-2"
-                    onClick={(e) => { e.stopPropagation(); router.push(`/program-selection/create?id=${p.id ?? ''}`); }}
-                  >
-                    <i className="fa-solid fa-pen-to-square"></i>
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center text-sm text-font-detail">
-                  <i className="fa-solid fa-map-marker-alt w-4 mr-2 text-primary"></i>
-                  <span>{p.location}</span>
-                </div>
-                <div className="flex items-center text-sm text-font-detail">
-                  <i className="fa-solid fa-users w-4 mr-2 text-primary"></i>
-                  <span>{typeof p.capacity === 'number' ? `Capacity: ${p.capacity}` : (p.capacity || '')}</span>
-                </div>
-                <div className="flex items-center text-sm text-font-detail">
-                  <i className="fa-solid fa-clock w-4 mr-2 text-primary"></i>
-                  <span>{p.hours}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={`${p.status?.color || 'bg-success'} text-white px-3 py-1 rounded-full text-xs font-medium`}>{p.status?.label || 'Active'}</span>
-                {p.disabled ? (
-                  <i className="fa-solid fa-lock text-gray-400"></i>
-                ) : (
-                  <i className="fa-solid fa-arrow-right text-primary"></i>
-                )}
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <div id="recent-programs" className="mt-16">
