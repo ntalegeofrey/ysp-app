@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Loading from "../components/loading";
 import { logoUrl } from "../utils/logo";
+import { abbreviateTitle } from "../utils/titleAbbrev";
 
 function AppBar() {
   const [displayName, setDisplayName] = useState<string>("");
@@ -47,9 +48,9 @@ function AppBar() {
       localStorage.removeItem('user');
       localStorage.removeItem('selectedProgram');
       localStorage.setItem('logout', String(Date.now()));
-      window.location.href = '/';
+      window.location.href = '/signin-required';
     } catch {
-      window.location.href = '/';
+      window.location.href = '/signin-required';
     }
   };
   return (
@@ -78,7 +79,7 @@ function AppBar() {
             </button>
             <div className="hidden sm:block leading-tight">
               <div className="text-sm font-medium text-font-base">{displayName || 'Authenticated User'}</div>
-              <div className="text-xs text-font-detail">{jobTitle || 'Staff'}</div>
+              <div className="text-xs text-font-detail">{abbreviateTitle(jobTitle || 'Staff')}</div>
             </div>
           </div>
           <button onClick={onLogout} className="p-2 rounded-lg hover:bg-bg-subtle transition-colors" title="Logout">
@@ -93,6 +94,14 @@ function AppBar() {
 export default function AdminOperationsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'logout') router.replace('/signin-required');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { logoUrl } from '../utils/logo';
+import { abbreviateTitle } from '../utils/titleAbbrev';
 
 type Program = {
   name: string;
@@ -70,6 +71,16 @@ export default function ProgramSelectionPage() {
     return () => { cancelled = true; };
   }, [router]);
 
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'logout') {
+        router.replace('/signin-required');
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [router]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return PROGRAMS.filter(p => p.name.toLowerCase().includes(q) || p.location.toLowerCase().includes(q));
@@ -83,6 +94,7 @@ export default function ProgramSelectionPage() {
 
   if (!ready) return null;
   const isAdmin = (role || '').toString().trim().toLowerCase() === 'admin' || (role || '').toString().trim().toLowerCase() === 'administrator';
+  const shortTitle = abbreviateTitle(jobTitle || (isAdmin ? 'Administrator' : 'Staff'));
   return (
     <div id="program-selection-container" className="min-h-screen hero-pattern">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
@@ -98,10 +110,10 @@ export default function ProgramSelectionPage() {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm font-medium text-font-base">Welcome, {displayName || 'Authenticated User'}</p>
-                <p className="text-xs text-font-detail">{jobTitle || (isAdmin ? 'Administrator' : 'Staff')}</p>
+                <p className="text-xs text-font-detail">{shortTitle}</p>
               </div>
               <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="User" className="w-10 h-10 rounded-full border-2 border-primary-lighter" />
-              <button className="text-font-detail hover:text-primary ml-4" onClick={() => { try { localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('selectedProgram'); } catch {}; router.push('/'); }}>
+              <button className="text-font-detail hover:text-primary ml-4" onClick={() => { try { localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('selectedProgram'); localStorage.setItem('logout', String(Date.now())); } catch {}; router.push('/signin-required'); }}>
                 <i className="fa-solid fa-sign-out-alt text-lg"></i>
               </button>
             </div>

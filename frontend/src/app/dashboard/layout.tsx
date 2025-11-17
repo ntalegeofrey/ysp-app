@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logoUrl } from '../utils/logo';
+import { abbreviateTitle } from '../utils/titleAbbrev';
 import Loading from '../components/loading';
 
 const menuGroups = [
@@ -231,7 +232,7 @@ function HeaderWithParams({
             </button>
             <div className="hidden sm:block leading-tight">
               <div className="text-sm font-medium text-font-base">{userName || 'Authenticated User'}</div>
-              <div className="text-xs text-font-detail">{userJobTitle || 'Staff'}</div>
+              <div className="text-xs text-font-detail">{abbreviateTitle(userJobTitle || 'Staff')}</div>
             </div>
           </div>
 
@@ -263,7 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const userData = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     if (!token) {
-      router.push('/');
+      router.push('/signin-required');
       return;
     }
     // Try fetching profile from backend
@@ -287,9 +288,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (userData) {
         try { setUser(JSON.parse(userData)); } catch {}
       } else {
-        router.push('/');
+        router.push('/signin-required');
       }
     })();
+  }, [router]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'logout') router.replace('/signin-required');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [router]);
 
   const handleLogout = () => {
@@ -297,8 +306,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('selectedProgram');
+      localStorage.setItem('logout', String(Date.now()));
     } catch {}
-    router.push('/');
+    router.push('/signin-required');
   };
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -412,7 +422,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-font-base truncate">{user.fullName || user.name || user.email}</p>
-                <p className="text-xs text-font-detail truncate">{user.jobTitle || (user.role ? String(user.role).toLowerCase() : '')}</p>
+                <p className="text-xs text-font-detail truncate">{abbreviateTitle(user.jobTitle || (user.role ? String(user.role) : ''))}</p>
               </div>
             </div>
             {/* Logout Button in Sidebar */}
