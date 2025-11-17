@@ -128,6 +128,8 @@ function HeaderWithParams({
   onToggleSidebar,
   sidebarOpen,
   onLogout,
+  userName,
+  userJobTitle,
 }: {
   baseTitle: string;
   baseBreadcrumb: string;
@@ -135,6 +137,8 @@ function HeaderWithParams({
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
   onLogout: () => void;
+  userName: string;
+  userJobTitle: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -219,6 +223,17 @@ function HeaderWithParams({
           <button className="p-2 rounded-lg hover:bg-bg-subtle transition-colors">
             <i className="fa-solid fa-gear text-lg sm:text-xl text-font-base"></i>
           </button>
+
+          {/* User identity next to avatar */}
+          <div className="flex items-center gap-2 pl-2">
+            <button className="p-2 rounded-lg hover:bg-bg-subtle transition-colors" title="Account">
+              <i className="fa-solid fa-circle-user text-xl text-font-base"></i>
+            </button>
+            <div className="hidden sm:block leading-tight">
+              <div className="text-sm font-medium text-font-base">{userName || 'Authenticated User'}</div>
+              <div className="text-xs text-font-detail">{userJobTitle || 'Staff'}</div>
+            </div>
+          </div>
 
           {/* Logout - icon button */}
           <button
@@ -423,6 +438,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             sidebarOpen={sidebarOpen}
             onLogout={handleLogout}
+            userName={user.fullName || user.name || user.email}
+            userJobTitle={user.jobTitle || (user.role ? String(user.role).toLowerCase() : '')}
           />
         </Suspense>
 

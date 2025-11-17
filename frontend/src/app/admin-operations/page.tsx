@@ -43,6 +43,14 @@ export default function AdminOperationsPage() {
   const [matrix, setMatrix] = useState(defaultMatrix);
   const [openCell, setOpenCell] = useState<null | { role: string; module: string }>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    // On first load, if no state yet, collapse all modules
+    if (Object.keys(collapsed).length === 0) {
+      const initial: Record<string, boolean> = Object.fromEntries(modules.map(m => [m, true] as const));
+      setCollapsed(initial);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const apiBase = "/api";
   const [metrics, setMetrics] = useState({ usersCount: 0, activeRoles: 0, permissionsCount: 0, pendingReviews: 0 });
   const [roleIdByName, setRoleIdByName] = useState<Record<string, number>>({});

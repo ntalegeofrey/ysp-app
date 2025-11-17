@@ -6,6 +6,41 @@ import Loading from "../components/loading";
 import { logoUrl } from "../utils/logo";
 
 function AppBar() {
+  const [displayName, setDisplayName] = useState<string>("");
+  const [jobTitle, setJobTitle] = useState<string>("");
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        // Try localStorage first
+        const cached = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        if (cached) {
+          try {
+            const obj = JSON.parse(cached);
+            if (!cancelled) {
+              setDisplayName(obj?.fullName || obj?.name || obj?.email || "");
+              setJobTitle(obj?.jobTitle || obj?.position || "");
+            }
+          } catch {}
+        }
+        // Fetch authoritative user profile
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/auth/me', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (res.ok) {
+          const me = await res.json();
+          if (!cancelled) {
+            const name = me?.fullName || me?.name || me?.email || displayName;
+            const jt = me?.jobTitle || me?.position || jobTitle;
+            setDisplayName(name || "");
+            setJobTitle(jt || "");
+            try { localStorage.setItem('user', JSON.stringify(me)); } catch {}
+          }
+        }
+      } catch {}
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
   const onLogout = () => {
     try {
       localStorage.removeItem('token');
@@ -42,8 +77,8 @@ function AppBar() {
               <i className="fa-solid fa-circle-user text-xl text-font-base"></i>
             </button>
             <div className="hidden sm:block leading-tight">
-              <div className="text-sm font-medium text-font-base">Sarah Wilson</div>
-              <div className="text-xs text-font-detail">System Administrator</div>
+              <div className="text-sm font-medium text-font-base">{displayName || 'Authenticated User'}</div>
+              <div className="text-xs text-font-detail">{jobTitle || 'Staff'}</div>
             </div>
           </div>
           <button onClick={onLogout} className="p-2 rounded-lg hover:bg-bg-subtle transition-colors" title="Logout">
