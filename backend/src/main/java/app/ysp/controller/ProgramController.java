@@ -14,7 +14,7 @@ import java.net.URI;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/programs")
+@RequestMapping("/programs")
 public class ProgramController {
 
     private final ProgramRepository programs;
@@ -28,7 +28,7 @@ public class ProgramController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR')")
     public List<Program> all() {
         return programs.findAll();
     }
@@ -53,14 +53,14 @@ public class ProgramController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR')")
     public ResponseEntity<Program> create(@RequestBody Program body) {
         Program saved = programs.save(body);
-        return ResponseEntity.created(URI.create("/api/programs/" + saved.getId())).body(saved);
+        return ResponseEntity.created(URI.create("/programs/" + saved.getId())).body(saved);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR')")
     public ResponseEntity<Program> update(@PathVariable Long id, @RequestBody Program body) {
         return programs.findById(id)
                 .map(p -> {
@@ -77,7 +77,7 @@ public class ProgramController {
     }
 
     @PostMapping("/{id}/assignments")
-    @PreAuthorize("hasAnyRole('ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR')")
     public ResponseEntity<?> setAssignments(@PathVariable Long id, @RequestBody AssignmentsPayload payload) {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
