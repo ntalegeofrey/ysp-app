@@ -16,18 +16,28 @@ export default function AdminOperationsPage() {
   ];
   const [roleNames, setRoleNames] = useState<string[]>(baseRoles);
   const modules = [
+    // Overview
+    "Dashboard",
+    "AI Insights",
+    // Admin
     "System Admin",
+    "Unit Registry",
+    // Operations
+    "Schedule",
+    "Staff Management",
+    "Residential Census",
     "Inventory Management",
-    "Resident Behavior",
-    "Unit Condition (UCR)",
+    "Medical Run Coordination",
+    // Resident Care
+    "Medication Count",
+    "Visitation & Phone Log",
     "Sleep Log & Watch",
+    "Repair Management",
     "Log Book & Events",
+    // Safety & Compliance
     "Incident Management",
     "Fire Plan Management",
-    "Medication (eMAR)",
-    "Medical Runs",
-    "Visitation & Phone Log",
-    "Repairs",
+    "Unit Condition (UCR)",
   ];
   const accessLevels = ["Full", "Edit", "View", "None"] as const;
 
