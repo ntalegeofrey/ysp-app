@@ -160,20 +160,8 @@ export default function CreateProgramPage() {
   };
 
   const isAdmin = (userRole || '').toString().trim().toLowerCase() === 'admin' || (userRole || '').toString().trim().toLowerCase() === 'administrator';
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-8">
-        <div className="max-w-md w-full bg-white border border-bd rounded-xl p-8 text-center shadow">
-          <i className="fa-solid fa-circle-exclamation text-error text-3xl mb-3"></i>
-          <h1 className="text-xl font-bold text-font-base mb-2">Access Restricted</h1>
-          <p className="text-font-detail mb-4">Only administrators can create new programs.</p>
-          <button className="px-4 py-2 bg-primary text-white rounded-lg" onClick={() => router.push('/program-selection')}>Back</button>
-        </div>
-      </div>
-    );
-  }
 
-  return (
+  return isAdmin ? (
     <div id="create-program-container" className="min-h-screen bg-bg-subtle">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -469,7 +457,6 @@ export default function CreateProgramPage() {
                   <option value="community">Community-Based</option>
                 </select>
               </div>
-              </div>
             </div>
           </div>
 
@@ -498,6 +485,15 @@ export default function CreateProgramPage() {
           ))}
         </div>
       </main>
+    </div>
+  ) : (
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="max-w-md w-full bg-white border border-bd rounded-xl p-8 text-center shadow">
+        <i className="fa-solid fa-circle-exclamation text-error text-3xl mb-3"></i>
+        <h1 className="text-xl font-bold text-font-base mb-2">Access Restricted</h1>
+        <p className="text-font-detail mb-4">Only administrators can create new programs.</p>
+        <button className="px-4 py-2 bg-primary text-white rounded-lg" onClick={() => router.push('/program-selection')}>Back</button>
+      </div>
     </div>
   );
 }
