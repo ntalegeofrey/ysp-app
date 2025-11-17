@@ -4,6 +4,12 @@ import { useState } from 'react';
 
 export default function OnboardingPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [category, setCategory] = useState<string>('');
+  const [categoryOther, setCategoryOther] = useState<string>('');
+
+  type ResidentInfo = { name: string; id: string; room: string; status: string; advocate: string; admissionDate: string };
+  const [residentEdit, setResidentEdit] = useState<ResidentInfo | null>(null);
+  const [residentAction, setResidentAction] = useState<null | { id: string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
 
   return (
     <div id="management-main" className="flex-1 p-6 overflow-auto">
@@ -67,7 +73,7 @@ export default function OnboardingPage() {
               }`}
             >
               <i
-                className={`fa-solid fa-chart-pie mr-2 ${
+                className={`fa-solid fa-user-plus mr-2 ${
                   activeTab === 'residents' ? 'text-primary' : 'text-font-detail'
                 }`}
               ></i>
@@ -83,7 +89,7 @@ export default function OnboardingPage() {
               }`}
             >
               <i
-                className={`fa-solid fa-chart-pie mr-2 ${
+                className={`fa-solid fa-user-tie mr-2 ${
                   activeTab === 'staff' ? 'text-primary' : 'text-font-detail'
                 }`}
               ></i>
@@ -107,12 +113,7 @@ export default function OnboardingPage() {
                       Currently active residents in the facility
                     </p>
                   </div>
-                  <div className="flex space-x-3">
-                    <button className="bg-warning text-white px-4 py-2 rounded-lg hover:bg-yellow-500 text-sm">
-                      <i className="fa-solid fa-archive mr-2"></i>
-                      View Inactive
-                    </button>
-                  </div>
+                  <div className="flex space-x-3"></div>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -143,10 +144,10 @@ export default function OnboardingPage() {
                       <td className="px-4 py-3 text-sm">Davis, L.</td>
                       <td className="px-4 py-3 text-sm">Nov 10, 2024</td>
                       <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
+                        <button className="text-primary hover:text-primary-light mr-2" onClick={() => setResidentEdit({ name: 'Johnson, Marcus', id: 'RES-001', room: '101', status: 'General Population', advocate: 'Davis, L.', admissionDate: '2024-11-10' })}>
                           <i className="fa-solid fa-edit"></i>
                         </button>
-                        <button className="text-warning hover:text-yellow-500">
+                        <button className="text-warning hover:text-yellow-500" onClick={() => setResidentAction({ id: 'RES-001', action: 'remove' })}>
                           <i className="fa-solid fa-archive"></i>
                         </button>
                       </td>
@@ -480,6 +481,15 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">
+                    Date of Admission
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">
                     Resident ID
                   </label>
                   <input
@@ -614,27 +624,90 @@ export default function OnboardingPage() {
                   <label className="block text-sm font-medium text-font-base mb-1">Position</label>
                   <select className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
                     <option>Select Position</option>
-                    <option>JJYDS I</option>
-                    <option>JJYDS II</option>
-                    <option>JJYDS III</option>
-                    <option>Caseworker</option>
-                    <option>Support Staff</option>
-                    <option>Clinician</option>
-                    <option>Supervisor</option>
+                    <option>Juvenile Justice Youth Development Specialist I</option>
+                    <option>Juvenile Justice Youth Development Specialist II</option>
+                    <option>Juvenile Justice Youth Development Specialist III</option>
+                    <option>Master Juvenile Justice Youth Development Specialist</option>
+                    <option>Youth Services Group Worker</option>
+                    <option>Assistant Program Director</option>
+                    <option>Program Director</option>
+                    <option>Assistant Facility Administrator</option>
+                    <option>Facility Administrator</option>
+                    <option>Director of Facility Operations</option>
+                    <option>Clinical Social Worker I</option>
+                    <option>Clinical Social Worker II</option>
+                    <option>Clinical Social Worker Supervisor</option>
+                    <option>Psychologist</option>
+                    <option>Licensed Mental Health Counselor</option>
+                    <option>Director of Clinical Services</option>
+                    <option>Regional Clinical Coordinator</option>
+                    <option>Behavior Analyst / BCBA</option>
+                    <option>Caseworker I</option>
+                    <option>Caseworker II</option>
+                    <option>Caseworker I / II</option>
+                    <option>Casework Supervisor</option>
+                    <option>Community Services Coordinator</option>
+                    <option>Regional Re-Entry Coordinator</option>
+                    <option>Regional Placement Coordinator</option>
+                    <option>Detention Coordinator</option>
+                    <option>Transport Officer / Driver</option>
+                    <option>Teacher / Academic Instructor</option>
+                    <option>Special Education Teacher</option>
+                    <option>Education Coordinator</option>
+                    <option>Director of Education Programs</option>
+                    <option>Registered Nurse</option>
+                    <option>Nurse Practitioner</option>
+                    <option>Nursing Supervisor</option>
+                    <option>Medical Director</option>
+                    <option>Human Resources Generalist</option>
+                    <option>Human Resources Director</option>
+                    <option>Labor Relations Specialist</option>
+                    <option>Payroll & Time Administrator</option>
+                    <option>Budget Analyst</option>
+                    <option>Fiscal Manager</option>
+                    <option>General Counsel / Attorney</option>
+                    <option>Deputy General Counsel</option>
+                    <option>Administrative Assistant / Coordinator</option>
+                    <option>Training Specialist</option>
+                    <option>Director of Staff Development & Training</option>
+                    <option>Compliance Officer</option>
+                    <option>Licensing Coordinator</option>
+                    <option>Quality Assurance Manager</option>
+                    <option>Information Technology Specialist</option>
+                    <option>Network Administrator</option>
+                    <option>Systems Administrator</option>
+                    <option>IT Manager</option>
+                    <option>Director of Information Technology</option>
+                    <option>Chief Information Officer</option>
+                    <option>Regional Director</option>
+                    <option>Assistant Regional Director</option>
+                    <option>Deputy Commissioner</option>
+                    <option>Commissioner of DYS</option>
+                    <option>Chief of Staff</option>
+                    <option>Director of Operations</option>
+                    <option>Director of Policy & Program Development</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-1">
-                    Department
-                  </label>
-                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Select Department</option>
+                  <label className="block text-sm font-medium text-font-base mb-1">Category</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select Category</option>
                     <option>Direct Care</option>
                     <option>Clinical</option>
                     <option>Administration</option>
                     <option>Medical</option>
                     <option>Education</option>
+                    <option>Other</option>
                   </select>
+                  {category === 'Other' && (
+                    <input
+                      type="text"
+                      value={categoryOther}
+                      onChange={(e) => setCategoryOther(e.target.value)}
+                      placeholder="Specify Category"
+                      className="mt-2 w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -684,6 +757,106 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+
+      {/* Resident Edit Modal */}
+      {residentEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-bd w-full max-w-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-font-base">Edit Resident</h3>
+              <button className="text-font-detail hover:text-primary" onClick={() => setResidentEdit(null)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <form className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs mb-1">Name</label>
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.name} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Resident ID</label>
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50" defaultValue={residentEdit.id} readOnly />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs mb-1">Room</label>
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.room} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Advocate</label>
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.advocate} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs mb-1">Status</label>
+                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.status}>
+                    <option>General Population</option>
+                    <option>ALOYO</option>
+                    <option>Restricted</option>
+                    <option>Team Leader</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Admission Date</label>
+                  <input type="date" className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.admissionDate} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setResidentEdit(null)}>Cancel</button>
+                <button type="button" className="px-4 py-2 rounded-lg bg-success text-white text-sm" onClick={() => setResidentEdit(null)}>
+                  <i className="fa-solid fa-check mr-2"></i>Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Resident Actions Modal */}
+      {residentAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-bd w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-font-base">Resident Actions</h3>
+              <button className="text-font-detail hover:text-primary" onClick={() => setResidentAction(null)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'remove' })} checked={residentAction.action === 'remove'} />
+                Remove from Program
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'inactive' })} checked={residentAction.action === 'inactive'} />
+                Mark as Inactive
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'temp', tempLocation: residentAction.tempLocation })} checked={residentAction.action === 'temp'} />
+                Temporary Location
+              </label>
+              {residentAction.action === 'temp' && (
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-bd-input rounded-lg"
+                  placeholder="Specify temporary location"
+                  value={residentAction.tempLocation || ''}
+                  onChange={(e) => setResidentAction({ ...residentAction, tempLocation: e.target.value })}
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setResidentAction(null)}>Cancel</button>
+              <button className="px-4 py-2 rounded-lg bg-warning text-white text-sm" onClick={() => setResidentAction(null)}>
+                <i className="fa-solid fa-check mr-2"></i>Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
