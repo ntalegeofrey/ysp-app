@@ -35,6 +35,7 @@ export default function ProgramSelectionPage() {
   const addToast = (title: string, tone?: 'success' | 'error' | 'info') => {
     const id = String(Date.now() + Math.random());
     setToasts((prev) => [...prev, { id, title, tone }]);
+    try { localStorage.setItem('global-toast', JSON.stringify({ title, tone })); } catch {}
     setTimeout(() => removeToast(id), 5000);
   };
   const removeToast = (id: string) => setToasts((prev) => prev.filter(t => t.id !== id));
@@ -245,7 +246,7 @@ export default function ProgramSelectionPage() {
           const mine = await resp.json();
           const allowed = Array.isArray(mine) && mine.some((x: any) => String(x.id) === String(p.id));
           if (!allowed) {
-            addToast('Contact program Director', 'error');
+            addToast('You are not attached to this program. Please contact the Program Director.', 'error');
             return;
           }
         }
