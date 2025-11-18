@@ -254,11 +254,31 @@ export default function UCRPage() {
     if (!programId) { addToast('No program selected', 'error'); return; }
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      // Determine status based on form data priorities
+      let reportStatus = 'Pending Review';
+      const hasIssues = formData.securityEquipment?.some((item: any) => item.status === 'issue') ||
+                       formData.hardwareSecure?.value === false ||
+                       formData.searchesCompleted?.value === false ||
+                       formData.fireDrillsCompleted?.value === false ||
+                       formData.emergencyLighting?.value === false;
+      
+      if (hasIssues) {
+        // Check for Critical priority items
+        const hasCritical = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'Critical');
+        if (hasCritical) {
+          reportStatus = 'Critical';
+        } else {
+          // Check for High priority items
+          const hasHigh = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'High');
+          reportStatus = hasHigh ? 'High' : 'Medium';
+        }
+      }
+
       const payload = {
         reportDate: reportDate || new Date().toISOString().slice(0,10),
         shift: shiftVal,
         reporterName: staffName || undefined,
-        status: 'Pending Review',
+        status: reportStatus,
         issuesSummary: comments || undefined,
         payload: formData,
       };
@@ -510,7 +530,7 @@ export default function UCRPage() {
                             <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
                           </td>
                           <td className="p-3">
-                            <button onClick={() => {onView(r.id); loadOpenIssues(); loadReports(); loadStats(); loadChartData();}} className="text-primary hover:underline text-xs">View Report</button>
+                            <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View Report</button>
                           </td>
                         </tr>
                       ))}
@@ -556,7 +576,7 @@ export default function UCRPage() {
                 </button>
                 <button onClick={submitNew} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light transition-colors duration-200 flex items-center">
                   <i className="fa-solid fa-paper-plane mr-2"></i>
-                  Submit for Review
+                  Submit
                 </button>
               </div>
             </div>
@@ -598,8 +618,8 @@ export default function UCRPage() {
                   { label: 'Desk Computer/Monitor functional', extra: 'Problems in use, work order #' },
                 ].map((row, idx) => (
                   <div key={row.label} className={`grid grid-cols-12 items-center gap-4 py-2 ${idx === 0 ? 'border-b' : 'border-y'} border-bd`}>
-                    <div className="col-span-4"><p className="text-sm font-medium text-font-base">{row.label}</p></div>
-                    <div className="col-span-3">
+                    <div className="col-span-3"><p className="text-sm font-medium text-font-base">{row.label}</p></div>
+                    <div className="col-span-2">
                       <div className="flex border border-bd rounded-md overflow-hidden text-sm">
                         <button 
                           onClick={() => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, status: 'ok' } : item) }))}
@@ -614,6 +634,19 @@ export default function UCRPage() {
                           Issue
                         </button>
                       </div>
+                    </div>
+                    <div className="col-span-2">
+                      <select 
+                        value={formData.securityEquipment[idx]?.priority || 'Normal'}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
+                        className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        disabled={formData.securityEquipment[idx]?.status !== 'issue'}
+                      >
+                        <option value="Normal">Normal</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                      </select>
                     </div>
                     <div className={`col-span-5`}>
                       <input 
@@ -914,7 +947,7 @@ export default function UCRPage() {
                 <div className="mt-4 flex justify-end">
                   <button onClick={submitNew} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light transition-colors duration-200 flex items-center">
                     <i className="fa-solid fa-paper-plane mr-2"></i>
-                    Submit for Review
+                    Submit
                   </button>
                 </div>
               </div>
@@ -944,8 +977,45 @@ export default function UCRPage() {
               <div className="text-sm">{viewData?.issuesSummary || '—'}</div>
             </div>
             <div>
-              <div className="text-font-detail text-sm mb-1">Payload (JSON)</div>
-              <pre className="text-xs bg-bg-subtle p-3 rounded border border-bd overflow-x-auto">{JSON.stringify(viewData?.payload ?? {}, null, 2)}</pre>
+              <div className="text-font-detail text-sm mb-1">Form Data</div>
+              {viewData?.payload && Object.keys(viewData.payload).length > 0 ? (
+                <div className="space-y-3">
+                  {viewData.payload.securityEquipment && (
+                    <div>
+                      <div className="text-xs font-medium text-font-detail mb-1">Security Equipment</div>
+                      <div className="text-xs space-y-1">
+                        {['11 Radios', '2 Flashlights', 'Garrett metal detector', 'Big Set keys', 'First Aid kits', 'Desk Computer'].map((label, idx) => {
+                          const item = viewData.payload.securityEquipment[idx];
+                          return item && item.status ? (
+                            <div key={idx} className="flex justify-between">
+                              <span>{label}:</span>
+                              <span className={`px-2 py-0.5 rounded text-xs ${item.status === 'ok' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {item.status.toUpperCase()}
+                              </span>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {viewData.payload.hardwareSecure?.value !== null && (
+                    <div>
+                      <div className="text-xs font-medium text-font-detail mb-1">Hardware Secure</div>
+                      <div className="text-xs">
+                        <span className={`px-2 py-0.5 rounded ${viewData.payload.hardwareSecure.value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {viewData.payload.hardwareSecure.value ? 'YES' : 'NO'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xs font-medium text-font-detail mb-1">Raw JSON Data</div>
+                    <pre className="text-xs bg-bg-subtle p-3 rounded border border-bd overflow-x-auto">{JSON.stringify(viewData.payload, null, 2)}</pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-font-detail">No form data available</div>
+              )}
             </div>
           </div>
         </div>
