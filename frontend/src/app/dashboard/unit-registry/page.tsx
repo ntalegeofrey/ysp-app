@@ -336,7 +336,7 @@ export default function OnboardingPage() {
                     ) : (
                       residents.map((r) => (
                         <tr key={String(r.id)} className="bg-white hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-font-base">{`${r.lastName || ''}, ${r.firstName || ''}`.trim().replace(/^,\s*/, '')}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-font-base">{[r.lastName || '', r.firstName || ''].filter(Boolean).join(' ').trim()}</td>
                           <td className="px-4 py-3 text-sm">{r.residentId || ''}</td>
                           <td className="px-4 py-3 text-sm">{r.room || ''}</td>
                           <td className="px-4 py-3 text-sm">
@@ -352,7 +352,7 @@ export default function OnboardingPage() {
                               <button className="text-primary hover:text-primary-light mr-2" title="Edit" onClick={() => {
                                 setResidentEdit({
                                   pk: r.id,
-                                  name: `${r.lastName || ''}, ${r.firstName || ''}`.trim().replace(/^,\s*/, ''),
+                                  name: [r.firstName || '', r.lastName || ''].filter(Boolean).join(' ').trim(),
                                   residentId: r.residentId || '',
                                   room: r.room || '',
                                   status: r.status || 'General Population',
