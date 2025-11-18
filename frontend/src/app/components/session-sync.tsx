@@ -41,7 +41,7 @@ export default function SessionSync() {
     };
     (window as any).fetch = wrappedFetch;
 
-    // Periodic heartbeat to detect silent expiry
+    // Periodic heartbeat to detect silent expiry (when user is active)
     const checkSession = async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -62,9 +62,29 @@ export default function SessionSync() {
       }
     };
 
-    // Run immediately and then every 60s
-    checkSession();
-    const intervalId = setInterval(checkSession, 60_000);
+    // Idle detection (10 minutes)
+    const IDLE_LIMIT_MS = 10 * 60 * 1000;
+    let lastActivity = Date.now();
+    const markActive = () => { lastActivity = Date.now(); };
+    ['click','keydown','mousemove','scroll','touchstart','touchmove','pointerdown','wheel'].forEach(evt => {
+      window.addEventListener(evt, markActive, { passive: true });
+    });
+
+    // Check every 30s for idle timeout and also perform heartbeat when user is active
+    const tick = () => {
+      const idleFor = Date.now() - lastActivity;
+      if (idleFor >= IDLE_LIMIT_MS) {
+        forceLogout();
+        return; // stop further checks after logout redirect
+      }
+      // Only check session when user is active in the last minute
+      if (idleFor < 60_000) {
+        checkSession();
+      }
+    };
+    // Run immediately then schedule
+    tick();
+    const intervalId = setInterval(tick, 30_000);
 
     // Re-check when tab becomes visible
     const onVisibility = () => { if (document.visibilityState === 'visible') checkSession(); };
@@ -74,6 +94,9 @@ export default function SessionSync() {
       window.removeEventListener('storage', onStorage);
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisibility);
+      ['click','keydown','mousemove','scroll','touchstart','touchmove','pointerdown','wheel'].forEach(evt => {
+        window.removeEventListener(evt, markActive as any);
+      });
     };
   }, [router]);
 
