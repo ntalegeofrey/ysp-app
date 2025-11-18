@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function OnboardingPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [canAddStaff, setCanAddStaff] = useState<boolean>(false);
+  const [canAddResident, setCanAddResident] = useState<boolean>(false);
+  const [programId, setProgramId] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [categoryOther, setCategoryOther] = useState<string>('');
 
@@ -23,11 +26,29 @@ export default function OnboardingPage() {
   const [selectedStaff, setSelectedStaff] = useState<StaffLite | null>(null);
 
   useEffect(() => {
-    // Load staff from admin users
+    // Resolve selected program
+    try {
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      setProgramId(sp?.id ? String(sp.id) : '');
+    } catch {}
+    // Load permissions for tabs/actions
     (async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const res = await fetch('/api/admin/users', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+        const ch = async (key: string) => {
+          const res = await fetch(`/api/permissions/check?module=${encodeURIComponent(key)}`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+          if (!res.ok) return false; const d = await res.json(); return Boolean(d?.allowed);
+        };
+        const [staffP, residentP] = await Promise.all([ch('op.ADD_STAFF'), ch('op.ADD_RESIDENT')]);
+        setCanAddStaff(staffP); setCanAddResident(residentP);
+      } catch {}
+    })();
+    // Load staff list via public search (works for non-admins)
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/users/search?q=', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
         if (!res.ok) return;
         const arr: Array<{ id:string|number; fullName:string; email:string }>= await res.json();
         const mapped: StaffLite[] = arr.map(u => ({ id: typeof u.id === 'string' ? u.id : String(u.id), fullName: u.fullName, email: u.email }));
@@ -35,6 +56,22 @@ export default function OnboardingPage() {
       } catch {}
     })();
   }, []);
+
+  // Program assignments (Active Staff)
+  type Assignment = { userEmail: string; roleType: string };
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const staffByEmail = useMemo(() => Object.fromEntries(staffList.map(s => [s.email.toLowerCase(), s])), [staffList]);
+  const loadAssignments = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/assignments`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!res.ok) return;
+      const arr: Array<Assignment> = await res.json();
+      setAssignments(arr);
+    } catch {}
+  };
+  useEffect(() => { if (programId) loadAssignments(); }, [programId]);
 
   return (
     <div id="management-main" className="flex-1 p-6 overflow-auto">
@@ -88,6 +125,7 @@ export default function OnboardingPage() {
               ></i>
               Overview
             </button>
+            {canAddResident && (
             <button
               onClick={() => setActiveTab('residents')}
               id="tab-residents"
@@ -104,6 +142,8 @@ export default function OnboardingPage() {
               ></i>
               Resident Management
             </button>
+            )}
+            {canAddStaff && (
             <button
               onClick={() => setActiveTab('staff')}
               id="tab-staff"
@@ -120,6 +160,7 @@ export default function OnboardingPage() {
               ></i>
               Staff Management
             </button>
+            )}
           </nav>
         </div>
 
@@ -151,7 +192,7 @@ export default function OnboardingPage() {
                       <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Advocate</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Admission Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                      {canAddResident && <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-bd">
@@ -168,14 +209,14 @@ export default function OnboardingPage() {
                       </td>
                       <td className="px-4 py-3 text-sm">Davis, L.</td>
                       <td className="px-4 py-3 text-sm">Nov 10, 2024</td>
-                      <td className="px-4 py-3 text-sm">
+                      {canAddResident && (<td className="px-4 py-3 text-sm">
                         <button className="text-primary hover:text-primary-light mr-2" onClick={() => setResidentEdit({ name: 'Johnson, Marcus', id: 'RES-001', room: '101', status: 'General Population', advocate: 'Davis, L.', admissionDate: '2024-11-10' })}>
                           <i className="fa-solid fa-edit"></i>
                         </button>
                         <button className="text-warning hover:text-yellow-500" onClick={() => setResidentAction({ id: 'RES-001', action: 'remove' })}>
                           <i className="fa-solid fa-archive"></i>
                         </button>
-                      </td>
+                      </td>)}
                     </tr>
                     <tr className="bg-white hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-font-base">
@@ -305,10 +346,6 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                   <div className="flex space-x-3">
-                    <button className="bg-warning text-white px-4 py-2 rounded-lg hover:bg-yellow-500 text-sm">
-                      <i className="fa-solid fa-archive mr-2"></i>
-                      View Inactive
-                    </button>
                   </div>
                 </div>
               </div>
@@ -317,145 +354,41 @@ export default function OnboardingPage() {
                   <thead className="bg-primary text-white">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Employee ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Position</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Department</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Start Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Program Role</th>
+                      {canAddStaff && <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-bd">
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">Davis, Linda</td>
-                      <td className="px-4 py-3 text-sm">EMP-101</td>
-                      <td className="px-4 py-3 text-sm">JJYDS III</td>
-                      <td className="px-4 py-3 text-sm">Direct Care</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">Jan 15, 2022</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">
-                        Wilson, Michael
-                      </td>
-                      <td className="px-4 py-3 text-sm">EMP-102</td>
-                      <td className="px-4 py-3 text-sm">JJYDS II</td>
-                      <td className="px-4 py-3 text-sm">Direct Care</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">Mar 08, 2022</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">
-                        Brown, Patricia
-                      </td>
-                      <td className="px-4 py-3 text-sm">EMP-103</td>
-                      <td className="px-4 py-3 text-sm">Caseworker</td>
-                      <td className="px-4 py-3 text-sm">Clinical</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">Jun 12, 2021</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">
-                        Martinez, Roberto
-                      </td>
-                      <td className="px-4 py-3 text-sm">EMP-104</td>
-                      <td className="px-4 py-3 text-sm">JJYDS I</td>
-                      <td className="px-4 py-3 text-sm">Direct Care</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-highlight text-white text-xs rounded-full">
-                          Training
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">Nov 01, 2024</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">
-                        Johnson, Sarah
-                      </td>
-                      <td className="px-4 py-3 text-sm">EMP-105</td>
-                      <td className="px-4 py-3 text-sm">Clinician</td>
-                      <td className="px-4 py-3 text-sm">Clinical</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">Sep 20, 2020</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="bg-white hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-font-base">
-                        Garcia, Carlos
-                      </td>
-                      <td className="px-4 py-3 text-sm">EMP-106</td>
-                      <td className="px-4 py-3 text-sm">Support Staff</td>
-                      <td className="px-4 py-3 text-sm">Administration</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">
-                          Active
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">May 10, 2023</td>
-                      <td className="px-4 py-3 text-sm">
-                        <button className="text-primary hover:text-primary-light mr-2">
-                          <i className="fa-solid fa-edit"></i>
-                        </button>
-                        <button className="text-warning hover:text-yellow-500">
-                          <i className="fa-solid fa-user-slash"></i>
-                        </button>
-                      </td>
-                    </tr>
+                    {assignments.map((a, idx) => {
+                      const s = staffByEmail[a.userEmail?.toLowerCase?.() || ''];
+                      return (
+                        <tr key={`${a.userEmail}-${idx}`} className="bg-white hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-font-base">{s?.fullName || a.userEmail}</td>
+                          <td className="px-4 py-3 text-sm">{s?.email || a.userEmail}</td>
+                          <td className="px-4 py-3 text-sm">{a.roleType || 'STAFF'}</td>
+                          {canAddStaff && (
+                            <td className="px-4 py-3 text-sm">
+                              <button className="text-warning hover:text-yellow-600" onClick={async () => {
+                                try {
+                                  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                                  const remaining = assignments.filter(x => x.userEmail.toLowerCase() !== (a.userEmail||'').toLowerCase());
+                                  await fetch(`/api/programs/${programId}/assignments`, {
+                                    method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ assignments: remaining })
+                                  });
+                                  setAssignments(remaining);
+                                } catch {}
+                              }} title="Remove from program">
+                                <i className="fa-solid fa-user-slash"></i>
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                    {assignments.length === 0 && (
+                      <tr><td className="px-4 py-3 text-sm text-font-detail" colSpan={canAddStaff?4:3}>No staff assigned yet</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
