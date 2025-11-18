@@ -33,6 +33,12 @@ public class ProgramController {
         return programs.findAll();
     }
 
+    // Public discoverability list: any authenticated user can search all programs
+    @GetMapping("/public")
+    public List<Program> allPublic() {
+        return programs.findAll();
+    }
+
     @GetMapping("/active")
     public List<Program> active() {
         return programs.findByActiveTrue();
@@ -77,7 +83,7 @@ public class ProgramController {
     }
 
     @PostMapping("/{id}/assignments")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
     public ResponseEntity<?> setAssignments(@PathVariable Long id, @RequestBody AssignmentsPayload payload) {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();

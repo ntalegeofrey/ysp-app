@@ -55,7 +55,7 @@ export default function ProgramSelectionPage() {
         setReady(true);
         // Try to hydrate from cache immediately
         try {
-          const cacheKey = ((u.role || '').toString().trim().toLowerCase() === 'admin' || (u.role || '').toString().trim().toLowerCase() === 'administrator') ? 'programs_cache_all' : 'programs_cache_my';
+          const cacheKey = ((u.role || '').toString().trim().toLowerCase() === 'admin' || (u.role || '').toString().trim().toLowerCase() === 'administrator') ? 'programs_cache_all' : 'programs_cache_public';
           const cached = localStorage.getItem(cacheKey);
           if (cached) {
             const parsed = JSON.parse(cached);
@@ -95,9 +95,9 @@ export default function ProgramSelectionPage() {
           manage = true;
           data = await tryAdmin.json();
         } else {
-          const mine = await fetch('/api/programs/my', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
-          if (!mine.ok) return;
-          data = await mine.json();
+          const pub = await fetch('/api/programs/public', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+          if (!pub.ok) return;
+          data = await pub.json();
         }
         if (cancelled) return;
         setCanManagePrograms(manage);
@@ -176,7 +176,7 @@ export default function ProgramSelectionPage() {
         setLoading(false);
         // Save to cache for instant next load
         try {
-          const cacheKey = manage ? 'programs_cache_all' : 'programs_cache_my';
+          const cacheKey = manage ? 'programs_cache_all' : 'programs_cache_public';
           localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: mapped }));
         } catch {}
       } catch {}
