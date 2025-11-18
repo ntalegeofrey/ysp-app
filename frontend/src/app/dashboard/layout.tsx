@@ -257,6 +257,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [moduleAccess, setModuleAccess] = useState<Record<string, string>>({});
+  // Program access gate
+  const [programAuthChecked, setProgramAuthChecked] = useState(false);
+  const [programAuthorized, setProgramAuthorized] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
@@ -309,7 +312,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       const raw = localStorage.getItem('selectedProgram');
       if (!raw) {
-        router.replace('/program-selection');
+        try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Please select a program to continue.', tone: 'info' })); } catch {}
+        setProgramAuthorized(false);
+        setProgramAuthChecked(true);
+        setTimeout(() => router.replace('/program-selection'), 500);
       }
     } catch {}
   }, [user, pathname, router]);
@@ -320,7 +326,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) return;
       const role = String(user.role || '').toLowerCase();
       const isAdmin = role === 'admin' || role === 'administrator';
-      if (isAdmin) return; // admins can view any program
+      if (isAdmin) { setProgramAuthorized(true); setProgramAuthChecked(true); return; } // admins can view any program
       let selectedId: string | null = null;
       try {
         const raw = localStorage.getItem('selectedProgram');
@@ -337,8 +343,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const ids = new Set(mine.map(m => String(m.id)));
         if (!ids.has(selectedId)) {
           try { localStorage.removeItem('selectedProgram'); } catch {}
-          addToast('You are not attached to this program. Please contact the Program Admin.', 'error');
-          setTimeout(() => router.replace('/program-selection'), 1200);
+          try { localStorage.setItem('global-toast', JSON.stringify({ title: 'You are not attached to this program. Please contact the Program Admin.', tone: 'error' })); } catch {}
+          setProgramAuthorized(false);
+          setProgramAuthChecked(true);
+          // Redirect after a brief delay to allow the toast to be visible, but do not render page content during this time
+          setTimeout(() => router.replace('/program-selection'), 800);
+        } else {
+          setProgramAuthorized(true);
+          setProgramAuthChecked(true);
         }
       } catch {}
     })();
@@ -438,6 +450,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
   const showBackButtonDefault = pagesWithBack.includes(pathname);
   const base = getPageTitleAndBreadcrumb(pathname);
+
+  const canRenderContent = !!user && programAuthChecked && programAuthorized;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -569,7 +583,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Suspense>
 
         {/* Page Content - Scrollable main area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {canRenderContent ? (
+            children
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-font-detail">
+              <div className="flex items-center gap-3"><i className="fa-solid fa-shield text-primary"></i> Validating access…</div>
+            </div>
+          )}
+        </main>
       </div>
 
       {/* Toasts */}
