@@ -40,6 +40,12 @@ export default function AdminOperationsPage() {
     "Fire Plan Management",
     "Unit Condition (UCR)",
   ];
+  // Additional operation permissions (single source for op keys)
+  const operationModules = [
+    { key: 'op.CREATE_PROGRAM', label: 'Create & Edit Program' },
+    { key: 'op.ADD_RESIDENT', label: 'Add Resident' },
+    { key: 'op.ADD_STAFF', label: 'Add Staff (Unit Registry)' },
+  ] as const;
   const accessLevels = ["Full", "Edit", "View", "None"] as const;
 
   // Initialize a simple default matrix (Admin=Full, others=View)
@@ -71,6 +77,58 @@ export default function AdminOperationsPage() {
     const n = name.replace(/_/g, " ");
     if (/^jjyds/i.test(n)) return n.toUpperCase();
     return n.replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  // ===== Other Operations Permissions (simple toggles) =====
+  const [opsRole, setOpsRole] = useState<string>("");
+  const [opsState, setOpsState] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    // default role preselect
+    if (!opsRole && roleNames.length) setOpsRole(roleNames[0]);
+  }, [roleNames, opsRole]);
+
+  const loadOpsForRole = async (roleName: string) => {
+    try {
+      const roleId = roleIdByName[roleName];
+      if (!roleId) return;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/admin/roles/${roleId}/permissions`, { credentials: 'include', headers: { Accept: 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!res.ok) return;
+      const arr: Array<{ module: string; access: string }> = await res.json();
+      const next: Record<string, boolean> = {};
+      for (const op of operationModules) {
+        const entry = arr.find(p => (p.module || '').toUpperCase() === op.key.toUpperCase());
+        const access = (entry?.access || '').toUpperCase();
+        next[op.key] = access === 'FULL' || access === 'EDIT' || access === 'VIEW';
+      }
+      setOpsState(next);
+    } catch {}
+  };
+
+  useEffect(() => { if (opsRole) loadOpsForRole(opsRole); }, [opsRole]);
+
+  const toggleOp = async (key: string, enabled: boolean) => {
+    try {
+      const roleId = roleIdByName[opsRole];
+      if (!roleId) return;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const body = [{ module: key, access: enabled ? 'FULL' : 'NONE' }];
+      const res = await fetch(`/api/admin/roles/${roleId}/permissions`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setOpsState(prev => ({ ...prev, [key]: enabled }));
+        addToast('Operation permissions updated', 'success');
+        try { localStorage.setItem('perms-bump', String(Date.now())); } catch {}
+      } else {
+        addToast('Failed to update operation permission', 'error');
+      }
+    } catch {
+      addToast('Failed to update operation permission', 'error');
+    }
   };
   const toApi = (display: string) => display.replace(/\s+/g, "_").toLowerCase();
 
@@ -721,6 +779,47 @@ export default function AdminOperationsPage() {
               <p className="text-2xl font-bold text-primary">{metrics.usersCount}</p>
               <p className="text-sm text-font-detail">Total Users</p>
             </div>
+
+      {/* Other Operations Permissions */}
+      <div className="bg-white rounded-lg border border-bd mb-2">
+        <div className="p-6 border-b border-bd">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-sliders text-primary mr-3"></i>
+                Other Operations Permissions
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">Enable or disable non-module operations per role</div>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-font-base">Role</label>
+            <select value={opsRole} onChange={(e)=>setOpsRole(e.target.value)} className="px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+              {roleNames.map(r => (<option key={r} value={r}>{r}</option>))}
+            </select>
+            <button onClick={()=> loadOpsForRole(opsRole)} className="text-sm px-3 py-2 border rounded-lg hover:bg-bg-subtle">Refresh</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {operationModules.map(op => (
+              <div key={op.key} className="flex items-center justify-between border border-bd rounded-lg p-3 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-toggle-on text-primary"></i>
+                  <div>
+                    <div className="text-sm font-medium text-font-base">{op.label}</div>
+                    <div className="text-xs text-font-detail">{op.key}</div>
+                  </div>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={!!opsState[op.key]} onChange={(e)=> toggleOp(op.key, e.target.checked)} />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all relative peer-checked:bg-primary"></div>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Toasts */}
       <div className="fixed top-4 right-4 z-50 space-y-2">

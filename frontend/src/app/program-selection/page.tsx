@@ -28,6 +28,7 @@ export default function ProgramSelectionPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [canManagePrograms, setCanManagePrograms] = useState<boolean>(false);
+  const [canCreateEditPrograms, setCanCreateEditPrograms] = useState<boolean>(false);
   // local toast notifications
   type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -185,6 +186,26 @@ export default function ProgramSelectionPage() {
     return () => { cancelled = true; };
   }, [ready, role]);
 
+  // Check operation permission for creating/editing programs
+  useEffect(() => {
+    let cancelled = false;
+    const checkOp = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const res = await fetch(`/api/permissions/check?module=${encodeURIComponent('op.CREATE_PROGRAM')}`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          setCanCreateEditPrograms(Boolean(data?.allowed));
+        }
+      } catch {}
+    };
+    if (ready) checkOp();
+    return () => { cancelled = true; };
+  }, [ready, role]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return programs.filter(p => (p.name || '').toLowerCase().includes(q) || (p.location || '').toLowerCase().includes(q));
@@ -236,7 +257,7 @@ export default function ProgramSelectionPage() {
 
   if (!ready) return null;
   const isAdmin = (role || '').toString().trim().toLowerCase() === 'admin' || (role || '').toString().trim().toLowerCase() === 'administrator';
-  const shortTitle = abbreviateTitle(jobTitle || (canManagePrograms || isAdmin ? 'Administrator' : 'Staff'));
+  const shortTitle = abbreviateTitle(jobTitle || ((canCreateEditPrograms || canManagePrograms || isAdmin) ? 'Administrator' : 'Staff'));
   return (
     <div id="program-selection-container" className="min-h-screen hero-pattern">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
@@ -267,7 +288,7 @@ export default function ProgramSelectionPage() {
         <div id="welcome-section" className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
             <h2 className="text-4xl font-bold text-font-base">Select Your Program</h2>
-            {canManagePrograms && (
+            {(canCreateEditPrograms || canManagePrograms) && (
               <button id="create-program-btn" className="ml-6 bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center" onClick={() => router.push('/program-selection/create')}>
                 <i className="fa-solid fa-plus mr-2"></i>
                 Create New Program
@@ -309,12 +330,12 @@ export default function ProgramSelectionPage() {
                       <h3 className="text-lg font-semibold text-font-base">{p.name}</h3>
                       <p className="text-sm text-font-detail">{p.subtitle || ''}</p>
                     </div>
-                    {isAdmin && (
-                      <button
-                        title="Edit program"
-                        className="ml-auto text-primary hover:text-primary-light p-2"
-                        onClick={(e) => { e.stopPropagation(); router.push(`/program-selection/create?id=${p.id ?? ''}`); }}
-                      >
+                    {(canCreateEditPrograms) && (
+                  <button
+                    title="Edit program"
+                    className="ml-auto text-primary hover:text-primary-light p-2"
+                    onClick={(e) => { e.stopPropagation(); router.push(`/program-selection/create?id=${p.id ?? ''}`); }}
+                  >
                         <i className="fa-solid fa-pen-to-square"></i>
                       </button>
                     )}
