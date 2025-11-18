@@ -260,16 +260,26 @@ export default function UCRPage() {
                        formData.hardwareSecure?.value === false ||
                        formData.searchesCompleted?.value === false ||
                        formData.fireDrillsCompleted?.value === false ||
-                       formData.emergencyLighting?.value === false;
+                       formData.emergencyLighting?.value === false ||
+                       formData.notifications?.some((item: any) => item.value === false) ||
+                       formData.adminOffices?.some((item: any) => item.status === 'issue') ||
+                       formData.facilityInfrastructure?.some((item: any) => item.status === 'issue');
       
       if (hasIssues) {
-        // Check for Critical priority items
-        const hasCritical = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'Critical');
+        // Check for Critical priority items across all sections
+        const hasCritical = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'Critical') ||
+                           formData.notifications?.some((item: any) => item.value === false && item.priority === 'Critical') ||
+                           formData.adminOffices?.some((item: any) => item.status === 'issue' && item.priority === 'Critical') ||
+                           formData.facilityInfrastructure?.some((item: any) => item.status === 'issue' && item.priority === 'Critical');
+        
         if (hasCritical) {
           reportStatus = 'Critical';
         } else {
           // Check for High priority items
-          const hasHigh = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'High');
+          const hasHigh = formData.securityEquipment?.some((item: any) => item.status === 'issue' && item.priority === 'High') ||
+                         formData.notifications?.some((item: any) => item.value === false && item.priority === 'High Priority') ||
+                         formData.adminOffices?.some((item: any) => item.status === 'issue' && item.priority === 'High Priority') ||
+                         formData.facilityInfrastructure?.some((item: any) => item.status === 'issue' && item.priority === 'High Priority');
           reportStatus = hasHigh ? 'High' : 'Medium';
         }
       }
@@ -283,7 +293,16 @@ export default function UCRPage() {
         payload: formData,
       };
       const r = await fetch(`/api/programs/${programId}/ucr/reports`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
-      if (!r.ok) { addToast('Failed to submit UCR', 'error'); return; }
+      if (!r.ok) { 
+        const errorText = await r.text().catch(() => 'Unknown error');
+        console.error('UCR Submit Error:', r.status, errorText);
+        if (r.status === 403) {
+          addToast('Permission denied. Please ensure you are logged in and have access to this program.', 'error');
+        } else {
+          addToast(`Failed to submit UCR: ${r.status}`, 'error');
+        }
+        return;
+      }
       addToast('UCR submitted for review', 'success');
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
       // Reset form data to initial state
@@ -793,19 +812,39 @@ export default function UCRPage() {
                   <div className="col-span-4"><p className="text-sm font-medium text-font-base">Opposite Gender Announce their Presence</p></div>
                   <div className="col-span-3">
                     <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                      <button className="flex-1 py-1.5">Yes</button>
-                      <button className="flex-1 py-1.5">No</button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, notifications: [{ ...prev.notifications[0], value: true }] }))}
+                        className={`flex-1 py-1.5 ${formData.notifications[0]?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Yes
+                      </button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, notifications: [{ ...prev.notifications[0], value: false }] }))}
+                        className={`flex-1 py-1.5 ${formData.notifications[0]?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        No
+                      </button>
                     </div>
                   </div>
                   <div className="col-span-3">
-                    <select className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                    <select 
+                      value={formData.notifications[0]?.priority || 'Normal'}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, notifications: [{ ...prev.notifications[0], priority: e.target.value }] }))}
+                      className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
                       <option>Normal</option>
                       <option>Critical</option>
                       <option>High Priority</option>
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <input type="text" placeholder="Comments" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      placeholder="Comments" 
+                      value={formData.notifications[0]?.comments || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, notifications: [{ ...prev.notifications[0], comments: e.target.value }] }))}
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
               </div>
@@ -820,24 +859,45 @@ export default function UCRPage() {
                 {[
                   'Meeting Rooms A & B (212A, 211GB) locked',
                   'Administration doors locked and secure',
-                ].map((label) => (
+                ].map((label, idx) => (
                   <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-b border-bd last:border-b-0">
                     <div className="col-span-4"><p className="text-sm font-medium text-font-base">{label}</p></div>
                     <div className="col-span-3">
                       <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                        <button className="flex-1 py-1.5">OK</button>
-                        <button className="flex-1 py-1.5">Issue</button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, status: 'ok' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          OK
+                        </button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          Issue
+                        </button>
                       </div>
                     </div>
                     <div className="col-span-3">
-                      <select className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                      <select 
+                        value={formData.adminOffices[idx]?.priority || 'Normal'}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
+                        className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        disabled={formData.adminOffices[idx]?.status !== 'issue'}
+                      >
                         <option>Normal</option>
                         <option>Critical</option>
                         <option>High Priority</option>
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <input type="text" placeholder="Comments" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input 
+                        type="text" 
+                        placeholder="Comments" 
+                        value={formData.adminOffices[idx]?.comments || ''}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, comments: e.target.value } : item) }))}
+                        className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                   </div>
                 ))}
@@ -858,24 +918,45 @@ export default function UCRPage() {
                   'Laundry area clean and secure',
                   'Fire extinguishers functional',
                   'Fire alarm system operational',
-                ].map((label) => (
+                ].map((label, idx) => (
                   <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-b border-bd last:border-b-0">
                     <div className="col-span-4"><p className="text-sm font-medium text-font-base">{label}</p></div>
                     <div className="col-span-3">
                       <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                        <button className="flex-1 py-1.5">OK</button>
-                        <button className="flex-1 py-1.5">Issue</button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, status: 'ok' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          OK
+                        </button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          Issue
+                        </button>
                       </div>
                     </div>
                     <div className="col-span-3">
-                      <select className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                      <select 
+                        value={formData.facilityInfrastructure[idx]?.priority || 'Normal'}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
+                        className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        disabled={formData.facilityInfrastructure[idx]?.status !== 'issue'}
+                      >
                         <option>Normal</option>
                         <option>Critical</option>
                         <option>High Priority</option>
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <input type="text" placeholder="Comments" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input 
+                        type="text" 
+                        placeholder="Comments" 
+                        value={formData.facilityInfrastructure[idx]?.comments || ''}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, comments: e.target.value } : item) }))}
+                        className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                   </div>
                 ))}
