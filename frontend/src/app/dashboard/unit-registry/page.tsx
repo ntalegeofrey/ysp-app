@@ -27,6 +27,11 @@ export default function OnboardingPage() {
   // Resident form minimal state
   const [resResidentId, setResResidentId] = useState<string>('');
   const [resRoom, setResRoom] = useState<string>('');
+  const [resFirstName, setResFirstName] = useState<string>('');
+  const [resLastName, setResLastName] = useState<string>('');
+  const [resAdmissionDate, setResAdmissionDate] = useState<string>('');
+  const [resStatus, setResStatus] = useState<string>('General Population');
+  const [resAdvocate, setResAdvocate] = useState<string>('');
 
   // Local toasts
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
@@ -98,6 +103,41 @@ export default function OnboardingPage() {
       } catch {}
     })();
   }, [activeTab, programId]);
+
+  // Residents state + loader
+  type ProgramResident = { id: number|string; firstName: string; lastName: string; residentId?: string; room?: string; status?: string; advocate?: string; admissionDate?: string };
+  const [residents, setResidents] = useState<ProgramResident[]>([]);
+  const loadResidents = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/residents`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!res.ok) return;
+      const arr: ProgramResident[] = await res.json();
+      setResidents(arr);
+    } catch {}
+  };
+  useEffect(() => { if (programId) loadResidents(); }, [programId]);
+
+  // Real-time residents refresh via SSE
+  useEffect(() => {
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/events');
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data || '{}') as { type?: string; programId?: number|string };
+          if (!data?.type) return;
+          const pid = data?.programId ? String(data.programId) : '';
+          if (!programId || (pid && pid !== programId)) return;
+          if (data.type === 'programs.residents.added') {
+            loadResidents();
+          }
+        } catch {}
+      };
+    } catch {}
+    return () => { try { es && es.close(); } catch {} };
+  }, [programId]);
 
   return (
     <>
@@ -223,9 +263,36 @@ export default function OnboardingPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-bd">
-                    <tr>
-                      <td className="px-4 py-3 text-sm text-font-detail" colSpan={canAddResident ? 6 : 5}>No residents yet</td>
-                    </tr>
+                    {residents.length === 0 ? (
+                      <tr>
+                        <td className="px-4 py-3 text-sm text-font-detail" colSpan={canAddResident ? 6 : 5}>No residents yet</td>
+                      </tr>
+                    ) : (
+                      residents.map((r) => (
+                        <tr key={String(r.id)} className="bg-white hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-font-base">{`${r.lastName || ''}, ${r.firstName || ''}`.trim().replace(/^,\s*/, '')}</td>
+                          <td className="px-4 py-3 text-sm">{r.residentId || ''}</td>
+                          <td className="px-4 py-3 text-sm">{r.room || ''}</td>
+                          <td className="px-4 py-3 text-sm">
+                            {r.status ? (
+                              <span className={`px-2 py-1 text-white text-xs rounded-full ${r.status === 'Restricted' ? 'bg-error' : r.status === 'ALOYO' ? 'bg-warning' : r.status === 'Team Leader' ? 'bg-primary' : 'bg-success'}`}>{r.status}</span>
+                            ) : ''}
+                          </td>
+                          <td className="px-4 py-3 text-sm">{r.advocate || ''}</td>
+                          <td className="px-4 py-3 text-sm">{r.admissionDate ? new Date(r.admissionDate).toLocaleDateString() : ''}</td>
+                          {canAddResident && (
+                            <td className="px-4 py-3 text-sm">
+                              <button className="text-primary hover:text-primary-light mr-2" title="Edit" disabled>
+                                <i className="fa-solid fa-edit"></i>
+                              </button>
+                              <button className="text-warning hover:text-yellow-500" title="Archive" disabled>
+                                <i className="fa-solid fa-archive"></i>
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -306,23 +373,44 @@ export default function OnboardingPage() {
                 <p className="text-sm text-font-detail mt-1">Add new residents to the facility</p>
               </div>
             </div>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                if (!programId) { addToast('No program selected', 'error'); return; }
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                const payload = {
+                  firstName: resFirstName.trim(),
+                  lastName: resLastName.trim(),
+                  residentId: resResidentId || undefined,
+                  room: resRoom || undefined,
+                  status: resStatus || undefined,
+                  advocate: resAdvocate || undefined,
+                  admissionDate: resAdmissionDate || undefined,
+                };
+                const resp = await fetch(`/api/programs/${programId}/residents`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
+                if (!resp.ok) { addToast('Failed to add resident', 'error'); return; }
+                addToast('Resident added to program', 'success');
+                try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident added to program', tone: 'success' })); } catch {}
+                // clear form completely
+                setResFirstName(''); setResLastName(''); setResAdmissionDate(''); setResResidentId(''); setResRoom(''); setResStatus('General Population'); setResAdvocate('');
+                await loadResidents();
+                // fetch next auto id for next entry
+                try {
+                  const r = await fetch(`/api/programs/${programId}/residents/next-id`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                  if (r.ok) { const d = await r.json(); if (d?.nextId) setResResidentId(String(d.nextId)); }
+                } catch {}
+              } catch {}
+            }}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">
                     First Name
                   </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
+                  <input type="text" value={resFirstName} onChange={(e)=> setResFirstName(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
+                  <input type="text" value={resLastName} onChange={(e)=> setResLastName(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -339,10 +427,7 @@ export default function OnboardingPage() {
                   <label className="block text-sm font-medium text-font-base mb-1">
                     Date of Admission
                   </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
+                  <input type="date" value={resAdmissionDate} onChange={(e)=> setResAdmissionDate(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">
@@ -377,7 +462,7 @@ export default function OnboardingPage() {
                   <label className="block text-sm font-medium text-font-base mb-1">
                     Advocate Staff
                   </label>
-                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                  <select value={resAdvocate} onChange={(e)=> setResAdvocate(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
                     <option>Select Staff</option>
                     <option>Davis, L.</option>
                     <option>Wilson, M.</option>
@@ -390,11 +475,11 @@ export default function OnboardingPage() {
                 <label className="block text-sm font-medium text-font-base mb-1">
                   Initial Status
                 </label>
-                <select className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
-                  <option>General Population</option>
-                  <option>ALOYO</option>
-                  <option>Restricted</option>
-                  <option>Team Leader</option>
+                <select value={resStatus} onChange={(e)=> setResStatus(e.target.value)} className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                  <option value="General Population">General Population</option>
+                  <option value="ALOYO">ALOYO</option>
+                  <option value="Restricted">Restricted</option>
+                  <option value="Team Leader">Team Leader</option>
                 </select>
               </div>
               <div>
@@ -416,6 +501,7 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => { setResFirstName(''); setResLastName(''); setResAdmissionDate(''); setResResidentId(''); setResRoom(''); setResStatus('General Population'); setResAdvocate(''); }}
                   className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 text-sm"
                 >
                   <i className="fa-solid fa-times mr-2"></i>Cancel
