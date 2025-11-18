@@ -780,59 +780,6 @@ export default function AdminOperationsPage() {
               <p className="text-sm text-font-detail">Total Users</p>
             </div>
 
-      {/* Other Operations Permissions */}
-      <div className="bg-white rounded-lg border border-bd mb-2">
-        <div className="p-6 border-b border-bd">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-font-base flex items-center">
-                <i className="fa-solid fa-sliders text-primary mr-3"></i>
-                Other Operations Permissions
-              </h3>
-              <div className="mt-2 text-sm text-font-detail">Enable or disable non-module operations per role</div>
-            </div>
-          </div>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-font-base">Role</label>
-            <select value={opsRole} onChange={(e)=>setOpsRole(e.target.value)} className="px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-              {roleNames.map(r => (<option key={r} value={r}>{r}</option>))}
-            </select>
-            <button onClick={()=> loadOpsForRole(opsRole)} className="text-sm px-3 py-2 border rounded-lg hover:bg-bg-subtle">Refresh</button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {operationModules.map(op => (
-              <div key={op.key} className="flex items-center justify-between border border-bd rounded-lg p-3 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-toggle-on text-primary"></i>
-                  <div>
-                    <div className="text-sm font-medium text-font-base">{op.label}</div>
-                    <div className="text-xs text-font-detail">{op.key}</div>
-                  </div>
-                </div>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={!!opsState[op.key]} onChange={(e)=> toggleOp(op.key, e.target.checked)} />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all relative peer-checked:bg-primary"></div>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Toasts */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {toasts.map(t => (
-          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 ${t.tone === 'success' ? 'bg-white border-success' : t.tone === 'error' ? 'bg-white border-error' : 'bg-white border-bd'}`}>
-            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
-            <div className="flex-1 text-sm text-font-base">{t.title}</div>
-            <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
-              <i className="fa-solid fa-times"></i>
-            </button>
-          </div>
-        ))}
-      </div>
           </div>
         </div>
         <div className="bg-white rounded-lg border border-bd p-6">
@@ -913,6 +860,47 @@ export default function AdminOperationsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Other Operations Permissions */}
+      <div className="bg-white rounded-lg border border-bd mb-2">
+        <div className="p-6 border-b border-bd">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-sliders text-primary mr-3"></i>
+                Other Operations Permissions
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">Enable or disable non-module operations per role</div>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-font-base">Role</label>
+            <select value={opsRole} onChange={(e)=>setOpsRole(e.target.value)} className="px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+              {roleNames.map(r => (<option key={r} value={r}>{r}</option>))}
+            </select>
+            <button onClick={()=> loadOpsForRole(opsRole)} className="text-sm px-3 py-2 border rounded-lg hover:bg-bg-subtle">Refresh</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {operationModules.map(op => (
+              <div key={op.key} className="flex items-center justify-between border border-bd rounded-lg p-3 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-toggle-on text-primary"></i>
+                  <div>
+                    <div className="text-sm font-medium text-font-base">{op.label}</div>
+                    <div className="text-xs text-font-detail">{op.key}</div>
+                  </div>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={!!opsState[op.key]} onChange={(e)=> toggleOp(op.key, e.target.checked)} />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all relative peer-checked:bg-primary"></div>
+                </label>
+              </div>
+            ))}
           </div>
         </div>
       </div>
