@@ -4,7 +4,9 @@ import app.ysp.entity.Program;
 import app.ysp.entity.ProgramUcrReport;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.ProgramUcrReportRepository;
+import app.ysp.repo.UserRepository;
 import app.ysp.service.SseHub;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -21,11 +23,13 @@ public class ProgramUcrController {
     private final ProgramRepository programs;
     private final ProgramUcrReportRepository ucrs;
     private final SseHub sseHub;
+    private final UserRepository users;
 
-    public ProgramUcrController(ProgramRepository programs, ProgramUcrReportRepository ucrs, SseHub sseHub) {
+    public ProgramUcrController(ProgramRepository programs, ProgramUcrReportRepository ucrs, SseHub sseHub, UserRepository users) {
         this.programs = programs;
         this.ucrs = ucrs;
         this.sseHub = sseHub;
+        this.users = users;
     }
 
     @GetMapping("/reports")
@@ -35,9 +39,40 @@ public class ProgramUcrController {
         return ResponseEntity.ok(ucrs.findAllByProgramOrder(programId));
     }
 
+    @GetMapping("/reports/page")
+    public ResponseEntity<?> listPaged(
+            @PathVariable("id") Long programId,
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "date", required = false) String dateStr,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "5") int size
+    ) {
+        if (programId == null) return ResponseEntity.badRequest().build();
+        LocalDate date = null;
+        if (dateStr != null && !dateStr.isBlank()) {
+            try { date = LocalDate.parse(dateStr); } catch (Exception ignored) {}
+        }
+        var pageable = PageRequest.of(Math.max(page,0), Math.max(size,1));
+        var p = ucrs.findByFilters(programId, (q==null||q.isBlank())? null : q, date, (status==null||status.equalsIgnoreCase("All Status")||status.isBlank())? null : status, pageable);
+        Map<String,Object> out = new HashMap<>();
+        out.put("content", p.getContent());
+        out.put("totalElements", p.getTotalElements());
+        out.put("page", p.getNumber());
+        out.put("size", p.getSize());
+        return ResponseEntity.ok(out);
+    }
+
+    @GetMapping("/reports/{reportId}")
+    public ResponseEntity<?> getOne(@PathVariable("id") Long id, @PathVariable("reportId") Long reportId) {
+        var r = ucrs.findOneByIdAndProgram(reportId, id);
+        if (r == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(r);
+    }
+
     @PostMapping("/reports")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
-    public ResponseEntity<?> create(@PathVariable("id") Long id, @RequestBody Map<String, Object> body) {
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
+    public ResponseEntity<?> create(@PathVariable("id") Long id, @RequestBody Map<String, Object> body, Authentication auth) {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Program program = opt.get();
@@ -52,7 +87,15 @@ public class ProgramUcrController {
             r.setReportDate(LocalDate.now());
         }
         r.setShift(Objects.toString(body.get("shift"), null));
-        r.setReporterName(Objects.toString(body.get("reporterName"), null));
+        // Prefer reporterName from authenticated user if available
+        String reporter = Objects.toString(body.get("reporterName"), null);
+        if ((reporter == null || reporter.isBlank()) && auth != null && auth.getName() != null) {
+            reporter = users.findByEmail(auth.getName()).map(u -> {
+                String fn = u.getFullName();
+                return (fn != null && !fn.isBlank()) ? fn : u.getEmail();
+            }).orElse(auth.getName());
+        }
+        r.setReporterName(reporter);
         r.setStatus(Objects.toString(body.get("status"), null));
         r.setIssuesSummary(Objects.toString(body.get("issuesSummary"), null));
         Object payload = body.get("payload");
@@ -100,6 +143,19 @@ public class ProgramUcrController {
         out.put("critical", ucrs.countCritical(id));
         out.put("pending", ucrs.countPending(id));
         out.put("monthCount", ucrs.countInRange(id, start, end));
+        return ResponseEntity.ok(out);
+    }
+
+    @GetMapping("/open-issues")
+    public ResponseEntity<?> openIssues(
+            @PathVariable("id") Long id,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "5") int size
+    ) {
+        var p = ucrs.findOpenIssues(id, PageRequest.of(Math.max(0,page), Math.max(1,size)));
+        Map<String,Object> out = new HashMap<>();
+        out.put("content", p.getContent());
+        out.put("totalElements", p.getTotalElements());
         return ResponseEntity.ok(out);
     }
 }

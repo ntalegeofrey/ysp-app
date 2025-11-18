@@ -23,14 +23,29 @@ export default function UCRPage() {
 
   type Ucr = { id: number|string; reportDate: string; shift?: string; reporterName?: string; status?: string; issuesSummary?: string };
   const [ucrReports, setUcrReports] = useState<Ucr[]>([]);
-  const loadReports = async () => {
+  const [totalReports, setTotalReports] = useState<number>(0);
+  const [pageIdx, setPageIdx] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(5);
+  const [q, setQ] = useState<string>('');
+  const [filterDate, setFilterDate] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('All Status');
+  const loadReports = async (resetPage = false) => {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/reports`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      const params = new URLSearchParams({
+        page: String(resetPage ? 0 : pageIdx),
+        size: String(pageSize),
+      });
+      if (q) params.set('q', q);
+      if (filterDate) params.set('date', filterDate);
+      if (filterStatus) params.set('status', filterStatus);
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/page?${params.toString()}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
       if (!r.ok) return;
-      const arr: Ucr[] = await r.json();
-      setUcrReports(arr);
+      const data = await r.json();
+      setUcrReports(data.content || []);
+      setTotalReports(data.totalElements || 0);
+      if (resetPage) setPageIdx(0);
     } catch {}
   };
 
@@ -125,7 +140,22 @@ export default function UCRPage() {
     } catch {}
   };
 
-  useEffect(() => { if (programId) { loadReports(); loadStats(); } }, [programId]);
+  // Open issues summary (Critical/High/Medium)
+  type OpenIssue = Ucr;
+  const [openIssues, setOpenIssues] = useState<OpenIssue[]>([]);
+  const loadOpenIssues = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=5`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) return;
+      const d = await r.json();
+      setOpenIssues(d.content || []);
+    } catch {}
+  };
+
+  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); } }, [programId]);
+  useEffect(() => { if (programId) { loadReports(); } }, [pageIdx]);
 
   // SSE live refresh
   useEffect(() => {
@@ -139,7 +169,7 @@ export default function UCRPage() {
           if (!data?.type) return;
           const pid = data?.programId ? String(data.programId) : '';
           if (pid && pid !== programId) return;
-          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); }
+          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); loadOpenIssues(); }
         } catch {}
       };
     } catch {}
@@ -150,6 +180,21 @@ export default function UCRPage() {
   const [reportDate, setReportDate] = useState<string>('');
   const [shiftVal, setShiftVal] = useState<string>('7:00-3:00');
   const [comments, setComments] = useState<string>('');
+  const [staffName, setStaffName] = useState<string>('');
+  useEffect(() => {
+    // auto-fill staff from /auth/me
+    const run = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const r = await fetch('/api/auth/me', { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (r.ok) {
+          const me = await r.json();
+          setStaffName(me.fullName || me.email || '');
+        }
+      } catch {}
+    };
+    run();
+  }, []);
   const submitNew = async () => {
     if (!programId) { addToast('No program selected', 'error'); return; }
     try {
@@ -157,7 +202,7 @@ export default function UCRPage() {
       const payload = {
         reportDate: reportDate || new Date().toISOString().slice(0,10),
         shift: shiftVal,
-        reporterName: undefined,
+        reporterName: staffName || undefined,
         status: 'Pending Review',
         issuesSummary: comments || undefined,
         payload: {},
@@ -166,8 +211,24 @@ export default function UCRPage() {
       if (!r.ok) { addToast('Failed to submit UCR', 'error'); return; }
       addToast('UCR submitted for review', 'success');
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
-      await Promise.all([loadReports(), loadStats()]);
+      await Promise.all([loadReports(true), loadStats()]);
     } catch { addToast('Failed to submit UCR', 'error'); }
+  };
+
+  // View modal
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewData, setViewData] = useState<any>(null);
+  const onView = async (id: string|number) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) return;
+      const d = await r.json();
+      let payload: any = {};
+      try { payload = d.payloadJson ? JSON.parse(d.payloadJson) : {}; } catch {}
+      setViewData({ ...d, payload });
+      setViewOpen(true);
+    } catch {}
   };
 
   return (
@@ -323,15 +384,16 @@ export default function UCRPage() {
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">UCR Reports Archive</h3>
                   <div className="flex items-center gap-4 mt-3">
-                    <input type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <input type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <select className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                    <input value={q} onChange={(e)=> setQ(e.target.value)} onKeyDown={(e)=> { if (e.key==='Enter') loadReports(true); }} type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input value={filterDate} onChange={(e)=> { setFilterDate(e.target.value); setPageIdx(0); }} onBlur={()=> loadReports(true)} type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <select value={filterStatus} onChange={(e)=> { setFilterStatus(e.target.value); setPageIdx(0); loadReports(true); }} className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                       <option>All Status</option>
                       <option>No Issues</option>
                       <option>Critical</option>
                       <option>High</option>
                       <option>Resolved</option>
                     </select>
+                    <button onClick={() => loadReports(true)} className="px-3 py-2 text-sm bg-primary text-white rounded hover:bg-primary-light">Search</button>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -357,7 +419,7 @@ export default function UCRPage() {
                             <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
                           </td>
                           <td className="p-3">
-                            <button className="text-primary hover:underline text-xs">View Report</button>
+                            <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View Report</button>
                           </td>
                         </tr>
                       ))}
@@ -365,9 +427,10 @@ export default function UCRPage() {
                   </table>
                 </div>
                 <div className="p-4 border-t border-bd flex justify-between items-center">
-                  <p className="text-sm text-font-detail">Showing 5 of 284 reports</p>
-                  <div className="flex space-x-2">
-                    <button className="px-4 py-2 text-sm bg-primary text-white rounded hover:bg-primary-light">See More</button>
+                  <p className="text-sm text-font-detail">Showing {ucrReports.length} of {totalReports} reports</p>
+                  <div className="flex items-center gap-2">
+                    <button disabled={pageIdx<=0} onClick={()=> setPageIdx(p=> Math.max(0, p-1))} className={`px-3 py-2 text-sm rounded ${pageIdx<=0? 'bg-gray-200 text-gray-500' : 'bg-white border border-bd hover:bg-primary-lightest'}`}>Prev</button>
+                    <button disabled={(pageIdx+1)*pageSize >= totalReports} onClick={()=> setPageIdx(p=> p+1)} className={`px-3 py-2 text-sm rounded ${(pageIdx+1)*pageSize >= totalReports? 'bg-gray-200 text-gray-500' : 'bg-primary text-white hover:bg-primary-light'}`}>See More</button>
                   </div>
                 </div>
               </div>
@@ -396,7 +459,7 @@ export default function UCRPage() {
             {/* Actions */}
             <div className="flex justify-end">
               <div className="flex items-center gap-3">
-                <button className="bg-primary-lightest text-primary px-4 py-2 rounded-lg font-medium hover:bg-primary-lighter/50 transition-colors duration-200 flex items-center">
+                <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-4 py-2 rounded-lg font-medium hover:bg-primary-lighter/50 transition-colors duration-200 flex items-center">
                   <i className="fa-solid fa-print mr-2"></i>
                   Print
                 </button>
@@ -424,7 +487,7 @@ export default function UCRPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-detail mb-1">Staff Completing UCR</label>
-                  <input type="text" className="w-full px-3 py-2 border border-bd rounded-md bg-gray-100" defaultValue="John Smith" readOnly />
+                  <input type="text" className="w-full px-3 py-2 border border-bd rounded-md bg-gray-100" value={staffName} readOnly />
                 </div>
               </div>
             </section>
@@ -437,7 +500,7 @@ export default function UCRPage() {
               <div className="p-4 space-y-4">
                 {[
                   { label: '11 Radios functional and charging', extra: 'Problems in use, work order #' },
-                  { label: '2 Flashlights functional', extra: 'Problems in use, work order #', withCamera: true },
+                  { label: '2 Flashlights functional', extra: 'Problems in use, work order #' },
                   { label: 'Garrett metal detector functional', extra: 'Problems in use, work order #' },
                   { label: 'Big Set keys & keys present and secure', extra: 'Problems in use, work order #' },
                   { label: 'First Aid kits available and stocked', extra: 'Note if used, work order #' },
@@ -451,11 +514,9 @@ export default function UCRPage() {
                         <button className="flex-1 py-1.5">Issue</button>
                       </div>
                     </div>
-                    <div className={`col-span-5 ${row.withCamera ? 'flex items-center gap-2' : ''}`}>
+                    <div className={`col-span-5`}>
                       <input type="text" placeholder={row.extra} className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                      {row.withCamera && (
-                        <button className="text-primary hover:text-primary-light"><i className="fa-solid fa-camera text-lg"></i></button>
-                      )}
+                      {/* camera icon removed per requirements */}
                     </div>
                   </div>
                 ))}
@@ -676,11 +737,46 @@ export default function UCRPage() {
               <div className="p-4">
                 <textarea rows={6} value={comments} onChange={(e)=> setComments(e.target.value)} placeholder="Please provide any additional observations, concerns, or notes about this shift's unit condition inspection..." className="w-full px-4 py-3 border border-bd rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
                 <p className="text-xs text-font-detail mt-2">Use this space to document any issues not covered in the checklist above or provide additional context for reported concerns.</p>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={submitNew} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light transition-colors duration-200 flex items-center">
+                    <i className="fa-solid fa-paper-plane mr-2"></i>
+                    Submit for Review
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
+    {/* View Report Modal */}
+    {viewOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl">
+          <div className="p-4 border-b border-bd flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-font-base">UCR Report</h3>
+            <div className="flex items-center gap-2">
+              <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-3 py-1.5 rounded-md text-sm"><i className="fa-solid fa-print mr-1"></i>Print</button>
+              <button onClick={() => setViewOpen(false)} className="text-font-detail hover:text-font-base"><i className="fa-solid fa-times"></i></button>
+            </div>
+          </div>
+          <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div><span className="text-font-detail">Date</span><div className="font-medium">{viewData?.reportDate ? new Date(viewData.reportDate).toLocaleDateString() : ''}</div></div>
+              <div><span className="text-font-detail">Shift</span><div className="font-medium">{viewData?.shift || ''}</div></div>
+              <div><span className="text-font-detail">Reporter</span><div className="font-medium">{viewData?.reporterName || ''}</div></div>
+            </div>
+            <div>
+              <div className="text-font-detail text-sm mb-1">Key Issues</div>
+              <div className="text-sm">{viewData?.issuesSummary || '—'}</div>
+            </div>
+            <div>
+              <div className="text-font-detail text-sm mb-1">Payload (JSON)</div>
+              <pre className="text-xs bg-bg-subtle p-3 rounded border border-bd overflow-x-auto">{JSON.stringify(viewData?.payload ?? {}, null, 2)}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
