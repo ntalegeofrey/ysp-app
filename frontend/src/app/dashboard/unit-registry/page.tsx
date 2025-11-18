@@ -24,6 +24,9 @@ export default function OnboardingPage() {
   const [lastNameVal, setLastNameVal] = useState<string>('');
   const [employeeIdVal, setEmployeeIdVal] = useState<string>('');
   const [selectedStaff, setSelectedStaff] = useState<StaffLite | null>(null);
+  // Resident form minimal state
+  const [resResidentId, setResResidentId] = useState<string>('');
+  const [resRoom, setResRoom] = useState<string>('');
 
   // Local toasts
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
@@ -81,6 +84,20 @@ export default function OnboardingPage() {
     } catch {}
   };
   useEffect(() => { if (programId) loadAssignments(); }, [programId]);
+
+  // Load next auto-generated 6-digit resident ID when switching to Residents tab or program changes
+  useEffect(() => {
+    (async () => {
+      try {
+        if (activeTab !== 'residents' || !programId) return;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const r = await fetch(`/api/programs/${programId}/residents/next-id`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data?.nextId) setResResidentId(String(data.nextId));
+      } catch {}
+    })();
+  }, [activeTab, programId]);
 
   return (
     <>
@@ -462,8 +479,11 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="text"
+                    value={resResidentId}
+                    readOnly
+                    tabIndex={-1}
                     placeholder="Auto-generated"
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -472,14 +492,15 @@ export default function OnboardingPage() {
                   <label className="block text-sm font-medium text-font-base mb-1">
                     Room Assignment
                   </label>
-                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Select Room</option>
-                    <option>Room 101</option>
-                    <option>Room 102</option>
-                    <option>Room 103</option>
-                    <option>Room 104</option>
-                    <option>Room 105</option>
-                  </select>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={resRoom}
+                    onChange={(e)=> setResRoom(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 101"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">
@@ -656,7 +677,7 @@ export default function OnboardingPage() {
                           const parts = (s.fullName || '').trim().split(/\s+/);
                           setFirstNameVal(parts[0] || '');
                           setLastNameVal(parts.length > 1 ? parts[parts.length-1] : '');
-                          setEmployeeIdVal(s.id);
+                          setEmployeeIdVal((s.employeeNumber || '').toString() || s.id);
                           setStaffEmailQuery('');
                           setStaffNameQuery('');
                         }}

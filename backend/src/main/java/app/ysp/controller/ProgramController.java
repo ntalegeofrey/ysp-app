@@ -126,11 +126,29 @@ public class ProgramController {
                 .map(p -> {
                     body.setId(null);
                     body.setProgram(p);
+                    // Auto-generate 6-digit incremental residentId if not provided
+                    String provided = body.getResidentId();
+                    if (provided == null || provided.trim().isEmpty()) {
+                        Integer max = residents.findMaxNumericResidentForProgram(id);
+                        int next = (max == null ? 0 : max) + 1;
+                        String rid = String.format("%06d", next);
+                        body.setResidentId(rid);
+                    }
                     ProgramResident saved = residents.save(body);
                     try { sseHub.broadcast(java.util.Map.of("type","programs.residents.added","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
                     return ResponseEntity.created(URI.create("/programs/" + id + "/residents/" + saved.getId())).body(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/residents/next-id")
+    public ResponseEntity<?> nextResidentId(@PathVariable Long id) {
+        Optional<Program> p = programs.findById(id);
+        if (p.isEmpty()) return ResponseEntity.notFound().build();
+        Integer max = residents.findMaxNumericResidentForProgram(id);
+        int next = (max == null ? 0 : max) + 1;
+        String rid = String.format("%06d", next);
+        return ResponseEntity.ok(java.util.Map.of("nextId", rid));
     }
 
     public static class AssignmentsPayload {
