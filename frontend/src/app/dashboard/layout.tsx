@@ -294,6 +294,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })();
   }, [router]);
 
+  // Require a selected program for any dashboard module
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const raw = localStorage.getItem('selectedProgram');
+      if (!raw) {
+        router.replace('/program-selection');
+      }
+    } catch {}
+  }, [user, pathname, router]);
+
   // Load module access for all menu items; show items with FULL access regardless of role
   const loadModuleAccess = async () => {
     if (!user) return;
