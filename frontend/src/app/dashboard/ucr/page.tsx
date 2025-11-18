@@ -292,12 +292,14 @@ export default function UCRPage() {
         issuesSummary: comments || undefined,
         payload: formData,
       };
+      console.log('Submitting UCR with token:', token ? 'present' : 'missing', 'programId:', programId);
       const r = await fetch(`/api/programs/${programId}/ucr/reports`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
       if (!r.ok) { 
         const errorText = await r.text().catch(() => 'Unknown error');
         console.error('UCR Submit Error:', r.status, errorText);
+        console.error('Request headers:', { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token?.substring(0, 20)}...` }: {}) });
         if (r.status === 403) {
-          addToast('Permission denied. Please ensure you are logged in and have access to this program.', 'error');
+          addToast('Permission denied. Try logging out and back in, or contact admin to assign you to this program.', 'error');
         } else {
           addToast(`Failed to submit UCR: ${r.status}`, 'error');
         }
