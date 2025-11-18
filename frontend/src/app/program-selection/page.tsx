@@ -27,6 +27,7 @@ export default function ProgramSelectionPage() {
   const [ready, setReady] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [canManagePrograms, setCanManagePrograms] = useState<boolean>(false);
   // local toast notifications
   type Toast = { id: string; title: string; tone?: 'success' | 'error' | 'info' };
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -86,13 +87,20 @@ export default function ProgramSelectionPage() {
       setLoading(true);
       try {
         const token = localStorage.getItem('token') || '';
-        const r = (role || '').toString().trim().toLowerCase();
-        const isAdmin = r === 'admin' || r === 'administrator';
-        const url = isAdmin ? '/api/programs' : '/api/programs/my';
-        const resp = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
-        if (!resp.ok) return;
-        const data = await resp.json();
+        // Probe admin capability by attempting /programs; fallback to /programs/my
+        let data: any[] = [];
+        let manage = false;
+        const tryAdmin = await fetch('/api/programs', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (tryAdmin.ok) {
+          manage = true;
+          data = await tryAdmin.json();
+        } else {
+          const mine = await fetch('/api/programs/my', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+          if (!mine.ok) return;
+          data = await mine.json();
+        }
         if (cancelled) return;
+        setCanManagePrograms(manage);
         const typeLabel = (t?: string, other?: string) => {
           switch ((t || '').toString()) {
             case 'detention': return 'Detention Program';
@@ -168,7 +176,7 @@ export default function ProgramSelectionPage() {
         setLoading(false);
         // Save to cache for instant next load
         try {
-          const cacheKey = isAdmin ? 'programs_cache_all' : 'programs_cache_my';
+          const cacheKey = manage ? 'programs_cache_all' : 'programs_cache_my';
           localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: mapped }));
         } catch {}
       } catch {}
@@ -228,7 +236,7 @@ export default function ProgramSelectionPage() {
 
   if (!ready) return null;
   const isAdmin = (role || '').toString().trim().toLowerCase() === 'admin' || (role || '').toString().trim().toLowerCase() === 'administrator';
-  const shortTitle = abbreviateTitle(jobTitle || (isAdmin ? 'Administrator' : 'Staff'));
+  const shortTitle = abbreviateTitle(jobTitle || (canManagePrograms || isAdmin ? 'Administrator' : 'Staff'));
   return (
     <div id="program-selection-container" className="min-h-screen hero-pattern">
       <header id="header" className="bg-white shadow-sm border-b border-bd">
@@ -259,7 +267,7 @@ export default function ProgramSelectionPage() {
         <div id="welcome-section" className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
             <h2 className="text-4xl font-bold text-font-base">Select Your Program</h2>
-            {isAdmin && (
+            {canManagePrograms && (
               <button id="create-program-btn" className="ml-6 bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center" onClick={() => router.push('/program-selection/create')}>
                 <i className="fa-solid fa-plus mr-2"></i>
                 Create New Program
