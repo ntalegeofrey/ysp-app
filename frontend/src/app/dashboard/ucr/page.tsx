@@ -58,6 +58,24 @@ export default function UCRPage() {
       ? 'bg-success text-white'
       : 'bg-green-100 text-success';
 
+  // Chart data
+  const [chartData, setChartData] = useState<{ critical: number[]; high: number[]; medium: number[] }>({ critical: new Array(12).fill(0), high: new Array(12).fill(0), medium: new Array(12).fill(0) });
+  const loadChartData = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/monthly-chart`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (r.ok) {
+        const d = await r.json();
+        setChartData({ 
+          critical: d.critical || new Array(12).fill(0), 
+          high: d.high || new Array(12).fill(0), 
+          medium: d.medium || new Array(12).fill(0) 
+        });
+      }
+    } catch {}
+  };
+
   // Load Highcharts and render the chart; feed series from backend stats if desired later
   useEffect(() => {
     if (activeTab !== 'overview') return;
@@ -97,9 +115,9 @@ export default function UCRPage() {
             labels: { style: { fontSize: '12px' } },
           },
           series: [
-            { name: 'Critical Issues', data: [12,15,18,20,22,25,28,30,32,35,38,40], color: '#CD0D0D' },
-            { name: 'High Priority', data: [25,28,30,32,35,38,40,42,45,48,50,52], color: '#f6c51b' },
-            { name: 'Medium Priority', data: [40,45,50,55,60,65,70,75,80,85,90,95], color: '#8AAAC7' },
+            { name: 'Critical Issues', data: chartData.critical, color: '#CD0D0D' },
+            { name: 'High Priority', data: chartData.high, color: '#f6c51b' },
+            { name: 'Medium Priority', data: chartData.medium, color: '#8AAAC7' },
           ],
           plotOptions: { column: { pointPadding: 0.2, borderWidth: 0 } },
           tooltip: {
@@ -115,7 +133,7 @@ export default function UCRPage() {
     }
 
     init();
-  }, [activeTab]);
+  }, [activeTab, chartData]);
 
   // Resolve selected program and initial load
   useEffect(() => {
@@ -154,7 +172,7 @@ export default function UCRPage() {
     } catch {}
   };
 
-  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); } }, [programId]);
+  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadChartData(); } }, [programId]);
   useEffect(() => { if (programId) { loadReports(); } }, [pageIdx]);
 
   // SSE live refresh
@@ -169,7 +187,7 @@ export default function UCRPage() {
           if (!data?.type) return;
           const pid = data?.programId ? String(data.programId) : '';
           if (pid && pid !== programId) return;
-          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); loadOpenIssues(); }
+          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); loadOpenIssues(); loadChartData(); }
         } catch {}
       };
     } catch {}
@@ -181,6 +199,43 @@ export default function UCRPage() {
   const [shiftVal, setShiftVal] = useState<string>('7:00-3:00');
   const [comments, setComments] = useState<string>('');
   const [staffName, setStaffName] = useState<string>('');
+
+  // Form data state for all toggles and inputs
+  const [formData, setFormData] = useState<any>({
+    securityEquipment: [
+      { status: 'ok', comments: '', priority: 'Normal' }, // 11 Radios
+      { status: 'ok', comments: '', priority: 'Normal' }, // 2 Flashlights  
+      { status: null, comments: '', priority: 'Normal' }, // Garrett metal detector
+      { status: null, comments: '', priority: 'Normal' }, // Big Set keys
+      { status: 'ok', comments: '', priority: 'Normal' }, // First Aid kits
+      { status: null, comments: '', priority: 'Normal' }, // Desk Computer
+    ],
+    hardwareSecure: { value: null, comments: '' },
+    searchesCompleted: { value: null, startTime: '', endTime: '' },
+    fireDrillsCompleted: { value: null, comments: '' },
+    emergencyLighting: { value: null, comments: '' },
+    notifications: [{ value: null, priority: 'Normal', comments: '' }],
+    adminOffices: [
+      { status: null, priority: 'Normal', comments: '' }, // Meeting Rooms
+      { status: null, priority: 'Normal', comments: '' }, // Admin doors
+    ],
+    facilityInfrastructure: [
+      { status: null, priority: 'Normal', comments: '' }, // Back door
+      { status: null, priority: 'Normal', comments: '' }, // Entrance/Exit doors
+      { status: null, priority: 'Normal', comments: '' }, // Smoke detectors
+      { status: null, priority: 'Normal', comments: '' }, // Windows secure
+      { status: null, priority: 'Normal', comments: '' }, // Laundry area
+      { status: null, priority: 'Normal', comments: '' }, // Fire extinguishers
+      { status: null, priority: 'Normal', comments: '' }, // Fire alarm system
+    ],
+    staffChores: [
+      { status: 'satisfactory', comments: '' }, // Workspace clean
+      { status: 'satisfactory', comments: '' }, // Staff bathroom
+      { status: 'satisfactory', comments: '' }, // Dayroom
+      { status: 'satisfactory', comments: '' }, // Laundry room
+    ],
+    roomSearches: {} // Will be populated with room numbers as keys
+  });
   useEffect(() => {
     // auto-fill staff from /auth/me
     const run = async () => {
@@ -205,12 +260,48 @@ export default function UCRPage() {
         reporterName: staffName || undefined,
         status: 'Pending Review',
         issuesSummary: comments || undefined,
-        payload: {},
+        payload: formData,
       };
       const r = await fetch(`/api/programs/${programId}/ucr/reports`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
       if (!r.ok) { addToast('Failed to submit UCR', 'error'); return; }
       addToast('UCR submitted for review', 'success');
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
+      // Reset form data to initial state
+      setFormData({
+        securityEquipment: [
+          { status: 'ok', comments: '', priority: 'Normal' },
+          { status: 'ok', comments: '', priority: 'Normal' },
+          { status: null, comments: '', priority: 'Normal' },
+          { status: null, comments: '', priority: 'Normal' },
+          { status: 'ok', comments: '', priority: 'Normal' },
+          { status: null, comments: '', priority: 'Normal' },
+        ],
+        hardwareSecure: { value: null, comments: '' },
+        searchesCompleted: { value: null, startTime: '', endTime: '' },
+        fireDrillsCompleted: { value: null, comments: '' },
+        emergencyLighting: { value: null, comments: '' },
+        notifications: [{ value: null, priority: 'Normal', comments: '' }],
+        adminOffices: [
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+        ],
+        facilityInfrastructure: [
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+          { status: null, priority: 'Normal', comments: '' },
+        ],
+        staffChores: [
+          { status: 'satisfactory', comments: '' },
+          { status: 'satisfactory', comments: '' },
+          { status: 'satisfactory', comments: '' },
+          { status: 'satisfactory', comments: '' },
+        ],
+        roomSearches: {}
+      });
       await Promise.all([loadReports(true), loadStats()]);
     } catch { addToast('Failed to submit UCR', 'error'); }
   };
@@ -419,7 +510,7 @@ export default function UCRPage() {
                             <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
                           </td>
                           <td className="p-3">
-                            <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View Report</button>
+                            <button onClick={() => {onView(r.id); loadOpenIssues(); loadReports(); loadStats(); loadChartData();}} className="text-primary hover:underline text-xs">View Report</button>
                           </td>
                         </tr>
                       ))}
@@ -510,13 +601,28 @@ export default function UCRPage() {
                     <div className="col-span-4"><p className="text-sm font-medium text-font-base">{row.label}</p></div>
                     <div className="col-span-3">
                       <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                        <button className={`flex-1 py-1.5 ${idx === 0 || idx === 1 || idx === 4 ? 'bg-primary text-white' : ''}`}>OK</button>
-                        <button className="flex-1 py-1.5">Issue</button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, status: 'ok' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          OK
+                        </button>
+                        <button 
+                          onClick={() => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
+                          className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        >
+                          Issue
+                        </button>
                       </div>
                     </div>
                     <div className={`col-span-5`}>
-                      <input type="text" placeholder={row.extra} className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                      {/* camera icon removed per requirements */}
+                      <input 
+                        type="text" 
+                        placeholder={row.extra} 
+                        value={formData.securityEquipment[idx]?.comments || ''}
+                        onChange={(e) => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, comments: e.target.value } : item) }))}
+                        className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                   </div>
                 ))}
@@ -525,12 +631,28 @@ export default function UCRPage() {
                   <div className="col-span-4"><p className="text-sm font-medium text-font-base">Hardware Secure (hooks secure)</p></div>
                   <div className="col-span-3">
                     <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                      <button className="flex-1 py-1.5">Yes</button>
-                      <button className="flex-1 py-1.5">No</button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, hardwareSecure: { ...prev.hardwareSecure, value: true } }))}
+                        className={`flex-1 py-1.5 ${formData.hardwareSecure?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Yes
+                      </button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, hardwareSecure: { ...prev.hardwareSecure, value: false } }))}
+                        className={`flex-1 py-1.5 ${formData.hardwareSecure?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        No
+                      </button>
                     </div>
                   </div>
                   <div className="col-span-5">
-                    <input type="text" placeholder="Problems in use, work order #" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      placeholder="Problems in use, work order #" 
+                      value={formData.hardwareSecure?.comments || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, hardwareSecure: { ...prev.hardwareSecure, comments: e.target.value } }))}
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
                 {/* Searches completed */}
@@ -538,13 +660,33 @@ export default function UCRPage() {
                   <div className="col-span-4"><p className="text-sm font-medium text-font-base">Searches completed</p></div>
                   <div className="col-span-3">
                     <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                      <button className="flex-1 py-1.5">Yes</button>
-                      <button className="flex-1 py-1.5">No</button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, searchesCompleted: { ...prev.searchesCompleted, value: true } }))}
+                        className={`flex-1 py-1.5 ${formData.searchesCompleted?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Yes
+                      </button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, searchesCompleted: { ...prev.searchesCompleted, value: false } }))}
+                        className={`flex-1 py-1.5 ${formData.searchesCompleted?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        No
+                      </button>
                     </div>
                   </div>
                   <div className="col-span-5 flex gap-2">
-                    <input type="time" className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                    <input type="time" className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="time" 
+                      value={formData.searchesCompleted?.startTime || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, searchesCompleted: { ...prev.searchesCompleted, startTime: e.target.value } }))}
+                      className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
+                    <input 
+                      type="time" 
+                      value={formData.searchesCompleted?.endTime || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, searchesCompleted: { ...prev.searchesCompleted, endTime: e.target.value } }))}
+                      className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
                 {/* Fire drills completed */}
@@ -552,12 +694,28 @@ export default function UCRPage() {
                   <div className="col-span-4"><p className="text-sm font-medium text-font-base">Fire drills completed</p></div>
                   <div className="col-span-3">
                     <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                      <button className="flex-1 py-1.5">Yes</button>
-                      <button className="flex-1 py-1.5">No</button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, fireDrillsCompleted: { ...prev.fireDrillsCompleted, value: true } }))}
+                        className={`flex-1 py-1.5 ${formData.fireDrillsCompleted?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Yes
+                      </button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, fireDrillsCompleted: { ...prev.fireDrillsCompleted, value: false } }))}
+                        className={`flex-1 py-1.5 ${formData.fireDrillsCompleted?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        No
+                      </button>
                     </div>
                   </div>
                   <div className="col-span-5">
-                    <input type="text" placeholder="Problems in use, work order #" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      placeholder="Problems in use, work order #" 
+                      value={formData.fireDrillsCompleted?.comments || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, fireDrillsCompleted: { ...prev.fireDrillsCompleted, comments: e.target.value } }))}
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
                 {/* Emergency lighting operational */}
@@ -565,12 +723,28 @@ export default function UCRPage() {
                   <div className="col-span-4"><p className="text-sm font-medium text-font-base">Emergency lighting operational</p></div>
                   <div className="col-span-3">
                     <div className="flex border border-bd rounded-md overflow-hidden text-sm">
-                      <button className="flex-1 py-1.5">Yes</button>
-                      <button className="flex-1 py-1.5">No</button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, emergencyLighting: { ...prev.emergencyLighting, value: true } }))}
+                        className={`flex-1 py-1.5 ${formData.emergencyLighting?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Yes
+                      </button>
+                      <button 
+                        onClick={() => setFormData((prev: any) => ({ ...prev, emergencyLighting: { ...prev.emergencyLighting, value: false } }))}
+                        className={`flex-1 py-1.5 ${formData.emergencyLighting?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        No
+                      </button>
                     </div>
                   </div>
                   <div className="col-span-5">
-                    <input type="text" placeholder="Problems in use, work order #" className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    <input 
+                      type="text" 
+                      placeholder="Problems in use, work order #" 
+                      value={formData.emergencyLighting?.comments || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, emergencyLighting: { ...prev.emergencyLighting, comments: e.target.value } }))}
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" 
+                    />
                   </div>
                 </div>
               </div>

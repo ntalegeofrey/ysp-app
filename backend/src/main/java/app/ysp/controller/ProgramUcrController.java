@@ -158,4 +158,38 @@ public class ProgramUcrController {
         out.put("totalElements", p.getTotalElements());
         return ResponseEntity.ok(out);
     }
+
+    @GetMapping("/monthly-chart")
+    public ResponseEntity<?> monthlyChart(@PathVariable("id") Long id, @RequestParam(value = "year", defaultValue = "0") int year) {
+        if (year <= 0) year = java.time.Year.now().getValue();
+        var results = ucrs.findMonthlyIssueCounts(id, year);
+        
+        // Initialize arrays for 12 months
+        int[] critical = new int[12];
+        int[] high = new int[12];
+        int[] medium = new int[12];
+        
+        for (Object[] row : results) {
+            int month = ((Number) row[0]).intValue() - 1; // 0-based index
+            String status = (String) row[1];
+            int count = ((Number) row[2]).intValue();
+            
+            if (month >= 0 && month < 12) {
+                if ("critical".equals(status)) {
+                    critical[month] = count;
+                } else if ("high".equals(status)) {
+                    high[month] = count;
+                } else if ("medium".equals(status)) {
+                    medium[month] = count;
+                }
+            }
+        }
+        
+        Map<String, Object> out = new HashMap<>();
+        out.put("critical", critical);
+        out.put("high", high);
+        out.put("medium", medium);
+        out.put("year", year);
+        return ResponseEntity.ok(out);
+    }
 }
