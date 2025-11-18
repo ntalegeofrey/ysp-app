@@ -305,6 +305,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch {}
   }, [user, pathname, router]);
 
+  // Enforce program membership for non-admins: selected program must be one of /programs/my
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      const role = String(user.role || '').toLowerCase();
+      const isAdmin = role === 'admin' || role === 'administrator';
+      if (isAdmin) return; // admins can view any program
+      let selectedId: string | null = null;
+      try {
+        const raw = localStorage.getItem('selectedProgram');
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        selectedId = p?.id ? String(p.id) : null;
+      } catch { selectedId = null; }
+      if (!selectedId) return;
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/programs/my', { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+        if (!res.ok) return;
+        const mine: Array<{ id: number|string }> = await res.json();
+        const ids = new Set(mine.map(m => String(m.id)));
+        if (!ids.has(selectedId)) {
+          try { localStorage.removeItem('selectedProgram'); } catch {}
+          router.replace('/program-selection');
+        }
+      } catch {}
+    })();
+  }, [user, pathname, router]);
+
   // Load module access for all menu items; show items with FULL access regardless of role
   const loadModuleAccess = async () => {
     if (!user) return;

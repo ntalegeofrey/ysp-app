@@ -15,7 +15,7 @@ export default function OnboardingPage() {
   const [residentAction, setResidentAction] = useState<null | { id: string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
 
   // Staff search and autofill
-  type StaffLite = { id: string; fullName: string; email: string };
+  type StaffLite = { id: string; fullName: string; email: string; jobTitle?: string; employeeNumber?: string };
   const [staffList, setStaffList] = useState<StaffLite[]>([]);
   const [staffNameQuery, setStaffNameQuery] = useState<string>('');
   const [staffEmailQuery, setStaffEmailQuery] = useState<string>('');
@@ -24,6 +24,15 @@ export default function OnboardingPage() {
   const [lastNameVal, setLastNameVal] = useState<string>('');
   const [employeeIdVal, setEmployeeIdVal] = useState<string>('');
   const [selectedStaff, setSelectedStaff] = useState<StaffLite | null>(null);
+
+  // Local toasts
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
+  const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const addToast = (title: string, tone: 'info' | 'success' | 'error' = 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 3500);
+  };
 
   useEffect(() => {
     // Resolve selected program
@@ -50,8 +59,8 @@ export default function OnboardingPage() {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const res = await fetch('/api/users/search?q=', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
         if (!res.ok) return;
-        const arr: Array<{ id:string|number; fullName:string; email:string }>= await res.json();
-        const mapped: StaffLite[] = arr.map(u => ({ id: typeof u.id === 'string' ? u.id : String(u.id), fullName: u.fullName, email: u.email }));
+        const arr: Array<{ id:string|number; fullName:string; email:string; jobTitle?: string; employeeNumber?: string }>= await res.json();
+        const mapped: StaffLite[] = arr.map(u => ({ id: typeof u.id === 'string' ? u.id : String(u.id), fullName: u.fullName, email: u.email, jobTitle: u.jobTitle, employeeNumber: u.employeeNumber }));
         setStaffList(mapped);
       } catch {}
     })();
@@ -74,6 +83,7 @@ export default function OnboardingPage() {
   useEffect(() => { if (programId) loadAssignments(); }, [programId]);
 
   return (
+    <>
     <div id="management-main" className="flex-1 p-6 overflow-auto">
       <div id="overview-stats" className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-lg border border-bd p-6">
@@ -366,7 +376,7 @@ export default function OnboardingPage() {
                         <tr key={`${a.userEmail}-${idx}`} className="bg-white hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-font-base">{s?.fullName || a.userEmail}</td>
                           <td className="px-4 py-3 text-sm">{s?.email || a.userEmail}</td>
-                          <td className="px-4 py-3 text-sm">{a.roleType || 'STAFF'}</td>
+                          <td className="px-4 py-3 text-sm">{s?.jobTitle || 'Staff'}</td>
                           {canAddStaff && (
                             <td className="px-4 py-3 text-sm">
                               <button className="text-warning hover:text-yellow-600" onClick={async () => {
@@ -545,16 +555,13 @@ export default function OnboardingPage() {
                 const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
                 const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
                 const programId = sp?.id ? String(sp.id) : '';
-                if (!programId) { alert('No program selected'); return; }
+                if (!programId) { addToast('No program selected', 'error'); return; }
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                 // Get existing assignments, then append staff
                 const ga = await fetch(`/api/programs/${programId}/assignments`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
                 const existing: Array<{ userEmail:string; roleType:string }> = ga.ok ? await ga.json() : [];
                 const already = existing.some(x => (x.userEmail||'').toLowerCase() === (sel.email||'').toLowerCase());
-                if (already) {
-                  alert('User is already added to this program');
-                  return;
-                }
+                if (already) { addToast('User is already added to this program', 'error'); return; }
                 const next = [...existing, { userEmail: sel.email, roleType: 'STAFF' }];
                 const post = await fetch(`/api/programs/${programId}/assignments`, {
                   method: 'POST',
@@ -564,7 +571,15 @@ export default function OnboardingPage() {
                 });
                 if (post.ok) {
                   await loadAssignments();
-                  alert('Staff added to program');
+                  addToast('Staff added to program', 'success');
+                  // Clear form
+                  setSelectedStaff(null);
+                  setStaffNameQuery('');
+                  setStaffEmailQuery('');
+                  setEmailVal('');
+                  setFirstNameVal('');
+                  setLastNameVal('');
+                  setEmployeeIdVal('');
                 }
               } catch {}
             }}>
@@ -597,7 +612,7 @@ export default function OnboardingPage() {
                           const parts = (s.fullName || '').trim().split(/\s+/);
                           setFirstNameVal(parts[0] || '');
                           setLastNameVal(parts.length > 1 ? parts[parts.length-1] : '');
-                          setEmployeeIdVal(s.id);
+                          setEmployeeIdVal((s.employeeNumber || '').toString() || s.id);
                           setStaffNameQuery('');
                           setStaffEmailQuery('');
                         }}
@@ -937,5 +952,19 @@ export default function OnboardingPage() {
         </div>
       )}
     </div>
-  );
+
+    {/* Toasts */}
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {toasts.map((t) => (
+        <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
+          <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+          <div className="flex-1 text-sm text-font-base">{t.title}</div>
+          <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+            <i className="fa-solid fa-times"></i>
+          </button>
+        </div>
+      ))}
+    </div>
+  </>
+);
 }
