@@ -258,6 +258,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null);
   const [moduleAccess, setModuleAccess] = useState<Record<string, string>>({});
 
+  // Toasts
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
+  const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const addToast = (title: string, tone: 'info' | 'success' | 'error' = 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 3500);
+  };
+
   // list of pages want the back button to appear on
   const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify', '/dashboard/repairs/award', '/dashboard/repairs/assign'];
 
@@ -328,7 +337,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const ids = new Set(mine.map(m => String(m.id)));
         if (!ids.has(selectedId)) {
           try { localStorage.removeItem('selectedProgram'); } catch {}
-          router.replace('/program-selection');
+          addToast('You are not attached to this program. Please contact the Program Admin.', 'error');
+          setTimeout(() => router.replace('/program-selection'), 1200);
         }
       } catch {}
     })();
@@ -544,6 +554,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page Content - Scrollable main area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+      </div>
+
+      {/* Toasts */}
+      <div className="fixed top-4 right-4 z-[100] space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
+            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+            <div className="flex-1 text-sm text-font-base">{t.title}</div>
+            <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        ))}
       </div>
 
       <style jsx>{`
