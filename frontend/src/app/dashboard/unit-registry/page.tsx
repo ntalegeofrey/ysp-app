@@ -60,7 +60,7 @@ export default function OnboardingPage() {
   // Program assignments (Active Staff)
   type Assignment = { userEmail: string; roleType: string };
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const staffByEmail = useMemo(() => Object.fromEntries(staffList.map(s => [s.email.toLowerCase(), s])), [staffList]);
+  const staffByEmail = useMemo(() => Object.fromEntries(staffList.map(s => [((s.email || '') as string).toLowerCase(), s])), [staffList]);
   const loadAssignments = async () => {
     if (!programId) return;
     try {
@@ -579,7 +579,7 @@ export default function OnboardingPage() {
                 </div>
                 {staffNameQuery && !selectedStaff && (
                   <div className="mt-2 bg-white border border-bd rounded-lg max-h-48 overflow-auto">
-                    {staffList.filter(s => s.fullName.toLowerCase().includes(staffNameQuery.toLowerCase())).slice(0,8).map(s => (
+                    {staffList.filter(s => ((s.fullName || '').toLowerCase()).includes(staffNameQuery.toLowerCase())).slice(0,8).map(s => (
                       <button
                         type="button"
                         key={s.id}
@@ -599,7 +599,7 @@ export default function OnboardingPage() {
                         <span className="text-xs text-font-detail">{s.email}</span>
                       </button>
                     ))}
-                    {staffList.filter(s => s.fullName.toLowerCase().includes(staffNameQuery.toLowerCase())).length === 0 && (
+                    {staffList.filter(s => ((s.fullName || '').toLowerCase()).includes(staffNameQuery.toLowerCase())).length === 0 && (
                       <div className="px-3 py-2 text-xs text-font-detail">No matches</div>
                     )}
                   </div>
@@ -623,7 +623,7 @@ export default function OnboardingPage() {
                 />
                 {staffEmailQuery && !selectedStaff && (
                   <div className="mt-2 bg-white border border-bd rounded-lg max-h-48 overflow-auto">
-                    {staffList.filter(s => s.email.toLowerCase().includes(staffEmailQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffEmailQuery.toLowerCase())).slice(0,8).map(s => (
+                    {staffList.filter(s => ((s.email || '').toLowerCase().includes(staffEmailQuery.toLowerCase()) || (s.fullName || '').toLowerCase().includes(staffEmailQuery.toLowerCase()))).slice(0,8).map(s => (
                       <button
                         type="button"
                         key={s.id}
@@ -643,7 +643,7 @@ export default function OnboardingPage() {
                         <span className="text-xs text-font-detail">{s.email}</span>
                       </button>
                     ))}
-                    {staffList.filter(s => s.email.toLowerCase().includes(staffEmailQuery.toLowerCase()) || s.fullName.toLowerCase().includes(staffEmailQuery.toLowerCase())).length === 0 && (
+                    {staffList.filter(s => ((s.email || '').toLowerCase().includes(staffEmailQuery.toLowerCase()) || (s.fullName || '').toLowerCase().includes(staffEmailQuery.toLowerCase()))).length === 0 && (
                       <div className="px-3 py-2 text-xs text-font-detail">No matches</div>
                     )}
                   </div>
