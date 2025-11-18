@@ -119,6 +119,10 @@ export default function OnboardingPage() {
   };
   useEffect(() => { if (programId) loadResidents(); }, [programId]);
 
+  const activeResidentsCount = residents.length;
+  const activeStaffCount = assignments.length;
+  const temporaryLocationCount = 0;
+
   // Real-time residents refresh via SSE
   useEffect(() => {
     let es: EventSource | null = null;
@@ -147,7 +151,7 @@ export default function OnboardingPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-users text-primary text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-primary">15</p>
+              <p className="text-2xl font-bold text-primary">{activeResidentsCount}</p>
               <p className="text-sm text-font-detail">Active Residents</p>
             </div>
           </div>
@@ -156,7 +160,7 @@ export default function OnboardingPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-user-tie text-success text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-success">24</p>
+              <p className="text-2xl font-bold text-success">{activeStaffCount}</p>
               <p className="text-sm text-font-detail">Active Staff</p>
             </div>
           </div>
@@ -165,7 +169,7 @@ export default function OnboardingPage() {
           <div className="flex items-center">
             <i className="fa-solid fa-user-slash text-warning text-2xl mr-4"></i>
             <div>
-              <p className="text-2xl font-bold text-warning">3</p>
+              <p className="text-2xl font-bold text-warning">{temporaryLocationCount}</p>
               <p className="text-sm text-font-detail">Temporary Location</p>
             </div>
           </div>
