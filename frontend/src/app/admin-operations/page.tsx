@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { jobTitleOptions, titleWithAbbrev } from "../utils/jobTitles";
 
 export default function AdminOperationsPage() {
   // Roles and modules per original design (frontend-only)
@@ -126,6 +127,82 @@ export default function AdminOperationsPage() {
               permissionsCount: data.permissionsCount ?? 0,
               pendingReviews: data.pendingReviews ?? 0,
             });
+  // Comprehensive list of job titles; rendered with abbreviation for clarity
+  const jobTitleOptions = [
+    "Administrator",
+    "System Administrator",
+    "IT Director",
+    "Regional Administrator",
+    "Program Director",
+    "Assistant Program Director",
+    "Assistant Program Administrator",
+    "Assistant Facility Administrator",
+    "Facility Administrator",
+    "Director of Facility Operations",
+    "Juvenile Justice Youth Development Specialist I",
+    "Juvenile Justice Youth Development Specialist II",
+    "Juvenile Justice Youth Development Specialist III",
+    "Master Juvenile Justice Youth Development Specialist",
+    "Youth Services Group Worker",
+    "Clinical Social Worker I",
+    "Clinical Social Worker II",
+    "Clinical Social Worker Supervisor",
+    "Psychologist",
+    "Licensed Mental Health Counselor",
+    "Director of Clinical Services",
+    "Regional Clinical Coordinator",
+    "Behavior Analyst",
+    "Caseworker I",
+    "Caseworker II",
+    "Casework Supervisor",
+    "Community Services Coordinator",
+    "Regional Re-Entry Coordinator",
+    "Regional Placement Coordinator",
+    "Detention Coordinator",
+    "Transport Officer",
+    "Teacher",
+    "Academic Instructor",
+    "Special Education Teacher",
+    "Education Coordinator",
+    "Director of Education Programs",
+    "Registered Nurse",
+    "Nurse Practitioner",
+    "Nursing Supervisor",
+    "Medical Director",
+    "Human Resources Generalist",
+    "Human Resources Director",
+    "Labor Relations Specialist",
+    "Payroll & Time Administrator",
+    "Budget Analyst",
+    "Fiscal Manager",
+    "General Counsel",
+    "Attorney",
+    "Deputy General Counsel",
+    "Administrative Assistant",
+    "Administrative Coordinator",
+    "Training Specialist",
+    "Director of Staff Development & Training",
+    "Compliance Officer",
+    "Licensing Coordinator",
+    "Quality Assurance Manager",
+    "Information Technology Specialist",
+    "Network Administrator",
+    "Systems Administrator",
+    "IT Manager",
+    "Director of Information Technology",
+    "Chief Information Officer",
+    "Regional Director",
+    "Assistant Regional Director",
+    "Deputy Commissioner",
+    "Commissioner of DYS",
+    "Chief of Staff",
+    "Director of Operations",
+    "Director of Policy & Program Development",
+    "Supervisor",
+    "Caseworker",
+    "Program Staff",
+    "Support Staff",
+  ];
           }
         } catch {}
         // users
@@ -875,15 +952,9 @@ export default function AdminOperationsPage() {
                 <label className="block text-sm font-medium text-font-base mb-2">Job Title</label>
                 <select value={userForm.jobTitle} onChange={(e)=>setUserForm({...userForm, jobTitle: e.target.value})} className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
                   <option>Select job title</option>
-                  <option>System Administrator</option>
-                  <option>IT Director</option>
-                  <option>Facility Manager</option>
-                  <option>Operations Director</option>
-                  <option>Security Administrator</option>
-                  <option>Clinical Staff</option>
-                  <option>Caseworker</option>
-                  <option>Support Staff</option>
-                  <option>Supervisor</option>
+                  {jobTitleOptions.map((t) => (
+                    <option key={t} value={t}>{titleWithAbbrev(t)}</option>
+                  ))}
                   <option>Other</option>
                 </select>
               </div>
