@@ -85,7 +85,7 @@ public class ProgramController {
     }
 
     @PutMapping("/{id}/residents/{residentPk}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or (@securityService.isProgramMember(#id, authentication) and @securityService.hasOperation('op.EDIT_RESIDENT', authentication))")
     public ResponseEntity<?> updateResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk, @RequestBody Map<String, Object> body) {
         Optional<ProgramResident> opt = residents.findById(residentPk);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -111,7 +111,7 @@ public class ProgramController {
     }
 
     @DeleteMapping("/{id}/residents/{residentPk}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or (@securityService.isProgramMember(#id, authentication) and @securityService.hasOperation('op.DISCHARGE_RESIDENT', authentication))")
     public ResponseEntity<?> removeResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
         Optional<ProgramResident> opt = residents.findById(residentPk);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -160,7 +160,7 @@ public class ProgramController {
     }
 
     @PostMapping("/{id}/residents")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or (@securityService.isProgramMember(#id, authentication) and @securityService.hasOperation('op.ADD_RESIDENT', authentication))")
     public ResponseEntity<?> addResident(@PathVariable Long id, @RequestBody ProgramResident body) {
         return programs.findById(id)
                 .map(p -> {
