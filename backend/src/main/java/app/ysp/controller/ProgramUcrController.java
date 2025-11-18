@@ -71,7 +71,7 @@ public class ProgramUcrController {
     }
 
     @PostMapping("/reports")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR','ROLE_SYSTEM_ADMIN') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
     public ResponseEntity<?> create(@PathVariable("id") Long id, @RequestBody Map<String, Object> body, Authentication auth) {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();

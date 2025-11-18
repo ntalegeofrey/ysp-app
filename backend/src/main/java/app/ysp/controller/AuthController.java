@@ -86,4 +86,15 @@ public class AuthController {
                 })
                 .orElse(ResponseEntity.status(404).build());
     }
+
+    @GetMapping("/debug")
+    public ResponseEntity<?> debug() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return ResponseEntity.ok(java.util.Map.of("auth", "null"));
+        return ResponseEntity.ok(java.util.Map.of(
+            "name", auth.getName(),
+            "authorities", auth.getAuthorities().stream().map(Object::toString).toList(),
+            "authenticated", auth.isAuthenticated()
+        ));
+    }
 }
