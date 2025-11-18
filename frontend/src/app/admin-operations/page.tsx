@@ -44,6 +44,8 @@ export default function AdminOperationsPage() {
   const operationModules = [
     { key: 'op.CREATE_PROGRAM', label: 'Create & Edit Program' },
     { key: 'op.ADD_RESIDENT', label: 'Add Resident' },
+    { key: 'op.EDIT_RESIDENT', label: 'Edit Resident' },
+    { key: 'op.DISCHARGE_RESIDENT', label: 'Discharge/Actions Resident' },
     { key: 'op.ADD_STAFF', label: 'Add Staff (Unit Registry)' },
   ] as const;
   const accessLevels = ["Full", "Edit", "View", "None"] as const;

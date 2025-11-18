@@ -6,13 +6,16 @@ export default function OnboardingPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [canAddStaff, setCanAddStaff] = useState<boolean>(false);
   const [canAddResident, setCanAddResident] = useState<boolean>(false);
+  const [canEditResident, setCanEditResident] = useState<boolean>(false);
+  const [canDischargeResident, setCanDischargeResident] = useState<boolean>(false);
   const [programId, setProgramId] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [categoryOther, setCategoryOther] = useState<string>('');
 
-  type ResidentInfo = { name: string; id: string; room: string; status: string; advocate: string; admissionDate: string };
+  type ResidentInfo = { pk: number|string; name: string; residentId: string; room: string; status: string; advocate: string; admissionDate: string };
   const [residentEdit, setResidentEdit] = useState<ResidentInfo | null>(null);
-  const [residentAction, setResidentAction] = useState<null | { id: string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
+  const [residentAction, setResidentAction] = useState<null | { pk: number|string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
+  const [staffEdit, setStaffEdit] = useState<null | { email: string; roleType: string }>(null);
 
   // Staff search and autofill
   type StaffLite = { id: string; fullName: string; email: string; jobTitle?: string; employeeNumber?: string };
@@ -57,8 +60,16 @@ export default function OnboardingPage() {
           const res = await fetch(`/api/permissions/check?module=${encodeURIComponent(key)}`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
           if (!res.ok) return false; const d = await res.json(); return Boolean(d?.allowed);
         };
-        const [staffP, residentP] = await Promise.all([ch('op.ADD_STAFF'), ch('op.ADD_RESIDENT')]);
-        setCanAddStaff(staffP); setCanAddResident(residentP);
+        const [staffP, residentP, editRes, dischargeRes] = await Promise.all([
+          ch('op.ADD_STAFF'),
+          ch('op.ADD_RESIDENT'),
+          ch('op.EDIT_RESIDENT'),
+          ch('op.DISCHARGE_RESIDENT'),
+        ]);
+        setCanAddStaff(staffP);
+        setCanAddResident(residentP);
+        setCanEditResident(editRes);
+        setCanDischargeResident(dischargeRes);
       } catch {}
     })();
     // Load staff list via public search (works for non-admins)
@@ -105,7 +116,7 @@ export default function OnboardingPage() {
   }, [activeTab, programId]);
 
   // Residents state + loader
-  type ProgramResident = { id: number|string; firstName: string; lastName: string; residentId?: string; room?: string; status?: string; advocate?: string; admissionDate?: string };
+  type ProgramResident = { id: number|string; firstName: string; lastName: string; residentId?: string; room?: string; status?: string; advocate?: string; admissionDate?: string; temporaryLocation?: string };
   const [residents, setResidents] = useState<ProgramResident[]>([]);
   const loadResidents = async () => {
     if (!programId) return;
@@ -121,7 +132,7 @@ export default function OnboardingPage() {
 
   const activeResidentsCount = residents.length;
   const activeStaffCount = assignments.length;
-  const temporaryLocationCount = 0;
+  const temporaryLocationCount = residents.filter(r => (r.temporaryLocation||'').trim() !== '').length;
 
   // Real-time residents refresh via SSE
   useEffect(() => {
@@ -134,11 +145,15 @@ export default function OnboardingPage() {
           if (!data?.type) return;
           const pid = data?.programId ? String(data.programId) : '';
           if (!programId || (pid && pid !== programId)) return;
-          if (data.type === 'programs.residents.added') {
+          if (data.type === 'programs.residents.added' || data.type === 'programs.residents.updated' || data.type === 'programs.residents.removed') {
             loadResidents();
+          }
+          if (data.type === 'programs.assignments.updated') {
+            loadAssignments();
           }
         } catch {}
       };
+      es.onerror = () => {};
     } catch {}
     return () => { try { es && es.close(); } catch {} };
   }, [programId]);
@@ -214,6 +229,53 @@ export default function OnboardingPage() {
               Resident Management
             </button>
             )}
+
+      {/* Staff Edit Modal */}
+      {staffEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-bd w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-font-base">Edit Staff Role</h3>
+              <button className="text-font-detail hover:text-primary" onClick={() => setStaffEdit(null)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs mb-1">Email</label>
+                <input className="w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50" value={staffEdit.email} readOnly />
+              </div>
+              <div>
+                <label className="block text-xs mb-1">Program Role</label>
+                <select className="w-full px-3 py-2 border border-bd-input rounded-lg" value={staffEdit.roleType} onChange={(e)=> setStaffEdit({ ...staffEdit, roleType: e.target.value })}>
+                  <option value="DIRECTOR">Director</option>
+                  <option value="ASSISTANT_DIRECTOR">Assistant Director</option>
+                  <option value="REGIONAL_ADMIN">Regional Admin</option>
+                  <option value="STAFF">Staff</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setStaffEdit(null)}>Cancel</button>
+              <button className="px-4 py-2 rounded-lg bg-success text-white text-sm" onClick={async () => {
+                if (!staffEdit || !programId) return;
+                try {
+                  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                  const updated = assignments.map(x => x.userEmail.toLowerCase() === staffEdit.email.toLowerCase() ? { ...x, roleType: staffEdit.roleType } : x);
+                  const resp = await fetch(`/api/programs/${programId}/assignments`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ assignments: updated }) });
+                  if (!resp.ok) { addToast('Failed to update staff role', 'error'); return; }
+                  setAssignments(updated);
+                  addToast('Staff role updated', 'success');
+                  try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Staff role updated', tone: 'success' })); } catch {}
+                  setStaffEdit(null);
+                } catch { addToast('Failed to update staff role', 'error'); }
+              }}>
+                <i className="fa-solid fa-check mr-2"></i>Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
             {canAddStaff && (
             <button
               onClick={() => setActiveTab('staff')}
@@ -284,14 +346,28 @@ export default function OnboardingPage() {
                           </td>
                           <td className="px-4 py-3 text-sm">{r.advocate || ''}</td>
                           <td className="px-4 py-3 text-sm">{r.admissionDate ? new Date(r.admissionDate).toLocaleDateString() : ''}</td>
-                          {canAddResident && (
+                          {(canEditResident || canDischargeResident) && (
                             <td className="px-4 py-3 text-sm">
-                              <button className="text-primary hover:text-primary-light mr-2" title="Edit" disabled>
+                              {canEditResident && (
+                              <button className="text-primary hover:text-primary-light mr-2" title="Edit" onClick={() => {
+                                setResidentEdit({
+                                  pk: r.id,
+                                  name: `${r.lastName || ''}, ${r.firstName || ''}`.trim().replace(/^,\s*/, ''),
+                                  residentId: r.residentId || '',
+                                  room: r.room || '',
+                                  status: r.status || 'General Population',
+                                  advocate: r.advocate || '',
+                                  admissionDate: r.admissionDate || ''
+                                });
+                              }}>
                                 <i className="fa-solid fa-edit"></i>
                               </button>
-                              <button className="text-warning hover:text-yellow-500" title="Archive" disabled>
+                              )}
+                              {canDischargeResident && (
+                              <button className="text-warning hover:text-yellow-500" title="Actions" onClick={() => setResidentAction({ pk: r.id, action: 'remove' })}>
                                 <i className="fa-solid fa-archive"></i>
                               </button>
+                              )}
                             </td>
                           )}
                         </tr>
@@ -338,6 +414,9 @@ export default function OnboardingPage() {
                           <td className="px-4 py-3 text-sm">{s?.jobTitle || 'Staff'}</td>
                           {canAddStaff && (
                             <td className="px-4 py-3 text-sm">
+                              <button className="text-primary hover:text-primary-light mr-3" title="Edit role" onClick={() => setStaffEdit({ email: a.userEmail, roleType: a.roleType })}>
+                                <i className="fa-solid fa-edit"></i>
+                              </button>
                               <button className="text-warning hover:text-yellow-600" onClick={async () => {
                                 try {
                                   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -346,6 +425,8 @@ export default function OnboardingPage() {
                                     method: 'POST', credentials: 'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ assignments: remaining })
                                   });
                                   setAssignments(remaining);
+                                  addToast('Staff removed from program', 'success');
+                                  try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Staff removed from program', tone: 'success' })); } catch {}
                                 } catch {}
                               }} title="Remove from program">
                                 <i className="fa-solid fa-user-slash"></i>
@@ -844,31 +925,61 @@ export default function OnboardingPage() {
                 <i className="fa-solid fa-times"></i>
               </button>
             </div>
-            <form className="space-y-3">
+            <form className="space-y-3" onSubmit={async (e) => {
+              e.preventDefault();
+              if (!residentEdit || !programId) return;
+              try {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                // Split name back if user edited name field (Last, First)
+                let firstName = undefined as string | undefined;
+                let lastName = undefined as string | undefined;
+                if (residentEdit.name) {
+                  const n = residentEdit.name.trim();
+                  const parts = n.split(',');
+                  if (parts.length >= 2) { lastName = parts[0].trim(); firstName = parts.slice(1).join(',').trim(); }
+                }
+                const payload: any = {
+                  room: residentEdit.room || undefined,
+                  status: residentEdit.status || undefined,
+                  advocate: residentEdit.advocate || undefined,
+                  admissionDate: residentEdit.admissionDate || undefined,
+                };
+                // Only send names if provided; backend entity doesn't expose set for names here normally, but safe to include
+                if (firstName !== undefined) payload.firstName = firstName;
+                if (lastName !== undefined) payload.lastName = lastName;
+                const resp = await fetch(`/api/programs/${programId}/residents/${residentEdit.pk}`,
+                  { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
+                if (!resp.ok) { addToast('Failed to update resident', 'error'); return; }
+                addToast('Resident updated', 'success');
+                try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident updated', tone: 'success' })); } catch {}
+                setResidentEdit(null);
+                await loadResidents();
+              } catch { addToast('Failed to update resident', 'error'); }
+            }}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs mb-1">Name</label>
-                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.name} />
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" value={residentEdit.name} onChange={e => setResidentEdit({ ...residentEdit, name: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs mb-1">Resident ID</label>
-                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50" defaultValue={residentEdit.id} readOnly />
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg bg-gray-50" value={residentEdit.residentId} readOnly />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs mb-1">Room</label>
-                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.room} />
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" value={residentEdit.room} onChange={e => setResidentEdit({ ...residentEdit, room: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs mb-1">Advocate</label>
-                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.advocate} />
+                  <input className="w-full px-3 py-2 border border-bd-input rounded-lg" value={residentEdit.advocate} onChange={e => setResidentEdit({ ...residentEdit, advocate: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs mb-1">Status</label>
-                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.status}>
+                  <select className="w-full px-3 py-2 border border-bd-input rounded-lg" value={residentEdit.status} onChange={e => setResidentEdit({ ...residentEdit, status: e.target.value })}>
                     <option>General Population</option>
                     <option>ALOYO</option>
                     <option>Restricted</option>
@@ -877,12 +988,12 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <label className="block text-xs mb-1">Admission Date</label>
-                  <input type="date" className="w-full px-3 py-2 border border-bd-input rounded-lg" defaultValue={residentEdit.admissionDate} />
+                  <input type="date" className="w-full px-3 py-2 border border-bd-input rounded-lg" value={residentEdit.admissionDate} onChange={e => setResidentEdit({ ...residentEdit, admissionDate: e.target.value })} />
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setResidentEdit(null)}>Cancel</button>
-                <button type="button" className="px-4 py-2 rounded-lg bg-success text-white text-sm" onClick={() => setResidentEdit(null)}>
+                <button type="submit" className="px-4 py-2 rounded-lg bg-success text-white text-sm">
                   <i className="fa-solid fa-check mr-2"></i>Save Changes
                 </button>
               </div>
@@ -903,15 +1014,15 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'remove' })} checked={residentAction.action === 'remove'} />
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'remove' })} checked={residentAction.action === 'remove'} />
                 Remove from Program
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'inactive' })} checked={residentAction.action === 'inactive'} />
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'inactive' })} checked={residentAction.action === 'inactive'} />
                 Mark as Inactive
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ id: residentAction.id, action: 'temp', tempLocation: residentAction.tempLocation })} checked={residentAction.action === 'temp'} />
+                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'temp', tempLocation: residentAction.tempLocation })} checked={residentAction.action === 'temp'} />
                 Temporary Location
               </label>
               {residentAction.action === 'temp' && (
@@ -926,7 +1037,30 @@ export default function OnboardingPage() {
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <button className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setResidentAction(null)}>Cancel</button>
-              <button className="px-4 py-2 rounded-lg bg-warning text-white text-sm" onClick={() => setResidentAction(null)}>
+              <button className="px-4 py-2 rounded-lg bg-warning text-white text-sm" onClick={async () => {
+                if (!residentAction || !programId) return;
+                try {
+                  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                  if (residentAction.action === 'remove') {
+                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'DELETE', credentials:'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+                    if (!resp.ok) { addToast('Failed to remove resident', 'error'); return; }
+                    addToast('Resident removed from program', 'success');
+                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident removed from program', tone: 'success' })); } catch {}
+                  } else if (residentAction.action === 'inactive') {
+                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'PUT', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ status: 'Inactive' }) });
+                    if (!resp.ok) { addToast('Failed to mark inactive', 'error'); return; }
+                    addToast('Resident marked as inactive', 'success');
+                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident marked as inactive', tone: 'success' })); } catch {}
+                  } else if (residentAction.action === 'temp') {
+                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'PUT', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ temporaryLocation: residentAction.tempLocation || '' }) });
+                    if (!resp.ok) { addToast('Failed to set temporary location', 'error'); return; }
+                    addToast('Temporary location updated', 'success');
+                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Temporary location updated', tone: 'success' })); } catch {}
+                  }
+                  setResidentAction(null);
+                  await loadResidents();
+                } catch { addToast('Action failed', 'error'); }
+              }}>
                 <i className="fa-solid fa-check mr-2"></i>Apply
               </button>
             </div>

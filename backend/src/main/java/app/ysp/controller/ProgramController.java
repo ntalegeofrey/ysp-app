@@ -84,6 +84,46 @@ public class ProgramController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/{id}/residents/{residentPk}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    public ResponseEntity<?> updateResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk, @RequestBody Map<String, Object> body) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+        if (body.containsKey("room")) pr.setRoom(Objects.toString(body.get("room"), null));
+        if (body.containsKey("status")) pr.setStatus(Objects.toString(body.get("status"), null));
+        if (body.containsKey("advocate")) pr.setAdvocate(Objects.toString(body.get("advocate"), null));
+        if (body.containsKey("admissionDate")) {
+            Object v = body.get("admissionDate");
+            if (v != null) {
+                try {
+                    pr.setAdmissionDate(java.time.LocalDate.parse(v.toString()));
+                } catch (Exception ignored) {}
+            }
+        }
+        if (body.containsKey("temporaryLocation")) pr.setTemporaryLocation(Objects.toString(body.get("temporaryLocation"), null));
+        ProgramResident saved = residents.save(pr);
+        try { sseHub.broadcast(java.util.Map.of("type","programs.residents.updated","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
+        return ResponseEntity.ok(saved);
+    }
+
+    @DeleteMapping("/{id}/residents/{residentPk}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    public ResponseEntity<?> removeResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+        residents.delete(pr);
+        try { sseHub.broadcast(java.util.Map.of("type","programs.residents.removed","programId", id, "id", residentPk)); } catch (Exception ignored) {}
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}/assignments")
     public List<ProgramAssignment> getAssignments(@PathVariable Long id) {
         return assignments.findByProgram_Id(id);
