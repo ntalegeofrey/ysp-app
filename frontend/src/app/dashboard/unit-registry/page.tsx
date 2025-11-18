@@ -550,15 +550,22 @@ export default function OnboardingPage() {
                 // Get existing assignments, then append staff
                 const ga = await fetch(`/api/programs/${programId}/assignments`, { credentials: 'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
                 const existing: Array<{ userEmail:string; roleType:string }> = ga.ok ? await ga.json() : [];
-                const already = existing.some(x => x.userEmail?.toLowerCase() === sel.email.toLowerCase());
-                const next = already ? existing : [...existing, { userEmail: sel.email, roleType: 'STAFF' }];
-                await fetch(`/api/programs/${programId}/assignments`, {
+                const already = existing.some(x => (x.userEmail||'').toLowerCase() === (sel.email||'').toLowerCase());
+                if (already) {
+                  alert('User is already added to this program');
+                  return;
+                }
+                const next = [...existing, { userEmail: sel.email, roleType: 'STAFF' }];
+                const post = await fetch(`/api/programs/${programId}/assignments`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
                   body: JSON.stringify({ assignments: next })
                 });
-                alert('Staff added to program');
+                if (post.ok) {
+                  await loadAssignments();
+                  alert('Staff added to program');
+                }
               } catch {}
             }}>
               {/* Staff lookup by Name */}
