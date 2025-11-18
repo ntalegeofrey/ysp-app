@@ -40,3 +40,5 @@ mailpit
 # Ansible (keep encrypted vault.yml tracked; ignore local passwords)
 ansible/group_vars/vault.yml
 *.retry
+
+all.yml
