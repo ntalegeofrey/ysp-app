@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -6,18 +7,32 @@ import { useEffect, useState } from 'react';
 export default function UCRPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'new'>('overview');
+  const [programId, setProgramId] = useState<string>('');
+  // toasts
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info'|'success'|'error' }>>([]);
+  const addToast = (title: string, tone: 'info'|'success'|'error' = 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+    try { localStorage.setItem('global-toast', JSON.stringify({ title, tone })); } catch {}
+  };
 
   const tabBtnBase = 'flex items-center px-1 py-4 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  const ucrReports = [
-    { date: 'Dec 28, 2024', shift: 'Day Shift', issues: 'HVAC failure North Wing, Temperature control issues', reporter: 'J. Smith', status: 'Critical' },
-    { date: 'Dec 27, 2024', shift: 'Evening Shift', issues: 'Plumbing leaks in Rooms 2311, 2315', reporter: 'A. Garcia', status: 'High' },
-    { date: 'Dec 26, 2024', shift: 'Night Shift', issues: 'Electrical flickering in common areas', reporter: 'M. Davis', status: 'Resolved' },
-    { date: 'Dec 25, 2024', shift: 'Day Shift', issues: 'All systems operational', reporter: 'R. Johnson', status: 'No Issues' },
-    { date: 'Dec 24, 2024', shift: 'Evening Shift', issues: 'Security door malfunction, minor maintenance', reporter: 'T. Wilson', status: 'High' },
-  ];
+  type Ucr = { id: number|string; reportDate: string; shift?: string; reporterName?: string; status?: string; issuesSummary?: string };
+  const [ucrReports, setUcrReports] = useState<Ucr[]>([]);
+  const loadReports = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/reports`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) return;
+      const arr: Ucr[] = await r.json();
+      setUcrReports(arr);
+    } catch {}
+  };
 
   const statusBadge = (s: string) =>
     s === 'Critical'
@@ -28,7 +43,7 @@ export default function UCRPage() {
       ? 'bg-success text-white'
       : 'bg-green-100 text-success';
 
-  // Load Highcharts from CDN and render the exact chart from the original design
+  // Load Highcharts and render the chart; feed series from backend stats if desired later
   useEffect(() => {
     if (activeTab !== 'overview') return;
 
@@ -87,6 +102,74 @@ export default function UCRPage() {
     init();
   }, [activeTab]);
 
+  // Resolve selected program and initial load
+  useEffect(() => {
+    try {
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      setProgramId(sp?.id ? String(sp.id) : '');
+    } catch {}
+  }, []);
+
+  // Stats
+  const [stats, setStats] = useState<{ total: number; critical: number; pending: number; monthCount: number }>({ total: 0, critical: 0, pending: 0, monthCount: 0 });
+  const loadStats = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/stats`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (r.ok) {
+        const d = await r.json();
+        setStats({ total: d.total ?? 0, critical: d.critical ?? 0, pending: d.pending ?? 0, monthCount: d.monthCount ?? 0 });
+      }
+    } catch {}
+  };
+
+  useEffect(() => { if (programId) { loadReports(); loadStats(); } }, [programId]);
+
+  // SSE live refresh
+  useEffect(() => {
+    if (!programId) return;
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/events');
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data || '{}') as { type?: string; programId?: string|number };
+          if (!data?.type) return;
+          const pid = data?.programId ? String(data.programId) : '';
+          if (pid && pid !== programId) return;
+          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); }
+        } catch {}
+      };
+    } catch {}
+    return () => { try { es && es.close(); } catch {} };
+  }, [programId]);
+
+  // New report minimal state (without changing design)
+  const [reportDate, setReportDate] = useState<string>('');
+  const [shiftVal, setShiftVal] = useState<string>('7:00-3:00');
+  const [comments, setComments] = useState<string>('');
+  const submitNew = async () => {
+    if (!programId) { addToast('No program selected', 'error'); return; }
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const payload = {
+        reportDate: reportDate || new Date().toISOString().slice(0,10),
+        shift: shiftVal,
+        reporterName: undefined,
+        status: 'Pending Review',
+        issuesSummary: comments || undefined,
+        payload: {},
+      };
+      const r = await fetch(`/api/programs/${programId}/ucr/reports`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
+      if (!r.ok) { addToast('Failed to submit UCR', 'error'); return; }
+      addToast('UCR submitted for review', 'success');
+      setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
+      await Promise.all([loadReports(), loadStats()]);
+    } catch { addToast('Failed to submit UCR', 'error'); }
+  };
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -103,6 +186,19 @@ export default function UCRPage() {
         </nav>
       </div>
 
+    {/* Toasts */}
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {toasts.map(t => (
+        <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}> 
+          <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+          <div className="flex-1 text-sm text-font-base">{t.title}</div>
+          <button className="text-font-detail hover:text-primary" onClick={() => setToasts(s => s.filter(x => x.id !== t.id))}>
+            <i className="fa-solid fa-times"></i>
+          </button>
+        </div>
+      ))}
+    </div>
+
       {/* Overview Content */}
       {activeTab === 'overview' && (
         <div className="p-6 space-y-6">
@@ -111,7 +207,7 @@ export default function UCRPage() {
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">Total Reports</p>
-                <p className="text-3xl font-bold text-primary">284</p>
+                <p className="text-3xl font-bold text-primary">{stats.total}</p>
               </div>
               <div className="bg-primary-lightest p-3 rounded-full">
                 <i className="fa-solid fa-clipboard-list text-primary text-xl"></i>
@@ -120,7 +216,7 @@ export default function UCRPage() {
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">Critical Issues</p>
-                <p className="text-3xl font-bold text-error">3</p>
+                <p className="text-3xl font-bold text-error">{stats.critical}</p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
                 <i className="fa-solid fa-triangle-exclamation text-error text-xl"></i>
@@ -129,7 +225,7 @@ export default function UCRPage() {
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">Pending Review</p>
-                <p className="text-3xl font-bold text-warning">8</p>
+                <p className="text-3xl font-bold text-warning">{stats.pending}</p>
               </div>
               <div className="bg-yellow-100 p-3 rounded-full">
                 <i className="fa-solid fa-hourglass-half text-warning text-xl"></i>
@@ -138,7 +234,7 @@ export default function UCRPage() {
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">This Month</p>
-                <p className="text-3xl font-bold text-success">42</p>
+                <p className="text-3xl font-bold text-success">{stats.monthCount}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
                 <i className="fa-solid fa-calendar-check text-success text-xl"></i>
@@ -251,14 +347,14 @@ export default function UCRPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ucrReports.map((r, idx) => (
-                        <tr key={idx} className="border-b border-bd hover:bg-primary-lightest/30">
-                          <td className="p-3 text-font-detail">{r.date}</td>
-                          <td className="p-3 text-font-detail">{r.shift}</td>
-                          <td className="p-3 font-medium text-font-base">{r.issues}</td>
-                          <td className="p-3 text-font-detail">{r.reporter}</td>
+                      {ucrReports.map((r) => (
+                        <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
+                          <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
+                          <td className="p-3 text-font-detail">{r.shift || ''}</td>
+                          <td className="p-3 font-medium text-font-base">{r.issuesSummary || ''}</td>
+                          <td className="p-3 text-font-detail">{r.reporterName || ''}</td>
                           <td className="p-3">
-                            <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status)}`}>{r.status}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
                           </td>
                           <td className="p-3">
                             <button className="text-primary hover:underline text-xs">View Report</button>
@@ -304,7 +400,7 @@ export default function UCRPage() {
                   <i className="fa-solid fa-print mr-2"></i>
                   Print
                 </button>
-                <button className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light transition-colors duration-200 flex items-center">
+                <button onClick={submitNew} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light transition-colors duration-200 flex items-center">
                   <i className="fa-solid fa-paper-plane mr-2"></i>
                   Submit for Review
                 </button>
@@ -316,11 +412,11 @@ export default function UCRPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-font-detail mb-1">Date</label>
-                  <input type="date" className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input type="date" value={reportDate} onChange={(e)=> setReportDate(e.target.value)} className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-detail mb-1">Shift / Time</label>
-                  <select className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select value={shiftVal} onChange={(e)=> setShiftVal(e.target.value)} className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                     <option>7:00-3:00</option>
                     <option>3:00-11:00</option>
                     <option>11:00-7:00</option>
@@ -578,7 +674,7 @@ export default function UCRPage() {
                 <h3 className="text-lg font-semibold text-primary">Additional Comments / Notes</h3>
               </div>
               <div className="p-4">
-                <textarea rows={6} placeholder="Please provide any additional observations, concerns, or notes about this shift's unit condition inspection..." className="w-full px-4 py-3 border border-bd rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+                <textarea rows={6} value={comments} onChange={(e)=> setComments(e.target.value)} placeholder="Please provide any additional observations, concerns, or notes about this shift's unit condition inspection..." className="w-full px-4 py-3 border border-bd rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
                 <p className="text-xs text-font-detail mt-2">Use this space to document any issues not covered in the checklist above or provide additional context for reported concerns.</p>
               </div>
             </div>
