@@ -2,13 +2,16 @@ package app.ysp.controller;
 
 import app.ysp.entity.Program;
 import app.ysp.entity.ProgramAssignment;
+import app.ysp.entity.ProgramResident;
 import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.UserRepository;
+import app.ysp.repo.ProgramResidentRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import app.ysp.service.SseHub;
 
 import java.net.URI;
 import java.util.*;
@@ -20,11 +23,15 @@ public class ProgramController {
     private final ProgramRepository programs;
     private final ProgramAssignmentRepository assignments;
     private final UserRepository users;
+    private final ProgramResidentRepository residents;
+    private final SseHub sseHub;
 
-    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users) {
+    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, SseHub sseHub) {
         this.programs = programs;
         this.assignments = assignments;
         this.users = users;
+        this.residents = residents;
+        this.sseHub = sseHub;
     }
 
     @GetMapping
@@ -102,7 +109,28 @@ public class ProgramController {
             toSave.add(pa);
         }
         assignments.saveAll(toSave);
+        try { sseHub.broadcast(java.util.Map.of("type","programs.assignments.updated","programId", id)); } catch (Exception ignored) {}
         return ResponseEntity.ok(Map.of("count", toSave.size()));
+    }
+
+    // Residents per program
+    @GetMapping("/{id}/residents")
+    public List<ProgramResident> getResidents(@PathVariable Long id) {
+        return residents.findByProgram_Id(id);
+    }
+
+    @PostMapping("/{id}/residents")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    public ResponseEntity<?> addResident(@PathVariable Long id, @RequestBody ProgramResident body) {
+        return programs.findById(id)
+                .map(p -> {
+                    body.setId(null);
+                    body.setProgram(p);
+                    ProgramResident saved = residents.save(body);
+                    try { sseHub.broadcast(java.util.Map.of("type","programs.residents.added","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
+                    return ResponseEntity.created(URI.create("/programs/" + id + "/residents/" + saved.getId())).body(saved);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     public static class AssignmentsPayload {

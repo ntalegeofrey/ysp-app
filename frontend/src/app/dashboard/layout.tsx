@@ -384,6 +384,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('storage', onStorage); };
   }, [user]);
 
+  // Listen for global toast broadcasts from pages
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'global-toast' && e.newValue) {
+        try {
+          const payload = JSON.parse(e.newValue) as { title?: string; tone?: 'info'|'success'|'error' };
+          if (payload?.title) addToast(payload.title, (payload.tone || 'info'));
+        } catch {}
+        // Clear key to allow subsequent identical messages
+        try { localStorage.removeItem('global-toast'); } catch {}
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'logout') router.replace('/signin-required');
@@ -557,7 +573,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Toasts */}
-      <div className="fixed top-4 right-4 z-[100] space-y-2">
+      <div className="fixed top-4 right-4 z-[2000] space-y-2">
         {toasts.map(t => (
           <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
             <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>

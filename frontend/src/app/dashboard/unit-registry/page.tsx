@@ -955,7 +955,7 @@ export default function OnboardingPage() {
 
     {/* Toasts */}
     <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((t) => (
+      {toasts.map(t => (
         <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
           <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
           <div className="flex-1 text-sm text-font-base">{t.title}</div>
@@ -965,6 +965,5 @@ export default function OnboardingPage() {
         </div>
       ))}
     </div>
-  </>
-);
-}
+    </>
+)};

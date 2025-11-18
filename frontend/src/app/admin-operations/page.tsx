@@ -598,6 +598,8 @@ export default function AdminOperationsPage() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const t = { id, title, tone } as Toast;
     setToasts((prev) => [t, ...prev]);
+    // Broadcast to global layout toast system
+    try { localStorage.setItem('global-toast', JSON.stringify({ title, tone })); } catch {}
     setTimeout(() => { setToasts((prev) => prev.filter(x => x.id !== id)); }, 4000);
   };
   const removeToast = (id: string) => setToasts((prev) => prev.filter(t => t.id !== id));
@@ -956,6 +958,19 @@ export default function AdminOperationsPage() {
           </div>
         </div>
       )}
+
+      {/* Toasts */}
+      <div className="fixed top-4 right-4 z-[2000] space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
+            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+            <div className="flex-1 text-sm text-font-base">{t.title}</div>
+            <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* User Management */}
       <div className="bg-white rounded-lg border border-bd mb-2">
