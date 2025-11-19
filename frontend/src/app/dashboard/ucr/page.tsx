@@ -165,11 +165,41 @@ export default function UCRPage() {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=5`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=10`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
       if (!r.ok) return;
       const d = await r.json();
       setOpenIssues(d.content || []);
     } catch {}
+  };
+
+  const resolveIssue = async (id: string | number) => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: 'Resolved' }),
+      });
+      if (!r.ok) {
+        if (r.status === 403) {
+          addToast('You do not have permission to resolve this issue.', 'error');
+        } else if (r.status === 423) {
+          addToast('This UCR can no longer be edited (past day of submission).', 'error');
+        } else {
+          addToast(`Failed to resolve issue: ${r.status}`, 'error');
+        }
+        return;
+      }
+      addToast('Issue marked as resolved.', 'success');
+      await Promise.all([loadOpenIssues(), loadStats(), loadChartData(), loadReports(true)]);
+    } catch {
+      addToast('Failed to resolve issue.', 'error');
+    }
   };
 
   useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadChartData(); } }, [programId]);
@@ -484,70 +514,59 @@ export default function UCRPage() {
               <div className="bg-white rounded-lg border border-bd">
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">Persisting Issues Summary</h3>
-                  <p className="text-sm text-font-detail mt-1">Critical and recurring facility issues requiring attention</p>
+                  <p className="text-sm text-font-detail mt-1">Open Medium, High, and Critical UCR items requiring attention</p>
                 </div>
                 <div className="p-4 space-y-4">
-                  <div className="border-l-4 border-error bg-error-lightest p-4 rounded-r-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="bg-error text-white text-xs font-bold px-2 py-1 rounded-full mr-3">CRITICAL</span>
-                          <h4 className="font-semibold text-font-base">HVAC System Failure - North Wing</h4>
+                  {openIssues.length === 0 && (
+                    <div className="text-sm text-font-detail italic">No persisting issues at this time.</div>
+                  )}
+                  {openIssues.map((issue) => {
+                    const status = (issue.status || '').toLowerCase();
+                    const borderClass =
+                      status === 'critical'
+                        ? 'border-error bg-error-lightest'
+                        : status === 'high'
+                        ? 'border-warning bg-highlight-lightest'
+                        : 'border-yellow-400 bg-yellow-50';
+                    const badgeClass =
+                      status === 'critical'
+                        ? 'bg-error text-white'
+                        : status === 'high'
+                        ? 'bg-warning text-font-base'
+                        : 'bg-yellow-400 text-font-base';
+                    const label = (issue.issuesSummary || 'UCR Issue').slice(0, 140);
+                    const dateStr = issue.reportDate ? new Date(issue.reportDate).toLocaleString() : '';
+                    return (
+                      <div key={String(issue.id)} className={`border-l-4 ${borderClass} p-4 rounded-r-lg`}>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className={`${badgeClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>{(issue.status || '').toUpperCase()}</span>
+                              <h4 className="font-semibold text-font-base truncate max-w-md">{label}</h4>
+                            </div>
+                            <p className="text-xs text-font-medium">
+                              Last reported: {dateStr}
+                              {issue.reporterName ? ` by ${issue.reporterName}` : ''}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2 ml-4">
+                            <button
+                              onClick={() => onView(issue.id)}
+                              className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
+                            >
+                              <i className="fa-solid fa-eye mr-1"></i>View
+                            </button>
+                            <button
+                              onClick={() => resolveIssue(issue.id)}
+                              className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
+                            >
+                              <i className="fa-solid fa-check mr-1"></i>Resolved
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-sm text-font-detail mb-2">Reported 3 times in the last 7 days. Temperature complaints increasing.</p>
-                        <p className="text-xs text-font-medium">Last reported: Today, 2:30 PM by J. Smith</p>
                       </div>
-                      <div className="flex space-x-2 ml-4">
-                        <button onClick={() => router.push('/dashboard/ucr/notify')} className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light">
-                          <i className="fa-solid fa-bell mr-1"></i>Notify Management
-                        </button>
-                        <button className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600">
-                          <i className="fa-solid fa-check mr-1"></i>Resolved?
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-l-4 border-warning bg-highlight-lightest p-4 rounded-r-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="bg-warning text-font-base text-xs font-bold px-2 py-1 rounded-full mr-3">HIGH</span>
-                          <h4 className="font-semibold text-font-base">Plumbing Issues - Multiple Locations</h4>
-                        </div>
-                        <p className="text-sm text-font-detail mb-2">Leaking faucets reported in Rooms 2311, 2315, and Staff Bathroom.</p>
-                        <p className="text-xs text-font-medium">Last reported: Yesterday, 11:45 AM by A. Garcia</p>
-                      </div>
-                      <div className="flex space-x-2 ml-4">
-                        <button onClick={() => router.push('/dashboard/ucr/notify')} className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light">
-                          <i className="fa-solid fa-bell mr-1"></i>Notify Management
-                        </button>
-                        <button className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600">
-                          <i className="fa-solid fa-check mr-1"></i>Resolved?
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-l-4 border-yellow-400 bg-yellow-50 p-4 rounded-r-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="bg-yellow-400 text-font-base text-xs font-bold px-2 py-1 rounded-full mr-3">MEDIUM</span>
-                          <h4 className="font-semibold text-font-base">Electrical - Flickering Lights</h4>
-                        </div>
-                        <p className="text-sm text-font-detail mb-2">Intermittent lighting issues in common areas and staff facilities.</p>
-                        <p className="text-xs text-font-medium">Last reported: 2 days ago by M. Davis</p>
-                      </div>
-                      <div className="flex space-x-2 ml-4">
-                        <button onClick={() => router.push('/dashboard/ucr/notify')} className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light">
-                          <i className="fa-solid fa-bell mr-1"></i>Notify Management
-                        </button>
-                        <button className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600">
-                          <i className="fa-solid fa-check mr-1"></i>Resolved?
-                        </button>
-                      </div>
-                    </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -712,7 +731,6 @@ export default function UCRPage() {
                         value={formData.securityEquipment[idx]?.priority || 'Normal'}
                         onChange={(e) => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
                         className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                        disabled={formData.securityEquipment[idx]?.status !== 'issue'}
                       >
                         <option value="Normal">Normal</option>
                         <option value="Medium">Medium</option>
@@ -936,7 +954,6 @@ export default function UCRPage() {
                         value={formData.adminOffices[idx]?.priority || 'Normal'}
                         onChange={(e) => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
                         className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                        disabled={formData.adminOffices[idx]?.status !== 'issue'}
                       >
                         <option>Normal</option>
                         <option>Critical</option>
@@ -995,7 +1012,6 @@ export default function UCRPage() {
                         value={formData.facilityInfrastructure[idx]?.priority || 'Normal'}
                         onChange={(e) => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, priority: e.target.value } : item) }))}
                         className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                        disabled={formData.facilityInfrastructure[idx]?.status !== 'issue'}
                       >
                         <option>Normal</option>
                         <option>Critical</option>
