@@ -39,4 +39,7 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
 
     @Query("select extract(month from r.reportDate) as month, lower(coalesce(r.status,'')) as status, count(r) as cnt from ProgramUcrReport r where r.program.id = :programId and extract(year from r.reportDate) = :year and lower(coalesce(r.status,'')) in ('critical','high','medium') group by extract(month from r.reportDate), lower(coalesce(r.status,'')) order by month")
     List<Object[]> findMonthlyIssueCounts(@Param("programId") Long programId, @Param("year") int year);
+
+    // Find an existing report for a given program, date, and shift (used to enforce one UCR per shift per day)
+    ProgramUcrReport findFirstByProgram_IdAndReportDateAndShift(Long programId, LocalDate reportDate, String shift);
 }
