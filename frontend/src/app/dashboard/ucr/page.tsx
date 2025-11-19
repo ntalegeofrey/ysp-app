@@ -234,8 +234,28 @@ export default function UCRPage() {
       { status: 'satisfactory', comments: '' }, // Dayroom
       { status: 'satisfactory', comments: '' }, // Laundry room
     ],
-    roomSearches: {} // Will be populated with room numbers as keys
+    // Generic resident room searches: array of { room, comments }
+    roomSearches: [] as Array<{ room: string; comments: string }>,
   });
+
+  // Local inputs for adding room search rows
+  const [roomSearchRoom, setRoomSearchRoom] = useState<string>('');
+  const [roomSearchComments, setRoomSearchComments] = useState<string>('');
+
+  const addRoomSearchRow = () => {
+    const room = (roomSearchRoom || '').trim();
+    if (!room) return;
+    const commentsVal = (roomSearchComments || '').trim();
+    setFormData((prev: any) => ({
+      ...prev,
+      roomSearches: [
+        ...(Array.isArray(prev.roomSearches) ? prev.roomSearches : []),
+        { room, comments: commentsVal },
+      ],
+    }));
+    setRoomSearchRoom('');
+    setRoomSearchComments('');
+  };
   useEffect(() => {
     // auto-fill staff from /auth/me
     const run = async () => {
@@ -250,6 +270,8 @@ export default function UCRPage() {
     };
     run();
   }, []);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+
   const submitNew = async () => {
     if (!programId) { addToast('No program selected', 'error'); return; }
     try {
@@ -292,20 +314,25 @@ export default function UCRPage() {
         issuesSummary: comments || undefined,
         payload: formData,
       };
-      console.log('Submitting UCR with token:', token ? 'present' : 'missing', 'programId:', programId);
-      const r = await fetch(`/api/programs/${programId}/ucr/reports`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
-      if (!r.ok) { 
+      const url = editingId ? `/api/programs/${programId}/ucr/reports/${editingId}` : `/api/programs/${programId}/ucr/reports`;
+      const method = editingId ? 'PATCH' : 'POST';
+      const r = await fetch(url, { method, credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
+      if (!r.ok) {
         const errorText = await r.text().catch(() => 'Unknown error');
         console.error('UCR Submit Error:', r.status, errorText);
-        console.error('Request headers:', { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token?.substring(0, 20)}...` }: {}) });
         if (r.status === 403) {
           addToast('Permission denied. Try logging out and back in, or contact admin to assign you to this program.', 'error');
+        } else if (r.status === 409) {
+          addToast('UCR report already exists for this date and shift. Please edit the existing report in the archive.', 'error');
+        } else if (r.status === 423) {
+          addToast('This UCR can no longer be edited (past day of submission).', 'error');
         } else {
           addToast(`Failed to submit UCR: ${r.status}`, 'error');
         }
         return;
       }
-      addToast('UCR submitted for review', 'success');
+      addToast(editingId ? 'UCR updated' : 'UCR submitted for review', 'success');
+      setEditingId(null);
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
       // Reset form data to initial state
       setFormData({
@@ -341,7 +368,7 @@ export default function UCRPage() {
           { status: 'satisfactory', comments: '' },
           { status: 'satisfactory', comments: '' },
         ],
-        roomSearches: {}
+        roomSearches: [],
       });
       await Promise.all([loadReports(true), loadStats()]);
     } catch { addToast('Failed to submit UCR', 'error'); }
@@ -350,7 +377,7 @@ export default function UCRPage() {
   // View modal
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
-  const onView = async (id: string|number) => {
+  const onView = async (id: string|number, asEdit?: boolean) => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
@@ -359,7 +386,23 @@ export default function UCRPage() {
       let payload: any = {};
       try { payload = d.payloadJson ? JSON.parse(d.payloadJson) : {}; } catch {}
       setViewData({ ...d, payload });
-      setViewOpen(true);
+      if (asEdit) {
+        // Prefill form for editing (only allowed same day on backend)
+        setReportDate(d.reportDate ? String(d.reportDate).slice(0,10) : '');
+        setShiftVal(d.shift || '7:00-3:00');
+        setComments(d.issuesSummary || '');
+        if (payload && typeof payload === 'object') {
+          setFormData((prev: any) => ({
+            ...prev,
+            ...payload,
+            roomSearches: Array.isArray(payload.roomSearches) ? payload.roomSearches : [],
+          }));
+        }
+        setEditingId(id);
+        setActiveTab('new');
+      } else {
+        setViewOpen(true);
+      }
     } catch {}
   };
 
@@ -541,20 +584,28 @@ export default function UCRPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ucrReports.map((r) => (
-                        <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
-                          <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
-                          <td className="p-3 text-font-detail">{r.shift || ''}</td>
-                          <td className="p-3 font-medium text-font-base">{r.issuesSummary || ''}</td>
-                          <td className="p-3 text-font-detail">{r.reporterName || ''}</td>
-                          <td className="p-3">
-                            <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
-                          </td>
-                          <td className="p-3">
-                            <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View Report</button>
-                          </td>
-                        </tr>
-                      ))}
+                      {ucrReports.map((r) => {
+                        const isToday = r.reportDate ? new Date(r.reportDate).toISOString().slice(0,10) === new Date().toISOString().slice(0,10) : false;
+                        return (
+                          <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
+                            <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
+                            <td className="p-3 text-font-detail">{r.shift || ''}</td>
+                            <td className="p-3 font-medium text-font-base">{r.issuesSummary || ''}</td>
+                            <td className="p-3 text-font-detail">{r.reporterName || ''}</td>
+                            <td className="p-3">
+                              <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
+                            </td>
+                            <td className="p-3 flex items-center gap-3">
+                              <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View</button>
+                              {isToday && (
+                                <button onClick={() => onView(r.id, true)} className="text-xs text-font-detail hover:text-primary" title="Edit today's report">
+                                  <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1007,15 +1058,54 @@ export default function UCRPage() {
               <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
                 <h3 className="text-lg font-semibold text-primary">Resident Room Searches</h3>
               </div>
-              <div className="p-4">
-                <div className="grid grid-cols-3 gap-4">
-                  {[ '2306','2307','2308','2309','2310','2311','2312','2313','2314','2315','2316','2317','2318','2319','2320' ].map((room) => (
-                    <div key={room} className="flex items-center gap-3">
-                      <label className="text-sm font-medium text-font-base w-16">Room {room}:</label>
-                      <input type="text" placeholder="Any concerns..." className="flex-1 px-3 py-2 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-                    </div>
-                  ))}
+              <div className="p-4 space-y-4">
+                {/* Input row: [Room #] [Comments] [+] */}
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-font-detail mb-1">Room Number</label>
+                    <input
+                      type="text"
+                      value={roomSearchRoom}
+                      onChange={(e) => setRoomSearchRoom(e.target.value.replace(/[^0-9A-Za-z-]/g, ''))}
+                      placeholder="Enter room (e.g., 7, 210, A12)"
+                      className="w-full px-3 py-2 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex-[2]">
+                    <label className="block text-sm font-medium text-font-detail mb-1">Search Comments</label>
+                    <input
+                      type="text"
+                      value={roomSearchComments}
+                      onChange={(e) => setRoomSearchComments(e.target.value)}
+                      placeholder="Notes from room search (e.g., no issues, minor contraband, etc.)"
+                      className="w-full px-3 py-2 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="md:w-auto">
+                    <button
+                      type="button"
+                      onClick={addRoomSearchRow}
+                      className="mt-1 md:mt-0 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-light"
+                    >
+                      <i className="fa-solid fa-plus mr-2"></i>
+                      Add
+                    </button>
+                  </div>
                 </div>
+
+                {/* Added room searches list */}
+                {Array.isArray(formData.roomSearches) && formData.roomSearches.length > 0 && (
+                  <div className="mt-2 border border-bd rounded-lg divide-y divide-bd bg-bg-subtle/40">
+                    {formData.roomSearches.map((row: any, idx: number) => (
+                      <div key={`${row.room}-${idx}`} className="flex items-start justify-between px-3 py-2 text-sm">
+                        <div className="flex-1">
+                          <div className="font-medium text-font-base">Room {row.room}</div>
+                          <div className="text-xs text-font-detail mt-0.5">{row.comments || 'No additional comments recorded.'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

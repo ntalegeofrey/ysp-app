@@ -79,14 +79,27 @@ public class ProgramUcrController {
 
         ProgramUcrReport r = new ProgramUcrReport();
         r.setProgram(program);
+        LocalDate date;
         try {
             Object d = body.get("reportDate");
-            LocalDate date = d != null ? LocalDate.parse(d.toString()) : LocalDate.now();
-            r.setReportDate(date);
+            date = d != null ? LocalDate.parse(d.toString()) : LocalDate.now();
         } catch (Exception e) {
-            r.setReportDate(LocalDate.now());
+            date = LocalDate.now();
         }
-        r.setShift(Objects.toString(body.get("shift"), null));
+        r.setReportDate(date);
+        String shift = Objects.toString(body.get("shift"), null);
+        r.setShift(shift);
+
+        // Enforce one UCR per program/date/shift
+        if (shift != null && !shift.isBlank()) {
+            ProgramUcrReport existing = ucrs.findFirstByProgram_IdAndReportDateAndShift(id, date, shift);
+            if (existing != null) {
+                Map<String, Object> err = new HashMap<>();
+                err.put("message", "UCR report already exists for this date and shift. Please edit the existing report.");
+                err.put("existingId", existing.getId());
+                return ResponseEntity.status(409).body(err);
+            }
+        }
         // Prefer reporterName from authenticated user if available
         String reporter = Objects.toString(body.get("reporterName"), null);
         if ((reporter == null || reporter.isBlank()) && auth != null && auth.getName() != null) {
@@ -116,6 +129,14 @@ public class ProgramUcrController {
         ProgramUcrReport r = opt.get();
         if (r.getProgram() == null || r.getProgram().getId() == null || !Objects.equals(r.getProgram().getId(), id)) {
             return ResponseEntity.notFound().build();
+        }
+
+        // Allow edits only on the same calendar day as the report date
+        LocalDate today = LocalDate.now();
+        if (r.getReportDate() != null && !r.getReportDate().isEqual(today)) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("message", "UCR reports can only be edited on the day they are created.");
+            return ResponseEntity.status(423).body(err);
         }
         if (body.containsKey("reportDate")) {
             try { r.setReportDate(LocalDate.parse(Objects.toString(body.get("reportDate"), null))); } catch (Exception ignored) {}
