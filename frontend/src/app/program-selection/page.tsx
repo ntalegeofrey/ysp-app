@@ -73,6 +73,20 @@ export default function ProgramSelectionPage() {
     return () => { cancelled = true; };
   }, [router]);
 
+  // Hydrate any pending global toast (e.g. from dashboard redirect when user is not attached to a program)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('global-toast') : null;
+      if (raw) {
+        const payload = JSON.parse(raw) as { title?: string; tone?: 'success' | 'error' | 'info' };
+        if (payload?.title) {
+          addToast(payload.title, payload.tone);
+        }
+        try { localStorage.removeItem('global-toast'); } catch {}
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'logout') {
