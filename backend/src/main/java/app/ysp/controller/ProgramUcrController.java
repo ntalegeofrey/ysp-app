@@ -78,7 +78,7 @@ public class ProgramUcrController {
     }
 
     @PostMapping("/reports")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR','ROLE_SYSTEM_ADMIN') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> create(@PathVariable("id") Long id, @RequestBody Map<String, Object> body, Authentication auth) {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -129,7 +129,7 @@ public class ProgramUcrController {
     }
 
     @PatchMapping("/reports/{reportId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR','ROLE_SYSTEM_ADMIN') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> update(@PathVariable("id") Long id, @PathVariable("reportId") Long reportId, @RequestBody Map<String, Object> body) {
         Optional<ProgramUcrReport> opt = ucrs.findById(reportId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
