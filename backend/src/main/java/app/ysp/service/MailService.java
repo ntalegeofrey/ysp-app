@@ -92,4 +92,18 @@ public class MailService {
             System.err.println("[WARN] Failed to send OTL email: " + e.getMessage());
         }
     }
+
+    public void sendRawHtml(String to, String subject, String html) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("[WARN] Failed to send email: " + e.getMessage());
+        }
+    }
 }

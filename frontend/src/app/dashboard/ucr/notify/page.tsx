@@ -1,14 +1,99 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function UCRNotifyPage() {
   const router = useRouter();
+  const search = useSearchParams();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [programId, setProgramId] = useState<string>('');
+  const [subject, setSubject] = useState<string>('');
+  const [priority, setPriority] = useState<string>('critical');
+  const [category, setCategory] = useState<string>('HVAC');
+  const [categoryOther, setCategoryOther] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [senderName, setSenderName] = useState<string>('');
+  const [senderTitle, setSenderTitle] = useState<string>('');
+  const [status, setStatus] = useState<{ tone: 'idle' | 'success' | 'error'; text: string }>({ tone: 'idle', text: '' });
+
+  useEffect(() => {
+    try {
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      setProgramId(sp?.id ? String(sp.id) : '');
+    } catch {}
+
+    const run = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const r = await fetch('/api/auth/me', { credentials: 'include', headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+        if (r.ok) {
+          const me = await r.json();
+          setSenderName(me.fullName || me.email || '');
+          setSenderTitle(me.jobTitle || '');
+        }
+      } catch {}
+    };
+    run();
+  }, []);
+
+  const reportId = search.get('reportId');
+  const reportDate = search.get('date');
+  const reportShift = search.get('shift');
+  const reportStatus = search.get('status');
+  const reportSummary = search.get('summary');
+
+  useEffect(() => {
+    // Prefill subject and message from linked UCR if present
+    if (reportSummary && !subject) {
+      const base = reportStatus ? `${reportStatus.toUpperCase()}: ${reportSummary}` : reportSummary;
+      const suffix = [reportDate, reportShift].filter(Boolean).join(' ');
+      setSubject(suffix ? `${base} - ${suffix}` : base);
+    }
+    if (reportSummary && !message) {
+      const lines = [
+        `Issue: ${reportSummary}`,
+        reportDate ? `Date: ${reportDate}` : '',
+        reportShift ? `Shift: ${reportShift}` : '',
+      ].filter(Boolean);
+      setMessage(lines.join('\n') + (lines.length ? '\n\n' : '') + 'Please review this Unit Condition Report issue.');
+    }
+  }, [reportSummary, reportDate, reportShift, reportStatus, subject, message]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Notification sent successfully!');
-    router.back();
+    if (!programId) {
+      setStatus({ tone: 'error', text: 'No program selected.' });
+      return;
+    }
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const body = {
+        subject: subject || undefined,
+        priority,
+        category,
+        categoryOther: category === 'Other' ? categoryOther : undefined,
+        message,
+        reportId: reportId || undefined,
+        reportDate: reportDate || undefined,
+        shift: reportShift || undefined,
+      };
+      const r = await fetch(`/api/programs/${programId}/ucr/notify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        setStatus({ tone: 'error', text: 'Failed to send notification.' });
+        return;
+      }
+      setStatus({ tone: 'success', text: 'Notification sent to program leadership.' });
+      setTimeout(() => router.back(), 1200);
+    } catch {
+      setStatus({ tone: 'error', text: 'Failed to send notification.' });
+    }
   };
 
   return (
@@ -59,7 +144,11 @@ export default function UCRNotifyPage() {
                 <i className="fa-solid fa-flag mr-2 text-error"></i>
                 Priority Level
               </label>
-              <select className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" defaultValue="critical">
+              <select
+                className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
                 <option value="critical">Critical - Immediate Action Required</option>
                 <option value="high">High - Action Required Today</option>
                 <option value="medium">Medium - Action Required This Week</option>
@@ -75,11 +164,28 @@ export default function UCRNotifyPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {['HVAC','Plumbing','Electrical','Security','Safety','Structural','Equipment','Other'].map((c) => (
                 <label key={c} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="radio" name="category" className="text-primary focus:ring-primary" defaultChecked={c==='HVAC'} />
+                  <input
+                    type="radio"
+                    name="category"
+                    className="text-primary focus:ring-primary"
+                    checked={category === c}
+                    onChange={() => setCategory(c)}
+                  />
                   <span>{c}</span>
                 </label>
               ))}
             </div>
+            {category === 'Other' && (
+              <div className="mt-3">
+                <input
+                  type="text"
+                  value={categoryOther}
+                  onChange={(e) => setCategoryOther(e.target.value)}
+                  placeholder="Describe the issue"
+                  className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -89,7 +195,9 @@ export default function UCRNotifyPage() {
             </label>
             <input
               type="text"
-              defaultValue="CRITICAL: HVAC System Failure - North Wing - Immediate Action Required"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Subject line for email"
               className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
@@ -99,7 +207,13 @@ export default function UCRNotifyPage() {
               <i className="fa-solid fa-comment mr-2 text-primary"></i>
               Additional Comments & Details
             </label>
-            <textarea rows={6} className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none" placeholder="Provide additional context, urgency details, affected areas, safety concerns, or specific actions needed..." />
+            <textarea
+              rows={6}
+              className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
+              placeholder="Provide additional context, urgency details, affected areas, safety concerns, or specific actions needed..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
           </div>
 
           <div>
@@ -135,19 +249,11 @@ export default function UCRNotifyPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <span className="text-font-detail">Name:</span>
-                <span className="font-medium text-font-base ml-2">John Smith</span>
+                <span className="font-medium text-font-base ml-2">{senderName || '—'}</span>
               </div>
               <div>
                 <span className="text-font-detail">Position:</span>
-                <span className="font-medium text-font-base ml-2">Shift Supervisor</span>
-              </div>
-              <div>
-                <span className="text-font-detail">Phone:</span>
-                <span className="font-medium text-font-base ml-2">(617) 555-0123</span>
-              </div>
-              <div>
-                <span className="text-font-detail">Current Shift:</span>
-                <span className="font-medium text-font-base ml-2">Day Shift (7:00 AM - 3:00 PM)</span>
+                <span className="font-medium text-font-base ml-2">{senderTitle || '—'}</span>
               </div>
             </div>
           </div>
@@ -168,6 +274,11 @@ export default function UCRNotifyPage() {
               </button>
             </div>
           </div>
+          {status.tone !== 'idle' && (
+            <div className={`mt-4 text-sm px-3 py-2 rounded-md border ${status.tone === 'success' ? 'border-success text-success bg-green-50' : 'border-error text-error bg-red-50'}`}>
+              {status.text}
+            </div>
+          )}
         </form>
       </section>
     </div>

@@ -2,10 +2,13 @@ package app.ysp.controller;
 
 import app.ysp.entity.Program;
 import app.ysp.entity.ProgramUcrReport;
+import app.ysp.entity.ProgramAssignment;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.ProgramUcrReportRepository;
 import app.ysp.repo.UserRepository;
+import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.service.SseHub;
+import app.ysp.service.MailService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,12 +27,16 @@ public class ProgramUcrController {
     private final ProgramUcrReportRepository ucrs;
     private final SseHub sseHub;
     private final UserRepository users;
+    private final ProgramAssignmentRepository assignments;
+    private final MailService mailService;
 
-    public ProgramUcrController(ProgramRepository programs, ProgramUcrReportRepository ucrs, SseHub sseHub, UserRepository users) {
+    public ProgramUcrController(ProgramRepository programs, ProgramUcrReportRepository ucrs, SseHub sseHub, UserRepository users, ProgramAssignmentRepository assignments, MailService mailService) {
         this.programs = programs;
         this.ucrs = ucrs;
         this.sseHub = sseHub;
         this.users = users;
+        this.assignments = assignments;
+        this.mailService = mailService;
     }
 
     @GetMapping("/reports")
@@ -122,7 +129,7 @@ public class ProgramUcrController {
     }
 
     @PatchMapping("/reports/{reportId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR','ROLE_SYSTEM_ADMIN') or @securityService.isProgramManager(#id, authentication) or @securityService.isProgramMember(#id, authentication)")
     public ResponseEntity<?> update(@PathVariable("id") Long id, @PathVariable("reportId") Long reportId, @RequestBody Map<String, Object> body) {
         Optional<ProgramUcrReport> opt = ucrs.findById(reportId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -212,5 +219,83 @@ public class ProgramUcrController {
         out.put("medium", medium);
         out.put("year", year);
         return ResponseEntity.ok(out);
+    }
+
+    @PostMapping("/notify")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> notifySupervisors(@PathVariable("id") Long programId, @RequestBody Map<String, Object> body, Authentication auth) {
+        Optional<Program> optProgram = programs.findById(programId);
+        if (optProgram.isEmpty()) return ResponseEntity.notFound().build();
+        Program program = optProgram.get();
+
+        // Resolve sender info from authenticated user
+        String senderName = "";
+        String senderTitle = "";
+        if (auth != null && auth.getName() != null) {
+            var optUser = users.findByEmail(auth.getName());
+            if (optUser.isPresent()) {
+                var u = optUser.get();
+                String fn = u.getFullName();
+                senderName = (fn != null && !fn.isBlank()) ? fn : u.getEmail();
+                senderTitle = Objects.toString(u.getJobTitle(), "");
+            }
+        }
+
+        String subject = Objects.toString(body.get("subject"), "UCR Supervisor Notification");
+        String priority = Objects.toString(body.get("priority"), "");
+        String category = Objects.toString(body.get("category"), "");
+        String categoryOther = Objects.toString(body.get("categoryOther"), "");
+        String message = Objects.toString(body.get("message"), "");
+
+        // Find PD and Assistant Director assignments for this program
+        java.util.List<ProgramAssignment> ass = assignments.findByProgram_Id(programId);
+        java.util.List<String> emails = new java.util.ArrayList<>();
+        for (ProgramAssignment pa : ass) {
+            if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
+            String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+            if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
+                emails.add(pa.getUserEmail());
+            }
+        }
+        if (emails.isEmpty()) {
+            return ResponseEntity.status(400).body(java.util.Map.of("error", "No program director or assistant director email configured for this program."));
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<div style='font-family:Arial,sans-serif;font-size:14px;'>");
+        html.append("<h2>Unit Condition Report Notification</h2>");
+        html.append("<p><strong>Program:</strong> ").append(escape(program.getName())).append("</p>");
+        if (!priority.isBlank()) html.append("<p><strong>Priority:</strong> ").append(escape(priority)).append("</p>");
+        if (!category.isBlank()) html.append("<p><strong>Category:</strong> ").append(escape(category)).append("</p>");
+        if (!categoryOther.isBlank()) html.append("<p><strong>Other Details:</strong> ").append(escape(categoryOther)).append("</p>");
+        if (!message.isBlank()) {
+            html.append("<p><strong>Summary:</strong><br/>").append(escape(message).replace("\n", "<br/>")).append("</p>");
+        }
+        if (!senderName.isBlank() || !senderTitle.isBlank()) {
+            html.append("<hr/><p><strong>Reported by:</strong> ");
+            html.append(escape(senderName));
+            if (!senderTitle.isBlank()) {
+                html.append("<br/><span style='color:#555;'>").append(escape(senderTitle)).append("</span>");
+            }
+            html.append("</p>");
+        }
+        html.append("</div>");
+
+        for (String to : emails) {
+            try {
+                mailService.sendRawHtml(to, subject, html.toString());
+            } catch (Exception ignored) {}
+        }
+
+        return ResponseEntity.ok(java.util.Map.of("sent", emails.size()));
+    }
+
+    private static String escape(String in) {
+        if (in == null) return "";
+        return in
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 }

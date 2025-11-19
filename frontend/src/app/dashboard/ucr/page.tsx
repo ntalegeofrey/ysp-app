@@ -557,6 +557,12 @@ export default function UCRPage() {
                               <i className="fa-solid fa-eye mr-1"></i>View
                             </button>
                             <button
+                              onClick={() => router.push(`/dashboard/ucr/notify?reportId=${encodeURIComponent(String(issue.id))}&date=${encodeURIComponent(issue.reportDate || '')}&shift=${encodeURIComponent(issue.shift || '')}&status=${encodeURIComponent(issue.status || '')}&summary=${encodeURIComponent(label)}`)}
+                              className="bg-warning text-font-base px-3 py-1 rounded-md text-xs font-medium hover:bg-yellow-300"
+                            >
+                              <i className="fa-solid fa-bell mr-1"></i>Notify
+                            </button>
+                            <button
                               onClick={() => resolveIssue(issue.id)}
                               className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
                             >
@@ -571,10 +577,9 @@ export default function UCRPage() {
               </div>
             </div>
 
-              
-
-              {/* Archive Table */}
-              <div className="bg-white rounded-lg border border-bd mt-6">
+            {/* Archive Table */}
+            <div className="col-span-12 lg:col-span-8">
+              <div className="bg-white rounded-lg border border-bd">
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">UCR Reports Archive</h3>
                   <div className="flex items-center gap-4 mt-3">
