@@ -42,3 +42,4 @@ ansible/group_vars/vault.yml
 *.retry
 
 all.yml
+vault.yml

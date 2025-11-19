@@ -25,12 +25,13 @@ export default function SessionSync() {
       window.location.replace(SIGNIN_URL);
     };
 
-    // Wrap window.fetch to catch 401/403 anywhere in the app
+    // Wrap window.fetch to catch 401 (unauthorized) anywhere in the app
     const originalFetch = window.fetch.bind(window);
     const wrappedFetch: typeof window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       try {
         const res = await originalFetch(input as any, init);
-        if (res && (res.status === 401 || res.status === 403)) {
+        // 401 = session invalid/expired -> force logout
+        if (res && res.status === 401) {
           forceLogout();
         }
         return res;
@@ -52,10 +53,9 @@ export default function SessionSync() {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         });
-        if (!r.ok) {
-          if (r.status === 401 || r.status === 403) {
-            forceLogout();
-          }
+        if (!r.ok && r.status === 401) {
+          // Only treat 401 as "not authenticated"; 403 is handled by pages as a normal permission error
+          forceLogout();
         }
       } catch {
         // ignore transient failures
