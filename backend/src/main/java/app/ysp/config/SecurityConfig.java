@@ -42,10 +42,10 @@ public class SecurityConfig {
                         "/auth/password/update",
                         "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
                 ).permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/programs/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/auth/me").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
