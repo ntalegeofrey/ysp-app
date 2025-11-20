@@ -121,10 +121,6 @@ public class ProgramUcrController {
         r.setReporterName(reporter);
         r.setStatus(Objects.toString(body.get("status"), null));
         r.setIssuesSummary(Objects.toString(body.get("issuesSummary"), null));
-        Object payload = body.get("payload");
-        if (payload != null) {
-            try { r.setPayloadJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(payload)); } catch (Exception ignored) {}
-        }
 
         ProgramUcrReport saved = ucrs.save(r);
         try { sseHub.broadcast(Map.of("type","programs.ucr.created","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
@@ -155,10 +151,7 @@ public class ProgramUcrController {
         if (body.containsKey("reporterName")) r.setReporterName(Objects.toString(body.get("reporterName"), null));
         if (body.containsKey("status")) r.setStatus(Objects.toString(body.get("status"), null));
         if (body.containsKey("issuesSummary")) r.setIssuesSummary(Objects.toString(body.get("issuesSummary"), null));
-        if (body.containsKey("payload")) {
-            Object payload = body.get("payload");
-            if (payload != null) try { r.setPayloadJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(payload)); } catch (Exception ignored) {}
-        }
+
         ProgramUcrReport saved = ucrs.save(r);
         try { sseHub.broadcast(Map.of("type","programs.ucr.updated","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
         return ResponseEntity.ok(saved);

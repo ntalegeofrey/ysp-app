@@ -1,8 +1,6 @@
 package app.ysp.entity;
 
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 
 @Entity
@@ -31,23 +29,8 @@ public class ProgramUcrReport {
     @Column(name = "issues_summary")
     private String issuesSummary;
 
-    @Column(name = "payload_json", columnDefinition = "TEXT")
-    @JsonIgnore
-    private String payloadJson;
-
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt;
-
-    @JsonProperty("payload")
-    @Transient
-    public Object getPayload() {
-        if (payloadJson == null || payloadJson.isBlank()) return null;
-        try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(payloadJson, Object.class);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
     @PrePersist
     public void prePersist() {
@@ -74,9 +57,6 @@ public class ProgramUcrReport {
 
     public String getIssuesSummary() { return issuesSummary; }
     public void setIssuesSummary(String issuesSummary) { this.issuesSummary = issuesSummary; }
-
-    public String getPayloadJson() { return payloadJson; }
-    public void setPayloadJson(String payloadJson) { this.payloadJson = payloadJson; }
 
     public java.time.LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
