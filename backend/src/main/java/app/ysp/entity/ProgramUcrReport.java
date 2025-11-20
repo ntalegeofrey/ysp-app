@@ -3,6 +3,8 @@ package app.ysp.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 
 @Entity
@@ -33,10 +35,22 @@ public class ProgramUcrReport {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_json", columnDefinition = "jsonb")
+    @JsonIgnore
     private String payloadJson;
 
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt;
+
+    @JsonProperty("payload")
+    @Transient
+    public Object getPayload() {
+        if (payloadJson == null || payloadJson.isBlank()) return null;
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(payloadJson, Object.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     @PrePersist
     public void prePersist() {

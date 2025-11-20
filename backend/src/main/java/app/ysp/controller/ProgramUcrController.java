@@ -40,6 +40,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> list(@PathVariable("id") Long programId, Authentication auth) {
         // Any authenticated user attached to the program should be able to view; attachment gate is in layout already.
         if (programId == null) return ResponseEntity.badRequest().build();
@@ -47,6 +48,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports/page")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> listPaged(
             @PathVariable("id") Long programId,
             @RequestParam(value = "q", required = false) String q,
@@ -71,6 +73,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports/{reportId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getOne(@PathVariable("id") Long id, @PathVariable("reportId") Long reportId) {
         var r = ucrs.findOneByIdAndProgram(reportId, id);
         if (r == null) return ResponseEntity.notFound().build();
@@ -162,25 +165,27 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<?> stats(@PathVariable("id") Long id) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> stats(@PathVariable("id") Long programId) {
         YearMonth now = YearMonth.now();
         LocalDate start = now.atDay(1);
         LocalDate end = now.atEndOfMonth();
         Map<String, Object> out = new HashMap<>();
-        out.put("total", ucrs.countByProgramId(id));
-        out.put("critical", ucrs.countCritical(id));
-        out.put("pending", ucrs.countPending(id));
-        out.put("monthCount", ucrs.countInRange(id, start, end));
+        out.put("total", ucrs.countByProgramId(programId));
+        out.put("critical", ucrs.countCritical(programId));
+        out.put("pending", ucrs.countPending(programId));
+        out.put("monthCount", ucrs.countInRange(programId, start, end));
         return ResponseEntity.ok(out);
     }
 
     @GetMapping("/open-issues")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> openIssues(
-            @PathVariable("id") Long id,
+            @PathVariable("id") Long programId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "5") int size
     ) {
-        var p = ucrs.findOpenIssues(id, PageRequest.of(Math.max(0,page), Math.max(1,size)));
+        var p = ucrs.findOpenIssues(programId, PageRequest.of(Math.max(0,page), Math.max(1,size)));
         Map<String,Object> out = new HashMap<>();
         out.put("content", p.getContent());
         out.put("totalElements", p.getTotalElements());
@@ -188,9 +193,10 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/monthly-chart")
-    public ResponseEntity<?> monthlyChart(@PathVariable("id") Long id, @RequestParam(value = "year", defaultValue = "0") int year) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> monthlyChart(@PathVariable("id") Long programId, @RequestParam(value = "year", defaultValue = "0") int year) {
         if (year <= 0) year = java.time.Year.now().getValue();
-        var results = ucrs.findMonthlyIssueCounts(id, year);
+        var results = ucrs.findMonthlyIssueCounts(programId, year);
         
         // Initialize arrays for 12 months
         int[] critical = new int[12];
