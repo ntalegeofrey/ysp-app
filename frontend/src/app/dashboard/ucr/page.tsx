@@ -17,6 +17,10 @@ export default function UCRPage() {
     try { localStorage.setItem('global-toast', JSON.stringify({ title, tone })); } catch {}
   };
 
+  // Duplicate UCR modal
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateReportId, setDuplicateReportId] = useState<number|null>(null);
+
   const tabBtnBase = 'flex items-center px-1 py-4 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
@@ -348,12 +352,16 @@ export default function UCRPage() {
       const method = editingId ? 'PATCH' : 'POST';
       const r = await fetch(url, { method, credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
       if (!r.ok) {
-        const errorText = await r.text().catch(() => 'Unknown error');
-        console.error('UCR Submit Error:', r.status, errorText);
         if (r.status === 403) {
           addToast('Permission denied. Try logging out and back in, or contact admin to assign you to this program.', 'error');
         } else if (r.status === 409) {
-          addToast('UCR report already exists for this date and shift. Please edit the existing report in the archive.', 'error');
+          try {
+            const errData = await r.json();
+            setDuplicateReportId(errData.existingId || null);
+            setShowDuplicateModal(true);
+          } catch {
+            addToast('UCR report already exists for this date and shift.', 'error');
+          }
         } else if (r.status === 423) {
           addToast('This UCR can no longer be edited (past day of submission).', 'error');
         } else {
@@ -364,6 +372,11 @@ export default function UCRPage() {
       addToast(editingId ? 'UCR updated' : 'UCR submitted for review', 'success');
       setEditingId(null);
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
+      // Refresh archive and stats
+      loadReports(true);
+      loadStats();
+      loadOpenIssues();
+      loadChartData();
       // Reset form data to initial state
       setFormData({
         securityEquipment: [
@@ -1211,6 +1224,51 @@ export default function UCRPage() {
                 <div className="text-xs text-font-detail">No form data available</div>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Duplicate UCR Modal */}
+    {showDuplicateModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+              <i className="fa-solid fa-triangle-exclamation text-warning text-xl"></i>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-font-base">UCR Report Already Exists</h3>
+              <p className="text-sm text-font-detail">A report for this date and shift has already been submitted.</p>
+            </div>
+          </div>
+          <div className="bg-bg-subtle border border-bd rounded-lg p-4 mb-6">
+            <p className="text-sm text-font-base">
+              You cannot submit duplicate reports for the same date and shift. Would you like to edit the existing report instead?
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setShowDuplicateModal(false);
+                setDuplicateReportId(null);
+              }}
+              className="flex-1 px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowDuplicateModal(false);
+                if (duplicateReportId) {
+                  onView(duplicateReportId, true);
+                }
+                setDuplicateReportId(null);
+              }}
+              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium"
+            >
+              Edit Report
+            </button>
           </div>
         </div>
       </div>
