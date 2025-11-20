@@ -1,8 +1,6 @@
 package app.ysp.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
@@ -33,8 +31,7 @@ public class ProgramUcrReport {
     @Column(name = "issues_summary")
     private String issuesSummary;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payload_json", columnDefinition = "jsonb")
+    @Column(name = "payload_json", columnDefinition = "TEXT")
     @JsonIgnore
     private String payloadJson;
 
