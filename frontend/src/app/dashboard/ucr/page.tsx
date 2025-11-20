@@ -482,7 +482,7 @@ export default function UCRPage() {
       {activeTab === 'overview' && (
         <div className="p-6 space-y-6">
           {/* Quick Stats */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">Total Reports</p>
@@ -501,7 +501,7 @@ export default function UCRPage() {
                 <i className="fa-solid fa-triangle-exclamation text-error text-xl"></i>
               </div>
             </div>
-            <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
+            {/* <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">Pending Review</p>
                 <p className="text-3xl font-bold text-warning">{stats.pending}</p>
@@ -509,7 +509,7 @@ export default function UCRPage() {
               <div className="bg-yellow-100 p-3 rounded-full">
                 <i className="fa-solid fa-hourglass-half text-warning text-xl"></i>
               </div>
-            </div>
+            </div> */}
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
                 <p className="text-sm text-font-detail">This Month</p>
