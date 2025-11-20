@@ -12,6 +12,7 @@ import app.ysp.service.MailService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,7 +41,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> list(@PathVariable("id") Long programId, Authentication auth) {
         // Any authenticated user attached to the program should be able to view; attachment gate is in layout already.
         if (programId == null) return ResponseEntity.badRequest().build();
@@ -48,7 +49,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports/page")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> listPaged(
             @PathVariable("id") Long programId,
             @RequestParam(value = "q", required = false) String q,
@@ -73,7 +74,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/reports/{reportId}")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> getOne(@PathVariable("id") Long id, @PathVariable("reportId") Long reportId) {
         var r = ucrs.findOneByIdAndProgram(reportId, id);
         if (r == null) return ResponseEntity.notFound().build();
@@ -165,7 +166,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> stats(@PathVariable("id") Long programId) {
         YearMonth now = YearMonth.now();
         LocalDate start = now.atDay(1);
@@ -179,7 +180,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/open-issues")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> openIssues(
             @PathVariable("id") Long programId,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -193,7 +194,7 @@ public class ProgramUcrController {
     }
 
     @GetMapping("/monthly-chart")
-    @PreAuthorize("isAuthenticated()")
+    @PermitAll
     public ResponseEntity<?> monthlyChart(@PathVariable("id") Long programId, @RequestParam(value = "year", defaultValue = "0") int year) {
         if (year <= 0) year = java.time.Year.now().getValue();
         var results = ucrs.findMonthlyIssueCounts(programId, year);
