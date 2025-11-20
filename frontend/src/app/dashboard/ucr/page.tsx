@@ -45,7 +45,10 @@ export default function UCRPage() {
       if (filterDate) params.set('date', filterDate);
       if (filterStatus) params.set('status', filterStatus);
       const r = await fetch(`/api/programs/${programId}/ucr/reports/page?${params.toString()}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-      if (!r.ok) return;
+      if (!r.ok) {
+        console.error('Failed to load UCR reports:', r.status, r.statusText);
+        return;
+      }
       const data = await r.json();
       setUcrReports(data.content || []);
       setTotalReports(data.totalElements || 0);
@@ -69,6 +72,10 @@ export default function UCRPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/monthly-chart`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) {
+        console.error('Failed to load chart data:', r.status, r.statusText);
+        return;
+      }
       if (r.ok) {
         const d = await r.json();
         setChartData({ 
@@ -155,6 +162,10 @@ export default function UCRPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/stats`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) {
+        console.error('Failed to load stats:', r.status, r.statusText);
+        return;
+      }
       if (r.ok) {
         const d = await r.json();
         setStats({ total: d.total ?? 0, critical: d.critical ?? 0, pending: d.pending ?? 0, monthCount: d.monthCount ?? 0 });
@@ -170,10 +181,19 @@ export default function UCRPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=10`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-      if (!r.ok) return;
-      const d = await r.json();
-      setOpenIssues(d.content || []);
-    } catch {}
+      console.log('loadOpenIssues response:', r);
+      if (!r.ok) {
+        console.error('Failed to load open issues:', r.status, r.statusText);
+        return;
+      }
+      if (r.ok) {
+        const d = await r.json();
+        console.log('loadOpenIssues data:', d);
+        setOpenIssues(d.content || []);
+      }
+    } catch (e) {
+      console.error('loadOpenIssues error:', e);
+    }
   };
 
   const resolveIssue = async (id: string | number) => {
