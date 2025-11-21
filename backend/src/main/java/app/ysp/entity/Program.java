@@ -49,6 +49,30 @@ public class Program {
     @Column(name = "gender")
     private String gender; // mixed, boys, girls
 
+    // Region and Directors
+    private String region;
+    
+    @Column(name = "regional_admin_first_name")
+    private String regionalAdminFirstName;
+    @Column(name = "regional_admin_last_name")
+    private String regionalAdminLastName;
+    @Column(name = "regional_admin_email")
+    private String regionalAdminEmail;
+    
+    @Column(name = "program_director_first_name")
+    private String programDirectorFirstName;
+    @Column(name = "program_director_last_name")
+    private String programDirectorLastName;
+    @Column(name = "program_director_email")
+    private String programDirectorEmail;
+    
+    @Column(name = "assistant_director_first_name")
+    private String assistantDirectorFirstName;
+    @Column(name = "assistant_director_last_name")
+    private String assistantDirectorLastName;
+    @Column(name = "assistant_director_email")
+    private String assistantDirectorEmail;
+
     private Boolean active = Boolean.TRUE;
 
     private OffsetDateTime createdAt = OffsetDateTime.now();
@@ -122,4 +146,34 @@ public class Program {
 
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getRegion() { return region; }
+    public void setRegion(String region) { this.region = region; }
+
+    public String getRegionalAdminFirstName() { return regionalAdminFirstName; }
+    public void setRegionalAdminFirstName(String regionalAdminFirstName) { this.regionalAdminFirstName = regionalAdminFirstName; }
+
+    public String getRegionalAdminLastName() { return regionalAdminLastName; }
+    public void setRegionalAdminLastName(String regionalAdminLastName) { this.regionalAdminLastName = regionalAdminLastName; }
+
+    public String getRegionalAdminEmail() { return regionalAdminEmail; }
+    public void setRegionalAdminEmail(String regionalAdminEmail) { this.regionalAdminEmail = regionalAdminEmail; }
+
+    public String getProgramDirectorFirstName() { return programDirectorFirstName; }
+    public void setProgramDirectorFirstName(String programDirectorFirstName) { this.programDirectorFirstName = programDirectorFirstName; }
+
+    public String getProgramDirectorLastName() { return programDirectorLastName; }
+    public void setProgramDirectorLastName(String programDirectorLastName) { this.programDirectorLastName = programDirectorLastName; }
+
+    public String getProgramDirectorEmail() { return programDirectorEmail; }
+    public void setProgramDirectorEmail(String programDirectorEmail) { this.programDirectorEmail = programDirectorEmail; }
+
+    public String getAssistantDirectorFirstName() { return assistantDirectorFirstName; }
+    public void setAssistantDirectorFirstName(String assistantDirectorFirstName) { this.assistantDirectorFirstName = assistantDirectorFirstName; }
+
+    public String getAssistantDirectorLastName() { return assistantDirectorLastName; }
+    public void setAssistantDirectorLastName(String assistantDirectorLastName) { this.assistantDirectorLastName = assistantDirectorLastName; }
+
+    public String getAssistantDirectorEmail() { return assistantDirectorEmail; }
+    public void setAssistantDirectorEmail(String assistantDirectorEmail) { this.assistantDirectorEmail = assistantDirectorEmail; }
 }

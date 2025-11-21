@@ -16,17 +16,11 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
     @Query("select r from ProgramUcrReport r where r.program.id = :programId order by r.reportDate desc, r.id desc")
     List<ProgramUcrReport> findAllByProgramOrder(@Param("programId") Long programId);
 
-    @Query("select r from ProgramUcrReport r where r.program.id = :programId and (:q is null or lower(coalesce(r.issuesSummary,'')) like concat('%', lower(:q), '%')) and (:status is null or lower(coalesce(r.status,'')) = lower(:status)) and (:date is null or r.reportDate = :date) order by r.reportDate desc, r.id desc")
-    Page<ProgramUcrReport> findByFilters(@Param("programId") Long programId, @Param("q") String q, @Param("date") LocalDate date, @Param("status") String status, Pageable pageable);
+    @Query("select r from ProgramUcrReport r where r.program.id = :programId and (:q is null or lower(coalesce(r.additionalComments,'')) like concat('%', lower(:q), '%')) and (:date is null or r.reportDate = :date) order by r.reportDate desc, r.id desc")
+    Page<ProgramUcrReport> findByFilters(@Param("programId") Long programId, @Param("q") String q, @Param("date") LocalDate date, Pageable pageable);
 
     @Query("select count(r) from ProgramUcrReport r where r.program.id = :programId")
     long countByProgramId(@Param("programId") Long programId);
-
-    @Query("select count(r) from ProgramUcrReport r where r.program.id = :programId and lower(coalesce(r.status,'')) = 'critical'")
-    long countCritical(@Param("programId") Long programId);
-
-    @Query("select count(r) from ProgramUcrReport r where r.program.id = :programId and lower(coalesce(r.status,'')) like 'pending%'")
-    long countPending(@Param("programId") Long programId);
 
     @Query("select count(r) from ProgramUcrReport r where r.program.id = :programId and r.reportDate between :start and :end")
     long countInRange(@Param("programId") Long programId, @Param("start") LocalDate start, @Param("end") LocalDate end);
@@ -34,12 +28,6 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
     @Query("select r from ProgramUcrReport r where r.id = :id and r.program.id = :programId")
     ProgramUcrReport findOneByIdAndProgram(@Param("id") Long id, @Param("programId") Long programId);
 
-    @Query("select r from ProgramUcrReport r where r.program.id = :programId and lower(coalesce(r.status,'')) in ('critical','high','medium') order by r.reportDate desc, r.id desc")
-    Page<ProgramUcrReport> findOpenIssues(@Param("programId") Long programId, Pageable pageable);
-
-    @Query("select extract(month from r.reportDate) as month, lower(coalesce(r.status,'')) as status, count(r) as cnt from ProgramUcrReport r where r.program.id = :programId and extract(year from r.reportDate) = :year and lower(coalesce(r.status,'')) in ('critical','high','medium') group by extract(month from r.reportDate), lower(coalesce(r.status,'')) order by month")
-    List<Object[]> findMonthlyIssueCounts(@Param("programId") Long programId, @Param("year") int year);
-
     // Find an existing report for a given program, date, and shift (used to enforce one UCR per shift per day)
-    ProgramUcrReport findFirstByProgram_IdAndReportDateAndShift(Long programId, LocalDate reportDate, String shift);
+    ProgramUcrReport findFirstByProgram_IdAndReportDateAndShiftTime(Long programId, LocalDate reportDate, String shiftTime);
 }
