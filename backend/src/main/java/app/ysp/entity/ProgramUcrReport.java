@@ -40,48 +40,48 @@ public class ProgramUcrReport {
     private String securityRadiosStatus;
     @Column(name = "security_radios_condition")
     private String securityRadiosCondition;
-    @Column(name = "security_radios_comments", columnDefinition = "TEXT")
+    @Column(name = "security_radios_comments")
     private String securityRadiosComments;
 
     @Column(name = "security_flashlights_status")
     private String securityFlashlightsStatus;
     @Column(name = "security_flashlights_condition")
     private String securityFlashlightsCondition;
-    @Column(name = "security_flashlights_comments", columnDefinition = "TEXT")
+    @Column(name = "security_flashlights_comments")
     private String securityFlashlightsComments;
 
     @Column(name = "security_metal_detector_status")
     private String securityMetalDetectorStatus;
     @Column(name = "security_metal_detector_condition")
     private String securityMetalDetectorCondition;
-    @Column(name = "security_metal_detector_comments", columnDefinition = "TEXT")
+    @Column(name = "security_metal_detector_comments")
     private String securityMetalDetectorComments;
 
     @Column(name = "security_big_set_keys_status")
     private String securityBigSetKeysStatus;
     @Column(name = "security_big_set_keys_condition")
     private String securityBigSetKeysCondition;
-    @Column(name = "security_big_set_keys_comments", columnDefinition = "TEXT")
+    @Column(name = "security_big_set_keys_comments")
     private String securityBigSetKeysComments;
 
     @Column(name = "security_first_aid_kits_status")
     private String securityFirstAidKitsStatus;
     @Column(name = "security_first_aid_kits_condition")
     private String securityFirstAidKitsCondition;
-    @Column(name = "security_first_aid_kits_comments", columnDefinition = "TEXT")
+    @Column(name = "security_first_aid_kits_comments")
     private String securityFirstAidKitsComments;
 
     @Column(name = "security_desk_computer_status")
     private String securityDeskComputerStatus;
     @Column(name = "security_desk_computer_condition")
     private String securityDeskComputerCondition;
-    @Column(name = "security_desk_computer_comments", columnDefinition = "TEXT")
+    @Column(name = "security_desk_computer_comments")
     private String securityDeskComputerComments;
 
     // Hardware and Searches
     @Column(name = "hardware_secure_yes_no")
     private String hardwareSecureYesNo;
-    @Column(name = "hardware_secure_comments", columnDefinition = "TEXT")
+    @Column(name = "hardware_secure_comments")
     private String hardwareSecureComments;
 
     @Column(name = "searches_completed_yes_no")
@@ -89,12 +89,12 @@ public class ProgramUcrReport {
 
     @Column(name = "fire_drills_completed_yes_no")
     private String fireDrillsCompletedYesNo;
-    @Column(name = "fire_drills_completed_comments", columnDefinition = "TEXT")
+    @Column(name = "fire_drills_completed_comments")
     private String fireDrillsCompletedComments;
 
     @Column(name = "emergency_lighting_yes_no")
     private String emergencyLightingYesNo;
-    @Column(name = "emergency_lighting_comments", columnDefinition = "TEXT")
+    @Column(name = "emergency_lighting_comments")
     private String emergencyLightingComments;
 
     // Notifications
@@ -102,7 +102,7 @@ public class ProgramUcrReport {
     private String notificationsOppositeGenderYesNo;
     @Column(name = "notifications_opposite_gender_condition")
     private String notificationsOppositeGenderCondition;
-    @Column(name = "notifications_opposite_gender_comments", columnDefinition = "TEXT")
+    @Column(name = "notifications_opposite_gender_comments")
     private String notificationsOppositeGenderComments;
 
     // Admin Offices
@@ -110,14 +110,14 @@ public class ProgramUcrReport {
     private String adminMeetingRoomsLockedStatus;
     @Column(name = "admin_meeting_rooms_locked_condition")
     private String adminMeetingRoomsLockedCondition;
-    @Column(name = "admin_meeting_rooms_locked_comments", columnDefinition = "TEXT")
+    @Column(name = "admin_meeting_rooms_locked_comments")
     private String adminMeetingRoomsLockedComments;
 
     @Column(name = "admin_doors_secure_status")
     private String adminDoorsSecureStatus;
     @Column(name = "admin_doors_secure_condition")
     private String adminDoorsSecureCondition;
-    @Column(name = "admin_doors_secure_comments", columnDefinition = "TEXT")
+    @Column(name = "admin_doors_secure_comments")
     private String adminDoorsSecureComments;
 
     // Facility Infrastructure
@@ -125,70 +125,70 @@ public class ProgramUcrReport {
     private String infraBackDoorStatus;
     @Column(name = "infra_back_door_condition")
     private String infraBackDoorCondition;
-    @Column(name = "infra_back_door_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_back_door_comments")
     private String infraBackDoorComments;
 
     @Column(name = "infra_entrance_exit_doors_status")
     private String infraEntranceExitDoorsStatus;
     @Column(name = "infra_entrance_exit_doors_condition")
     private String infraEntranceExitDoorsCondition;
-    @Column(name = "infra_entrance_exit_doors_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_entrance_exit_doors_comments")
     private String infraEntranceExitDoorsComments;
 
     @Column(name = "infra_smoke_detectors_status")
     private String infraSmokeDetectorsStatus;
     @Column(name = "infra_smoke_detectors_condition")
     private String infraSmokeDetectorsCondition;
-    @Column(name = "infra_smoke_detectors_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_smoke_detectors_comments")
     private String infraSmokeDetectorsComments;
 
     @Column(name = "infra_windows_secure_status")
     private String infraWindowsSecureStatus;
     @Column(name = "infra_windows_secure_condition")
     private String infraWindowsSecureCondition;
-    @Column(name = "infra_windows_secure_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_windows_secure_comments")
     private String infraWindowsSecureComments;
 
     @Column(name = "infra_laundry_area_status")
     private String infraLaundryAreaStatus;
     @Column(name = "infra_laundry_area_condition")
     private String infraLaundryAreaCondition;
-    @Column(name = "infra_laundry_area_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_laundry_area_comments")
     private String infraLaundryAreaComments;
 
     @Column(name = "infra_fire_extinguishers_status")
     private String infraFireExtinguishersStatus;
     @Column(name = "infra_fire_extinguishers_condition")
     private String infraFireExtinguishersCondition;
-    @Column(name = "infra_fire_extinguishers_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_fire_extinguishers_comments")
     private String infraFireExtinguishersComments;
 
     @Column(name = "infra_fire_alarm_status")
     private String infraFireAlarmStatus;
     @Column(name = "infra_fire_alarm_condition")
     private String infraFireAlarmCondition;
-    @Column(name = "infra_fire_alarm_comments", columnDefinition = "TEXT")
+    @Column(name = "infra_fire_alarm_comments")
     private String infraFireAlarmComments;
 
     // Chore Workspace
     @Column(name = "chore_workspace_clean_status")
     private String choreWorkspaceCleanStatus;
-    @Column(name = "chore_workspace_clean_comments", columnDefinition = "TEXT")
+    @Column(name = "chore_workspace_clean_comments")
     private String choreWorkspaceCleanComments;
 
     @Column(name = "chore_staff_bathroom_status")
     private String choreStaffBathroomStatus;
-    @Column(name = "chore_staff_bathroom_comments", columnDefinition = "TEXT")
+    @Column(name = "chore_staff_bathroom_comments")
     private String choreStaffBathroomComments;
 
     @Column(name = "chore_dayroom_clean_status")
     private String choreDayroomCleanStatus;
-    @Column(name = "chore_dayroom_clean_comments", columnDefinition = "TEXT")
+    @Column(name = "chore_dayroom_clean_comments")
     private String choreDayroomCleanComments;
 
     @Column(name = "chore_laundry_room_clean_status")
     private String choreLaundryRoomCleanStatus;
-    @Column(name = "chore_laundry_room_clean_comments", columnDefinition = "TEXT")
+    @Column(name = "chore_laundry_room_clean_comments")
     private String choreLaundryRoomCleanComments;
 
     // Room searches as JSONB array (stored as TEXT to avoid Hibernate bytea issues)
@@ -196,7 +196,7 @@ public class ProgramUcrReport {
     private String roomSearches;
 
     // Additional comments
-    @Column(name = "additional_comments", columnDefinition = "TEXT")
+    @Column(name = "additional_comments")
     private String additionalComments;
 
     @PrePersist
