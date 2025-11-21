@@ -360,14 +360,114 @@ export default function UCRPage() {
         }
       }
 
-      const payload = {
+      // Map formData to backend field names
+      const payload: any = {
         reportDate: reportDate || new Date().toISOString().slice(0,10),
-        shift: shiftVal,
-        reporterName: staffName || undefined,
-        status: reportStatus,
-        issuesSummary: comments || undefined,
-        payload: formData,
+        shiftTime: shiftVal,
+        
+        // Security Equipment (6 items)
+        securityRadiosStatus: formData.securityEquipment?.[0]?.status || null,
+        securityRadiosCondition: formData.securityEquipment?.[0]?.priority || 'Normal',
+        securityRadiosComments: formData.securityEquipment?.[0]?.comments || null,
+        
+        securityFlashlightsStatus: formData.securityEquipment?.[1]?.status || null,
+        securityFlashlightsCondition: formData.securityEquipment?.[1]?.priority || 'Normal',
+        securityFlashlightsComments: formData.securityEquipment?.[1]?.comments || null,
+        
+        securityMetalDetectorStatus: formData.securityEquipment?.[2]?.status || null,
+        securityMetalDetectorCondition: formData.securityEquipment?.[2]?.priority || 'Normal',
+        securityMetalDetectorComments: formData.securityEquipment?.[2]?.comments || null,
+        
+        securityBigSetKeysStatus: formData.securityEquipment?.[3]?.status || null,
+        securityBigSetKeysCondition: formData.securityEquipment?.[3]?.priority || 'Normal',
+        securityBigSetKeysComments: formData.securityEquipment?.[3]?.comments || null,
+        
+        securityFirstAidKitsStatus: formData.securityEquipment?.[4]?.status || null,
+        securityFirstAidKitsCondition: formData.securityEquipment?.[4]?.priority || 'Normal',
+        securityFirstAidKitsComments: formData.securityEquipment?.[4]?.comments || null,
+        
+        securityDeskComputerStatus: formData.securityEquipment?.[5]?.status || null,
+        securityDeskComputerCondition: formData.securityEquipment?.[5]?.priority || 'Normal',
+        securityDeskComputerComments: formData.securityEquipment?.[5]?.comments || null,
+        
+        // Hardware/Searches
+        hardwareSecureYesNo: formData.hardwareSecure?.value === true ? 'Yes' : formData.hardwareSecure?.value === false ? 'No' : null,
+        hardwareSecureComments: formData.hardwareSecure?.comments || null,
+        
+        searchesCompletedYesNo: formData.searchesCompleted?.value === true ? 'Yes' : formData.searchesCompleted?.value === false ? 'No' : null,
+        
+        fireDrillsCompletedYesNo: formData.fireDrillsCompleted?.value === true ? 'Yes' : formData.fireDrillsCompleted?.value === false ? 'No' : null,
+        fireDrillsCompletedComments: formData.fireDrillsCompleted?.comments || null,
+        
+        emergencyLightingYesNo: formData.emergencyLighting?.value === true ? 'Yes' : formData.emergencyLighting?.value === false ? 'No' : null,
+        emergencyLightingComments: formData.emergencyLighting?.comments || null,
+        
+        // Notifications
+        notificationsOppositeGenderYesNo: formData.notifications?.[0]?.value === true ? 'Yes' : formData.notifications?.[0]?.value === false ? 'No' : null,
+        notificationsOppositeGenderCondition: formData.notifications?.[0]?.priority || 'Normal',
+        notificationsOppositeGenderComments: formData.notifications?.[0]?.comments || null,
+        
+        // Admin Offices (2 items)
+        adminMeetingRoomsLockedStatus: formData.adminOffices?.[0]?.status || null,
+        adminMeetingRoomsLockedCondition: formData.adminOffices?.[0]?.priority || 'Normal',
+        adminMeetingRoomsLockedComments: formData.adminOffices?.[0]?.comments || null,
+        
+        adminDoorsSecureStatus: formData.adminOffices?.[1]?.status || null,
+        adminDoorsSecureCondition: formData.adminOffices?.[1]?.priority || 'Normal',
+        adminDoorsSecureComments: formData.adminOffices?.[1]?.comments || null,
+        
+        // Facility Infrastructure (7 items)
+        infraBackDoorStatus: formData.facilityInfrastructure?.[0]?.status || null,
+        infraBackDoorCondition: formData.facilityInfrastructure?.[0]?.priority || 'Normal',
+        infraBackDoorComments: formData.facilityInfrastructure?.[0]?.comments || null,
+        
+        infraEntranceExitDoorsStatus: formData.facilityInfrastructure?.[1]?.status || null,
+        infraEntranceExitDoorsCondition: formData.facilityInfrastructure?.[1]?.priority || 'Normal',
+        infraEntranceExitDoorsComments: formData.facilityInfrastructure?.[1]?.comments || null,
+        
+        infraSmokeDetectorsStatus: formData.facilityInfrastructure?.[2]?.status || null,
+        infraSmokeDetectorsCondition: formData.facilityInfrastructure?.[2]?.priority || 'Normal',
+        infraSmokeDetectorsComments: formData.facilityInfrastructure?.[2]?.comments || null,
+        
+        infraWindowsSecureStatus: formData.facilityInfrastructure?.[3]?.status || null,
+        infraWindowsSecureCondition: formData.facilityInfrastructure?.[3]?.priority || 'Normal',
+        infraWindowsSecureComments: formData.facilityInfrastructure?.[3]?.comments || null,
+        
+        infraLaundryAreaStatus: formData.facilityInfrastructure?.[4]?.status || null,
+        infraLaundryAreaCondition: formData.facilityInfrastructure?.[4]?.priority || 'Normal',
+        infraLaundryAreaComments: formData.facilityInfrastructure?.[4]?.comments || null,
+        
+        infraFireExtinguishersStatus: formData.facilityInfrastructure?.[5]?.status || null,
+        infraFireExtinguishersCondition: formData.facilityInfrastructure?.[5]?.priority || 'Normal',
+        infraFireExtinguishersComments: formData.facilityInfrastructure?.[5]?.comments || null,
+        
+        infraFireAlarmStatus: formData.facilityInfrastructure?.[6]?.status || null,
+        infraFireAlarmCondition: formData.facilityInfrastructure?.[6]?.priority || 'Normal',
+        infraFireAlarmComments: formData.facilityInfrastructure?.[6]?.comments || null,
+        
+        // Staff Chores (4 items)
+        choreWorkspaceCleanStatus: formData.staffChores?.[0]?.status || null,
+        choreWorkspaceCleanComments: formData.staffChores?.[0]?.comments || null,
+        
+        choreStaffBathroomStatus: formData.staffChores?.[1]?.status || null,
+        choreStaffBathroomComments: formData.staffChores?.[1]?.comments || null,
+        
+        choreDayroomCleanStatus: formData.staffChores?.[2]?.status || null,
+        choreDayroomCleanComments: formData.staffChores?.[2]?.comments || null,
+        
+        choreLaundryRoomCleanStatus: formData.staffChores?.[3]?.status || null,
+        choreLaundryRoomCleanComments: formData.staffChores?.[3]?.comments || null,
+        
+        // Room searches as array
+        roomSearches: formData.roomSearches?.map((rs: any) => ({
+          room_number: rs.room,
+          search_comments: rs.comments
+        })) || [],
+        
+        // Additional comments
+        additionalComments: comments || null,
       };
+      
       const url = editingId ? `/api/programs/${programId}/ucr/reports/${editingId}` : `/api/programs/${programId}/ucr/reports`;
       const method = editingId ? 'PATCH' : 'POST';
       const r = await fetch(url, { method, credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
@@ -641,16 +741,16 @@ export default function UCRPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ucrReports.map((r) => {
+                      {ucrReports.map((r: any) => {
                         const isToday = r.reportDate ? new Date(r.reportDate).toISOString().slice(0,10) === new Date().toISOString().slice(0,10) : false;
                         return (
                           <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
                             <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
-                            <td className="p-3 text-font-detail">{r.shift || ''}</td>
-                            <td className="p-3 font-medium text-font-base">{r.issuesSummary || ''}</td>
-                            <td className="p-3 text-font-detail">{r.reporterName || ''}</td>
+                            <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
+                            <td className="p-3 font-medium text-font-base">{r.issuesSummary || 'No issues reported'}</td>
+                            <td className="p-3 text-font-detail">{r.staffId || ''}</td>
                             <td className="p-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.status || '')}`}>{r.status || ''}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.computedSeverity || 'Normal')}`}>{r.computedSeverity || 'Normal'}</span>
                             </td>
                             <td className="p-3 flex items-center gap-3">
                               <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View</button>
