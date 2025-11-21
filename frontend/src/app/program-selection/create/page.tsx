@@ -30,6 +30,14 @@ export default function CreateProgramPage() {
   const [regionalAdmins, setRegionalAdmins] = useState<Array<{ email: string; name?: string }>>([]);
   const [directorEmail, setDirectorEmail] = useState<string>('');
   const [assistantEmail, setAssistantEmail] = useState<string>('');
+  // Director name fields
+  const [region, setRegion] = useState<string>('');
+  const [regionalAdminFirstName, setRegionalAdminFirstName] = useState<string>('');
+  const [regionalAdminLastName, setRegionalAdminLastName] = useState<string>('');
+  const [programDirectorFirstName, setProgramDirectorFirstName] = useState<string>('');
+  const [programDirectorLastName, setProgramDirectorLastName] = useState<string>('');
+  const [assistantDirectorFirstName, setAssistantDirectorFirstName] = useState<string>('');
+  const [assistantDirectorLastName, setAssistantDirectorLastName] = useState<string>('');
 
   // Address autocomplete (MA only) using Mapbox if token provided
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string | undefined;
@@ -92,6 +100,14 @@ export default function CreateProgramPage() {
             setOperatingHoursSelected(data.operatingHours || '');
             const est = (data && data.expectedOpeningDate) ? 'date' : ((data && (data.status || '').toLowerCase() === 'active') ? 'active' : 'coming-soon');
             setOpeningState(est);
+            // Load director name fields
+            setRegion(data.region || '');
+            setRegionalAdminFirstName(data.regionalAdminFirstName || '');
+            setRegionalAdminLastName(data.regionalAdminLastName || '');
+            setProgramDirectorFirstName(data.programDirectorFirstName || '');
+            setProgramDirectorLastName(data.programDirectorLastName || '');
+            setAssistantDirectorFirstName(data.assistantDirectorFirstName || '');
+            setAssistantDirectorLastName(data.assistantDirectorLastName || '');
           }
         }
         const a = await fetch(`/api/programs/${editingId}/assignments`, { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -151,6 +167,14 @@ export default function CreateProgramPage() {
       expectedOpeningDate: opening === 'date' ? String(fd.get('expectedOpeningDate') || '') : '',
       gender: String(fd.get('gender') || ''),
       active: String(fd.get('status') || '').toLowerCase() !== 'inactive',
+      // Director names and region
+      region: region || null,
+      regionalAdminFirstName: regionalAdminFirstName || null,
+      regionalAdminLastName: regionalAdminLastName || null,
+      programDirectorFirstName: programDirectorFirstName || null,
+      programDirectorLastName: programDirectorLastName || null,
+      assistantDirectorFirstName: assistantDirectorFirstName || null,
+      assistantDirectorLastName: assistantDirectorLastName || null,
     };
     try {
       const token = localStorage.getItem('token') || '';
@@ -431,14 +455,62 @@ export default function CreateProgramPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Program Director Email *</label>
-                  <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="director@example.gov" value={directorEmail} onChange={(e)=>setDirectorEmail(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Assistant Director Email</label>
-                  <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="assistant@example.gov" value={assistantEmail} onChange={(e)=>setAssistantEmail(e.target.value)} />
+                  <label className="block text-sm font-medium text-font-base mb-2">Region</label>
+                  <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Western MA" value={region} onChange={(e)=>setRegion(e.target.value)} />
                 </div>
               </div>
+              <div className="border-t border-bd pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-font-base mb-3">Regional Administrator</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">First Name</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={regionalAdminFirstName} onChange={(e)=>setRegionalAdminFirstName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Last Name</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={regionalAdminLastName} onChange={(e)=>setRegionalAdminLastName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Email</label>
+                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="email@example.gov" value={regionalAdmins[0]?.email || ''} onChange={(e)=>{const v = e.target.value; setRegionalAdmins(v ? [{email: v}] : []);}} />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-bd pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-font-base mb-3">Program Director</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">First Name *</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={programDirectorFirstName} onChange={(e)=>setProgramDirectorFirstName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Last Name *</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={programDirectorLastName} onChange={(e)=>setProgramDirectorLastName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Email *</label>
+                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="director@example.gov" value={directorEmail} onChange={(e)=>setDirectorEmail(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-bd pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-font-base mb-3">Assistant Director</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">First Name</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={assistantDirectorFirstName} onChange={(e)=>setAssistantDirectorFirstName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Last Name</label>
+                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={assistantDirectorLastName} onChange={(e)=>setAssistantDirectorLastName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Email</label>
+                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="assistant@example.gov" value={assistantEmail} onChange={(e)=>setAssistantEmail(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            </div>
               {(directorEmail || assistantEmail) && (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
