@@ -191,8 +191,8 @@ public class ProgramUcrReport {
     @Column(name = "chore_laundry_room_clean_comments", columnDefinition = "TEXT")
     private String choreLaundryRoomCleanComments;
 
-    // Room searches as JSONB array
-    @Column(name = "room_searches", columnDefinition = "jsonb")
+    // Room searches as JSONB array (stored as TEXT to avoid Hibernate bytea issues)
+    @Column(name = "room_searches")
     private String roomSearches;
 
     // Additional comments
