@@ -511,36 +511,6 @@ export default function CreateProgramPage() {
                 </div>
               </div>
             </div>
-              {(directorEmail || assistantEmail) && (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-font-detail">
-                        <th className="py-2 pr-4">Email</th>
-                        <th className="py-2 pr-4">Role</th>
-                        <th className="py-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {directorEmail && (
-                        <tr className="border-t border-bd">
-                          <td className="py-2 pr-4">{directorEmail}</td>
-                          <td className="py-2 pr-4">Program Director</td>
-                          <td className="py-2"><button type="button" className="text-error" onClick={() => setDirectorEmail('')}>Remove</button></td>
-                        </tr>
-                      )}
-                      {assistantEmail && (
-                        <tr className="border-t border-bd">
-                          <td className="py-2 pr-4">{assistantEmail}</td>
-                          <td className="py-2 pr-4">Assistant Director</td>
-                          <td className="py-2"><button type="button" className="text-error" onClick={() => setAssistantEmail('')}>Remove</button></td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Operational Details */}
