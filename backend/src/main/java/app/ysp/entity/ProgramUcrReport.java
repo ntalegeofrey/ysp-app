@@ -3,6 +3,8 @@ package app.ysp.entity;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Entity
 @Table(name = "program_ucr_reports")
@@ -206,6 +208,64 @@ public class ProgramUcrReport {
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Compute the severity/status of this UCR report based on all condition/priority fields.
+     * Returns: "Critical", "High", "Medium", or "Normal"
+     */
+    @Transient
+    public String getComputedSeverity() {
+        List<String> allConditions = Arrays.asList(
+            securityRadiosCondition, securityFlashlightsCondition, securityMetalDetectorCondition,
+            securityBigSetKeysCondition, securityFirstAidKitsCondition, securityDeskComputerCondition,
+            notificationsOppositeGenderCondition,
+            adminMeetingRoomsLockedCondition, adminDoorsSecureCondition,
+            infraBackDoorCondition, infraEntranceExitDoorsCondition, infraSmokeDetectorsCondition,
+            infraWindowsSecureCondition, infraLaundryAreaCondition, infraFireExtinguishersCondition,
+            infraFireAlarmCondition
+        );
+        
+        for (String c : allConditions) {
+            if (c != null && c.toLowerCase().contains("critical")) return "Critical";
+        }
+        for (String c : allConditions) {
+            if (c != null && c.toLowerCase().contains("high")) return "High";
+        }
+        for (String c : allConditions) {
+            if (c != null && c.toLowerCase().contains("medium")) return "Medium";
+        }
+        return "Normal";
+    }
+
+    /**
+     * Generate a brief summary of issues for display in tables/lists
+     */
+    @Transient
+    public String getIssuesSummary() {
+        StringBuilder summary = new StringBuilder();
+        int issueCount = 0;
+        
+        if (securityRadiosCondition != null && !securityRadiosCondition.equalsIgnoreCase("normal")) {
+            summary.append("Radios: ").append(securityRadiosCondition).append("; ");
+            issueCount++;
+        }
+        if (securityFlashlightsCondition != null && !securityFlashlightsCondition.equalsIgnoreCase("normal")) {
+            summary.append("Flashlights: ").append(securityFlashlightsCondition).append("; ");
+            issueCount++;
+        }
+        if (infraFireAlarmCondition != null && !infraFireAlarmCondition.equalsIgnoreCase("normal")) {
+            summary.append("Fire Alarm: ").append(infraFireAlarmCondition).append("; ");
+            issueCount++;
+        }
+        
+        if (summary.length() > 0) {
+            return summary.toString().trim();
+        }
+        
+        return additionalComments != null && !additionalComments.isBlank() 
+            ? additionalComments.substring(0, Math.min(100, additionalComments.length())) + "..."
+            : "No issues reported";
     }
 
     // Getters and Setters

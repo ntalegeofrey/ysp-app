@@ -53,7 +53,6 @@ public class ProgramUcrController {
             @PathVariable("id") Long programId,
             @RequestParam(value = "q", required = false) String q,
             @RequestParam(value = "date", required = false) String dateStr,
-            @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", required = false, defaultValue = "0") int page,
             @RequestParam(value = "size", required = false, defaultValue = "5") int size
     ) {
@@ -63,7 +62,7 @@ public class ProgramUcrController {
             try { date = LocalDate.parse(dateStr); } catch (Exception ignored) {}
         }
         var pageable = PageRequest.of(Math.max(page,0), Math.max(size,1));
-        var p = ucrs.findByFilters(programId, (q==null||q.isBlank())? null : q, date, (status==null||status.equalsIgnoreCase("All Status")||status.isBlank())? null : status, pageable);
+        var p = ucrs.findByFilters(programId, (q==null||q.isBlank())? null : q, date, pageable);
         Map<String,Object> out = new HashMap<>();
         out.put("content", p.getContent());
         out.put("totalElements", p.getTotalElements());
@@ -78,6 +77,97 @@ public class ProgramUcrController {
         var r = ucrs.findOneByIdAndProgram(reportId, id);
         if (r == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(r);
+    }
+
+    // Helper method to map body fields to entity
+    private void mapFieldsToReport(ProgramUcrReport r, Map<String, Object> body) {
+        // Security Equipment
+        r.setSecurityRadiosStatus(getString(body, "securityRadiosStatus"));
+        r.setSecurityRadiosCondition(getString(body, "securityRadiosCondition"));
+        r.setSecurityRadiosComments(getString(body, "securityRadiosComments"));
+        r.setSecurityFlashlightsStatus(getString(body, "securityFlashlightsStatus"));
+        r.setSecurityFlashlightsCondition(getString(body, "securityFlashlightsCondition"));
+        r.setSecurityFlashlightsComments(getString(body, "securityFlashlightsComments"));
+        r.setSecurityMetalDetectorStatus(getString(body, "securityMetalDetectorStatus"));
+        r.setSecurityMetalDetectorCondition(getString(body, "securityMetalDetectorCondition"));
+        r.setSecurityMetalDetectorComments(getString(body, "securityMetalDetectorComments"));
+        r.setSecurityBigSetKeysStatus(getString(body, "securityBigSetKeysStatus"));
+        r.setSecurityBigSetKeysCondition(getString(body, "securityBigSetKeysCondition"));
+        r.setSecurityBigSetKeysComments(getString(body, "securityBigSetKeysComments"));
+        r.setSecurityFirstAidKitsStatus(getString(body, "securityFirstAidKitsStatus"));
+        r.setSecurityFirstAidKitsCondition(getString(body, "securityFirstAidKitsCondition"));
+        r.setSecurityFirstAidKitsComments(getString(body, "securityFirstAidKitsComments"));
+        r.setSecurityDeskComputerStatus(getString(body, "securityDeskComputerStatus"));
+        r.setSecurityDeskComputerCondition(getString(body, "securityDeskComputerCondition"));
+        r.setSecurityDeskComputerComments(getString(body, "securityDeskComputerComments"));
+        
+        // Hardware/Searches
+        r.setHardwareSecureYesNo(getString(body, "hardwareSecureYesNo"));
+        r.setHardwareSecureComments(getString(body, "hardwareSecureComments"));
+        r.setSearchesCompletedYesNo(getString(body, "searchesCompletedYesNo"));
+        r.setFireDrillsCompletedYesNo(getString(body, "fireDrillsCompletedYesNo"));
+        r.setFireDrillsCompletedComments(getString(body, "fireDrillsCompletedComments"));
+        r.setEmergencyLightingYesNo(getString(body, "emergencyLightingYesNo"));
+        r.setEmergencyLightingComments(getString(body, "emergencyLightingComments"));
+        
+        // Notifications
+        r.setNotificationsOppositeGenderYesNo(getString(body, "notificationsOppositeGenderYesNo"));
+        r.setNotificationsOppositeGenderCondition(getString(body, "notificationsOppositeGenderCondition"));
+        r.setNotificationsOppositeGenderComments(getString(body, "notificationsOppositeGenderComments"));
+        
+        // Admin Offices
+        r.setAdminMeetingRoomsLockedStatus(getString(body, "adminMeetingRoomsLockedStatus"));
+        r.setAdminMeetingRoomsLockedCondition(getString(body, "adminMeetingRoomsLockedCondition"));
+        r.setAdminMeetingRoomsLockedComments(getString(body, "adminMeetingRoomsLockedComments"));
+        r.setAdminDoorsSecureStatus(getString(body, "adminDoorsSecureStatus"));
+        r.setAdminDoorsSecureCondition(getString(body, "adminDoorsSecureCondition"));
+        r.setAdminDoorsSecureComments(getString(body, "adminDoorsSecureComments"));
+        
+        // Infrastructure
+        r.setInfraBackDoorStatus(getString(body, "infraBackDoorStatus"));
+        r.setInfraBackDoorCondition(getString(body, "infraBackDoorCondition"));
+        r.setInfraBackDoorComments(getString(body, "infraBackDoorComments"));
+        r.setInfraEntranceExitDoorsStatus(getString(body, "infraEntranceExitDoorsStatus"));
+        r.setInfraEntranceExitDoorsCondition(getString(body, "infraEntranceExitDoorsCondition"));
+        r.setInfraEntranceExitDoorsComments(getString(body, "infraEntranceExitDoorsComments"));
+        r.setInfraSmokeDetectorsStatus(getString(body, "infraSmokeDetectorsStatus"));
+        r.setInfraSmokeDetectorsCondition(getString(body, "infraSmokeDetectorsCondition"));
+        r.setInfraSmokeDetectorsComments(getString(body, "infraSmokeDetectorsComments"));
+        r.setInfraWindowsSecureStatus(getString(body, "infraWindowsSecureStatus"));
+        r.setInfraWindowsSecureCondition(getString(body, "infraWindowsSecureCondition"));
+        r.setInfraWindowsSecureComments(getString(body, "infraWindowsSecureComments"));
+        r.setInfraLaundryAreaStatus(getString(body, "infraLaundryAreaStatus"));
+        r.setInfraLaundryAreaCondition(getString(body, "infraLaundryAreaCondition"));
+        r.setInfraLaundryAreaComments(getString(body, "infraLaundryAreaComments"));
+        r.setInfraFireExtinguishersStatus(getString(body, "infraFireExtinguishersStatus"));
+        r.setInfraFireExtinguishersCondition(getString(body, "infraFireExtinguishersCondition"));
+        r.setInfraFireExtinguishersComments(getString(body, "infraFireExtinguishersComments"));
+        r.setInfraFireAlarmStatus(getString(body, "infraFireAlarmStatus"));
+        r.setInfraFireAlarmCondition(getString(body, "infraFireAlarmCondition"));
+        r.setInfraFireAlarmComments(getString(body, "infraFireAlarmComments"));
+        
+        // Chore Workspace
+        r.setChoreWorkspaceCleanStatus(getString(body, "choreWorkspaceCleanStatus"));
+        r.setChoreWorkspaceCleanComments(getString(body, "choreWorkspaceCleanComments"));
+        r.setChoreStaffBathroomStatus(getString(body, "choreStaffBathroomStatus"));
+        r.setChoreStaffBathroomComments(getString(body, "choreStaffBathroomComments"));
+        r.setChoreDayroomCleanStatus(getString(body, "choreDayroomCleanStatus"));
+        r.setChoreDayroomCleanComments(getString(body, "choreDayroomCleanComments"));
+        r.setChoreLaundryRoomCleanStatus(getString(body, "choreLaundryRoomCleanStatus"));
+        r.setChoreLaundryRoomCleanComments(getString(body, "choreLaundryRoomCleanComments"));
+        
+        // Room searches and comments
+        if (body.containsKey("roomSearches")) {
+            try {
+                r.setRoomSearches(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(body.get("roomSearches")));
+            } catch (Exception ignored) {}
+        }
+        r.setAdditionalComments(getString(body, "additionalComments"));
+    }
+    
+    private String getString(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        return val != null ? val.toString() : null;
     }
 
     @PostMapping("/reports")
@@ -97,12 +187,12 @@ public class ProgramUcrController {
             date = LocalDate.now();
         }
         r.setReportDate(date);
-        String shift = Objects.toString(body.get("shift"), null);
-        r.setShift(shift);
+        String shiftTime = getString(body, "shiftTime");
+        r.setShiftTime(shiftTime);
 
         // Enforce one UCR per program/date/shift
-        if (shift != null && !shift.isBlank()) {
-            ProgramUcrReport existing = ucrs.findFirstByProgram_IdAndReportDateAndShift(id, date, shift);
+        if (shiftTime != null && !shiftTime.isBlank()) {
+            ProgramUcrReport existing = ucrs.findFirstByProgram_IdAndReportDateAndShiftTime(id, date, shiftTime);
             if (existing != null) {
                 Map<String, Object> err = new HashMap<>();
                 err.put("message", "UCR report already exists for this date and shift. Please edit the existing report.");
@@ -110,17 +200,9 @@ public class ProgramUcrController {
                 return ResponseEntity.status(409).body(err);
             }
         }
-        // Prefer reporterName from authenticated user if available
-        String reporter = Objects.toString(body.get("reporterName"), null);
-        if ((reporter == null || reporter.isBlank()) && auth != null && auth.getName() != null) {
-            reporter = users.findByEmail(auth.getName()).map(u -> {
-                String fn = u.getFullName();
-                return (fn != null && !fn.isBlank()) ? fn : u.getEmail();
-            }).orElse(auth.getName());
-        }
-        r.setReporterName(reporter);
-        r.setStatus(Objects.toString(body.get("status"), null));
-        r.setIssuesSummary(Objects.toString(body.get("issuesSummary"), null));
+
+        // Map all fields from body to report
+        mapFieldsToReport(r, body);
 
         ProgramUcrReport saved = ucrs.save(r);
         try { sseHub.broadcast(Map.of("type","programs.ucr.created","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
@@ -147,10 +229,10 @@ public class ProgramUcrController {
         if (body.containsKey("reportDate")) {
             try { r.setReportDate(LocalDate.parse(Objects.toString(body.get("reportDate"), null))); } catch (Exception ignored) {}
         }
-        if (body.containsKey("shift")) r.setShift(Objects.toString(body.get("shift"), null));
-        if (body.containsKey("reporterName")) r.setReporterName(Objects.toString(body.get("reporterName"), null));
-        if (body.containsKey("status")) r.setStatus(Objects.toString(body.get("status"), null));
-        if (body.containsKey("issuesSummary")) r.setIssuesSummary(Objects.toString(body.get("issuesSummary"), null));
+        if (body.containsKey("shiftTime")) r.setShiftTime(getString(body, "shiftTime"));
+
+        // Map all fields from body to report
+        mapFieldsToReport(r, body);
 
         ProgramUcrReport saved = ucrs.save(r);
         try { sseHub.broadcast(Map.of("type","programs.ucr.updated","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
@@ -166,7 +248,7 @@ public class ProgramUcrController {
         Map<String, Object> out = new HashMap<>();
         out.put("total", ucrs.countByProgramId(programId));
         out.put("critical", ucrs.countCritical(programId));
-        out.put("pending", ucrs.countPending(programId));
+        out.put("high", ucrs.countHigh(programId));
         out.put("monthCount", ucrs.countInRange(programId, start, end));
         return ResponseEntity.ok(out);
     }
