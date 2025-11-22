@@ -539,8 +539,8 @@ export default function UCRPage() {
   // View modal
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
-  // Helper to extract the actual critical/high issue label from condition fields
-  const getIssueLabel = (report: any): string => {
+  // Helper to extract ALL individual issues from a report
+  const getAllIssues = (report: any): Array<{label: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> => {
     const fields = [
       { condition: report.securityRadiosCondition, comment: report.securityRadiosComments, label: 'Security Radios' },
       { condition: report.securityFlashlightsCondition, comment: report.securityFlashlightsComments, label: 'Security Flashlights' },
@@ -559,21 +559,26 @@ export default function UCRPage() {
       { condition: report.infraFireAlarmCondition, comment: report.infraFireAlarmComments, label: 'Fire Alarm' },
     ];
     
-    // Find first Critical issue
-    for (const field of fields) {
-      if (field.condition?.includes('Critical')) {
-        return field.comment || `${field.label} - Critical`;
+    const issues: Array<{label: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> = [];
+    fields.forEach(f => {
+      if (f.condition && (f.condition.includes('Critical') || f.condition.includes('High') || f.condition.includes('Medium'))) {
+        issues.push({
+          label: f.label,
+          condition: f.condition,
+          comment: f.comment || 'No comment provided',
+          reportId: report.id,
+          reportDate: report.reportDate,
+          shiftTime: report.shiftTime
+        });
       }
-    }
-    
-    // Find first High issue
-    for (const field of fields) {
-      if (field.condition?.includes('High')) {
-        return field.comment || `${field.label} - High Priority`;
-      }
-    }
-    
-    return report.issuesSummary || 'UCR Issue';
+    });
+    return issues;
+  };
+  
+  // Helper to get first issue label for table display
+  const getIssueLabel = (report: any): string => {
+    const issues = getAllIssues(report);
+    return issues.length > 0 ? (issues[0].comment || `${issues[0].label} - ${issues[0].condition}`) : 'No issues reported';
   };
 
   const onView = async (id: string|number, asEdit?: boolean) => {
@@ -686,7 +691,7 @@ export default function UCRPage() {
             </div>
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
-                <p className="text-sm text-font-detail">Critical Issues</p>
+                <p className="text-sm text-font-detail">Issues</p>
                 <p className="text-3xl font-bold text-error">{stats.critical}</p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
@@ -725,52 +730,63 @@ export default function UCRPage() {
                   {openIssues.length === 0 && (
                     <div className="text-sm text-font-detail italic">No persisting issues at this time.</div>
                   )}
-                  {openIssues.map((issue: any) => {
-                    const severity = (issue.computedSeverity || '').toLowerCase();
-                    const borderClass =
-                      severity === 'critical'
-                        ? 'border-error bg-error-lightest'
-                        : severity === 'high'
-                        ? 'border-warning bg-highlight-lightest'
-                        : 'border-yellow-400 bg-yellow-50';
-                    const badgeClass =
-                      severity === 'critical'
-                        ? 'bg-error text-white'
-                        : severity === 'high'
-                        ? 'bg-warning text-font-base'
-                        : 'bg-yellow-400 text-font-base';
-                    const label = getIssueLabel(issue).slice(0, 140);
-                    const dateStr = issue.reportDate ? new Date(issue.reportDate).toLocaleDateString() : '';
-                    return (
-                      <div key={String(issue.id)} className={`border-l-4 ${borderClass} p-4 rounded-r-lg`}>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <span className={`${badgeClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>{(issue.computedSeverity || 'Normal').toUpperCase()}</span>
-                              <h4 className="font-semibold text-font-base truncate max-w-md">{label}</h4>
+                  {(() => {
+                    // Extract ALL individual issues from all reports
+                    const allIndividualIssues: Array<any> = [];
+                    openIssues.forEach((report: any) => {
+                      const reportIssues = getAllIssues(report);
+                      reportIssues.forEach(issue => {
+                        allIndividualIssues.push(issue);
+                      });
+                    });
+                    
+                    return allIndividualIssues.map((issue, idx) => {
+                      const severity = issue.condition.toLowerCase();
+                      const borderClass =
+                        severity.includes('critical')
+                          ? 'border-error bg-error-lightest'
+                          : severity.includes('high')
+                          ? 'border-warning bg-highlight-lightest'
+                          : 'border-yellow-400 bg-yellow-50';
+                      const badgeClass =
+                        severity.includes('critical')
+                          ? 'bg-error text-white'
+                          : severity.includes('high')
+                          ? 'bg-warning text-font-base'
+                          : 'bg-yellow-400 text-font-base';
+                      const dateStr = issue.reportDate ? new Date(issue.reportDate).toLocaleDateString() : '';
+                      return (
+                        <div key={`${issue.reportId}-${idx}`} className={`border-l-4 ${borderClass} p-4 rounded-r-lg`}>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <span className={`${badgeClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>{issue.condition.toUpperCase()}</span>
+                                <h4 className="font-semibold text-font-base">{issue.label}</h4>
+                              </div>
+                              <p className="text-xs text-font-medium mb-1">{issue.comment}</p>
+                              <p className="text-xs text-font-detail">
+                                Reported: {dateStr} ({issue.shiftTime || 'N/A'})
+                              </p>
                             </div>
-                            <p className="text-xs text-font-medium">
-                              Reported: {dateStr} ({issue.shiftTime || 'N/A'})
-                            </p>
-                          </div>
-                          <div className="flex space-x-2 ml-4">
-                            <button
-                              onClick={() => onView(issue.id)}
-                              className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
-                            >
-                              <i className="fa-solid fa-eye mr-1"></i>View
-                            </button>
-                            <button
-                              onClick={() => resolveIssue(issue.id)}
-                              className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
-                            >
-                              <i className="fa-solid fa-check mr-1"></i>Resolved
-                            </button>
+                            <div className="flex space-x-2 ml-4">
+                              <button
+                                onClick={() => onView(issue.reportId)}
+                                className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
+                              >
+                                <i className="fa-solid fa-eye mr-1"></i>View
+                              </button>
+                              <button
+                                onClick={() => resolveIssue(issue.reportId)}
+                                className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
+                              >
+                                <i className="fa-solid fa-check mr-1"></i>Resolved
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
@@ -781,8 +797,8 @@ export default function UCRPage() {
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">UCR Reports Archive</h3>
                   <div className="flex items-center gap-4 mt-3">
-                    <input value={q} onChange={(e)=> setQ(e.target.value)} onKeyDown={(e)=> { if (e.key==='Enter') loadReports(true); }} type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <input value={filterDate} onChange={(e)=> { setFilterDate(e.target.value); setPageIdx(0); }} onBlur={()=> loadReports(true)} type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input value={q} onChange={(e)=> { setQ(e.target.value); setPageIdx(0); loadReports(true); }} type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input value={filterDate} onChange={(e)=> { setFilterDate(e.target.value); setPageIdx(0); loadReports(true); }} type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
                     <select value={filterStatus} onChange={(e)=> { setFilterStatus(e.target.value); setPageIdx(0); loadReports(true); }} className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                       <option>All Status</option>
                       <option>Normal</option>
@@ -790,7 +806,6 @@ export default function UCRPage() {
                       <option>High</option>
                       <option>Medium</option>
                     </select>
-                    <button onClick={() => loadReports(true)} className="px-3 py-2 text-sm bg-primary text-white rounded hover:bg-primary-light">Search</button>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -1348,113 +1363,66 @@ export default function UCRPage() {
           </div>
         </div>
       )}
-    {/* View Report Modal */}
-    {viewOpen && (
+    {/* View Report Modal - Simple Issues List */}
+    {viewOpen && viewData && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
           <div className="p-4 border-b border-bd flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-font-base">UCR Report</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-font-base">UCR Report Issues</h3>
+              <p className="text-xs text-font-detail mt-1">{viewData.reportDate ? new Date(viewData.reportDate).toLocaleDateString() : ''} - {viewData.shiftTime || ''}</p>
+            </div>
             <div className="flex items-center gap-2">
               <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-3 py-1.5 rounded-md text-sm"><i className="fa-solid fa-print mr-1"></i>Print</button>
               <button onClick={() => setViewOpen(false)} className="text-font-detail hover:text-font-base"><i className="fa-solid fa-times"></i></button>
             </div>
           </div>
-          <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div><span className="text-font-detail">Date</span><div className="font-medium">{viewData?.reportDate ? new Date(viewData.reportDate).toLocaleDateString() : ''}</div></div>
-              <div><span className="text-font-detail">Shift</span><div className="font-medium">{viewData?.shift || ''}</div></div>
-              <div><span className="text-font-detail">Reporter</span><div className="font-medium">{viewData?.reporterName || ''}</div></div>
-            </div>
-            <div>
-              <div className="text-font-detail text-sm mb-1">Key Issues</div>
-              <div className="text-sm">{viewData?.issuesSummary || '—'}</div>
-            </div>
-            <div>
-              <div className="text-font-detail text-sm mb-1">Form Data</div>
-              {viewData?.payload && Object.keys(viewData.payload).length > 0 ? (
-                <div className="space-y-3">
-                  {viewData.payload.securityEquipment && (
-                    <div>
-                      <div className="text-xs font-medium text-font-detail mb-1">Security Equipment</div>
-                      <div className="text-xs space-y-1">
-                        {['11 Radios', '2 Flashlights', 'Garrett metal detector', 'Big Set keys', 'First Aid kits', 'Desk Computer'].map((label, idx) => {
-                          const item = viewData.payload.securityEquipment[idx];
-                          return item && item.status ? (
-                            <div key={idx} className="flex justify-between">
-                              <span>{label}:</span>
-                              <span className={`px-2 py-0.5 rounded text-xs ${item.status === 'ok' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {item.status.toUpperCase()}
-                              </span>
-                            </div>
-                          ) : null;
-                        })}
+          <div className="p-6 overflow-y-auto flex-1">
+            <div className="space-y-2">
+              {(() => {
+                const issues: Array<{label: string, condition: string, comment: string}> = [];
+                const fields = [
+                  { condition: viewData.securityRadiosCondition, comment: viewData.securityRadiosComments, label: 'Security Radios' },
+                  { condition: viewData.securityFlashlightsCondition, comment: viewData.securityFlashlightsComments, label: 'Security Flashlights' },
+                  { condition: viewData.securityMetalDetectorCondition, comment: viewData.securityMetalDetectorComments, label: 'Metal Detector' },
+                  { condition: viewData.securityBigSetKeysCondition, comment: viewData.securityBigSetKeysComments, label: 'Security Keys' },
+                  { condition: viewData.securityFirstAidKitsCondition, comment: viewData.securityFirstAidKitsComments, label: 'First Aid Kits' },
+                  { condition: viewData.securityDeskComputerCondition, comment: viewData.securityDeskComputerComments, label: 'Desk Computer' },
+                  { condition: viewData.adminMeetingRoomsLockedCondition, comment: viewData.adminMeetingRoomsLockedComments, label: 'Meeting Rooms Locked' },
+                  { condition: viewData.adminDoorsSecureCondition, comment: viewData.adminDoorsSecureComments, label: 'Admin Doors Secure' },
+                  { condition: viewData.infraBackDoorCondition, comment: viewData.infraBackDoorComments, label: 'Back Door' },
+                  { condition: viewData.infraEntranceExitDoorsCondition, comment: viewData.infraEntranceExitDoorsComments, label: 'Entrance/Exit Doors' },
+                  { condition: viewData.infraSmokeDetectorsCondition, comment: viewData.infraSmokeDetectorsComments, label: 'Smoke Detectors' },
+                  { condition: viewData.infraWindowsSecureCondition, comment: viewData.infraWindowsSecureComments, label: 'Windows Secure' },
+                  { condition: viewData.infraLaundryAreaCondition, comment: viewData.infraLaundryAreaComments, label: 'Laundry Area' },
+                  { condition: viewData.infraFireExtinguishersCondition, comment: viewData.infraFireExtinguishersComments, label: 'Fire Extinguishers' },
+                  { condition: viewData.infraFireAlarmCondition, comment: viewData.infraFireAlarmComments, label: 'Fire Alarm' },
+                ];
+                fields.forEach(f => {
+                  if (f.condition && (f.condition.includes('Critical') || f.condition.includes('High') || f.condition.includes('Medium'))) {
+                    issues.push({ label: f.label, condition: f.condition, comment: f.comment || 'No comment provided' });
+                  }
+                });
+                return issues.length > 0 ? issues.map((issue, idx) => (
+                  <div key={idx} className={`p-4 rounded-lg border-l-4 ${issue.condition.includes('Critical') ? 'border-error bg-error-lightest' : issue.condition.includes('High') ? 'border-warning bg-warning-lightest' : 'border-yellow-500 bg-yellow-50'}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${issue.condition.includes('Critical') ? 'bg-error text-white' : issue.condition.includes('High') ? 'bg-warning text-white' : 'bg-yellow-500 text-white'}`}>{issue.condition.toUpperCase()}</span>
+                          <span className="font-semibold text-sm">{issue.label}</span>
+                        </div>
+                        <p className="text-sm text-font-detail">{issue.comment}</p>
                       </div>
                     </div>
-                  )}
-                  {viewData.payload.hardwareSecure?.value !== null && (
-                    <div>
-                      <div className="text-xs font-medium text-font-detail mb-1">Hardware Secure</div>
-                      <div className="text-xs">
-                        <span className={`px-2 py-0.5 rounded ${viewData.payload.hardwareSecure.value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {viewData.payload.hardwareSecure.value ? 'YES' : 'NO'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-xs font-medium text-font-detail mb-1">Raw JSON Data</div>
-                    <pre className="text-xs bg-bg-subtle p-3 rounded border border-bd overflow-x-auto">{JSON.stringify(viewData.payload, null, 2)}</pre>
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs text-font-detail">No form data available</div>
-              )}
+                )) : (
+                  <div className="text-center py-8 text-font-detail">
+                    <i className="fa-solid fa-circle-check text-success text-3xl mb-2"></i>
+                    <p>No issues reported - All items normal</p>
+                  </div>
+                );
+              })()}
             </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Duplicate UCR Modal */}
-    {showDuplicateModal && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
-              <i className="fa-solid fa-triangle-exclamation text-warning text-xl"></i>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-font-base">UCR Report Already Exists</h3>
-              <p className="text-sm text-font-detail">A report for this date and shift has already been submitted.</p>
-            </div>
-          </div>
-          <div className="bg-bg-subtle border border-bd rounded-lg p-4 mb-6">
-            <p className="text-sm text-font-base">
-              You cannot submit duplicate reports for the same date and shift. Would you like to edit the existing report instead?
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setShowDuplicateModal(false);
-                setDuplicateReportId(null);
-              }}
-              className="flex-1 px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                setShowDuplicateModal(false);
-                if (duplicateReportId) {
-                  onView(duplicateReportId, true);
-                }
-                setDuplicateReportId(null);
-              }}
-              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium"
-            >
-              Edit Report
-            </button>
           </div>
         </div>
       </div>
@@ -1462,3 +1430,5 @@ export default function UCRPage() {
     </div>
   );
 }
+
+export default UCRPage;
