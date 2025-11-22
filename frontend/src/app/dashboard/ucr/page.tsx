@@ -255,10 +255,11 @@ export default function UCRPage() {
   };
 
   const printReport = (report: any) => {
-    alert('Print function called!'); // Test if function is reached
+    console.log('=== PRINT FUNCTION START ===', report);
     try {
-      console.log('Print report called with:', report);
+      console.log('Opening print window...');
       const printWindow = window.open('', '_blank');
+      console.log('Print window object:', printWindow);
       if (!printWindow) {
         addToast('Please allow popups to print reports', 'error');
         return;
