@@ -51,6 +51,25 @@ export default function UCRPage() {
       setTotalElements(data.totalElements || 0);
       setTotalPages(data.totalElements? Math.ceil(data.totalElements / 5) : 0);
       if (reset) setPageIdx(0);
+      
+      // Load staff names for reporters
+      const staffIds = [...new Set((data.content || []).map((r: any) => r.staffId).filter(Boolean))];
+      if (staffIds.length > 0) {
+        try {
+          const staffRes = await fetch(`/api/users/by-ids?ids=${staffIds.join(',')}`, { 
+            credentials:'include', 
+            headers: { ...(token?{Authorization:`Bearer ${token}`}:{}) } 
+          });
+          if (staffRes.ok) {
+            const staffData = await staffRes.json();
+            const nameMap: Record<number, string> = {};
+            staffData.forEach((user: any) => {
+              nameMap[user.id] = user.fullName || user.email || `User ${user.id}`;
+            });
+            setStaffNames(prev => ({...prev, ...nameMap}));
+          }
+        } catch {}
+      }
     } catch (e) {
       console.error('loadReports error:', e);
     }
@@ -200,12 +219,15 @@ export default function UCRPage() {
 
   // Open issues summary (Critical/High/Medium)
   type OpenIssue = Ucr;
-  const [openIssues, setOpenIssues] = useState<OpenIssue[]>([]);
+  const [openIssues, setOpenIssues] = useState<any[]>([]);
+  const [persistingIssuesPage, setPersistingIssuesPage] = useState<number>(0);
+  const [persistingIssuesPerPage] = useState<number>(6);
+  const [staffNames, setStaffNames] = useState<Record<number, string>>({});
   const loadOpenIssues = async () => {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=10`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=${persistingIssuesPage}&size=${persistingIssuesPerPage}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
       console.log('loadOpenIssues response:', r);
       if (!r.ok) {
         console.error('Failed to load open issues:', r.status, r.statusText);
@@ -768,7 +790,15 @@ export default function UCRPage() {
                       });
                     });
                     
-                    return allIndividualIssues.map((issue, idx) => {
+                    // Paginate issues
+                    const startIdx = persistingIssuesPage * persistingIssuesPerPage;
+                    const endIdx = startIdx + persistingIssuesPerPage;
+                    const paginatedIssues = allIndividualIssues.slice(startIdx, endIdx);
+                    const totalPages = Math.ceil(allIndividualIssues.length / persistingIssuesPerPage);
+                    
+                    return (
+                      <>
+                        {paginatedIssues.map((issue, idx) => {
                       const severity = issue.condition.toLowerCase();
                       const borderClass =
                         severity.includes('critical')
@@ -826,8 +856,34 @@ export default function UCRPage() {
                             </div>
                           </div>
                         </div>
-                      );
-                    });
+                        );
+                        })}
+                        {allIndividualIssues.length > persistingIssuesPerPage && (
+                          <div className="flex justify-between items-center pt-4 border-t border-bd mt-4">
+                            <p className="text-sm text-font-detail">
+                              Showing {startIdx + 1}-{Math.min(endIdx, allIndividualIssues.length)} of {allIndividualIssues.length} issues
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                disabled={persistingIssuesPage === 0}
+                                onClick={() => setPersistingIssuesPage(p => Math.max(0, p - 1))}
+                                className={`px-3 py-1 text-sm rounded ${persistingIssuesPage === 0 ? 'bg-gray-200 text-gray-500' : 'bg-white border border-bd hover:bg-primary-lightest'}`}
+                              >
+                                <i className="fa-solid fa-chevron-left"></i>
+                              </button>
+                              <span className="px-3 py-1 text-sm">Page {persistingIssuesPage + 1} of {totalPages}</span>
+                              <button
+                                disabled={persistingIssuesPage >= totalPages - 1}
+                                onClick={() => setPersistingIssuesPage(p => Math.min(totalPages - 1, p + 1))}
+                                className={`px-3 py-1 text-sm rounded ${persistingIssuesPage >= totalPages - 1 ? 'bg-gray-200 text-gray-500' : 'bg-primary text-white hover:bg-primary-light'}`}
+                              >
+                                <i className="fa-solid fa-chevron-right"></i>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                 </div>
               </div>
@@ -875,7 +931,7 @@ export default function UCRPage() {
                             <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
                             <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
                             <td className="p-3 text-sm text-font-base">{summary}</td>
-                            <td className="p-3 text-font-detail">{r.staffId || '-'}</td>
+                            <td className="p-3 text-font-detail">{staffNames[r.staffId] || r.staffId || '-'}</td>
                             <td className="p-3">
                               <div className="flex flex-wrap gap-1">
                                 {issues.length === 0 ? (

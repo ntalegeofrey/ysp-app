@@ -53,6 +53,7 @@ public class ProgramUcrController {
             @PathVariable("id") Long programId,
             @RequestParam(value = "q", required = false) String q,
             @RequestParam(value = "date", required = false) String dateStr,
+            @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", required = false, defaultValue = "0") int page,
             @RequestParam(value = "size", required = false, defaultValue = "5") int size
     ) {
@@ -63,12 +64,97 @@ public class ProgramUcrController {
         }
         var pageable = PageRequest.of(Math.max(page,0), Math.max(size,1));
         var p = ucrs.findByFilters(programId, (q==null||q.isBlank())? null : q, date, pageable);
+        
+        // Apply status filter in Java if provided
+        java.util.List<ProgramUcrReport> filtered = p.getContent();
+        if (status != null && !status.isBlank() && !"All Status".equals(status)) {
+            filtered = filtered.stream()
+                .filter(r -> hasStatusMatch(r, status))
+                .collect(java.util.stream.Collectors.toList());
+        }
+        
         Map<String,Object> out = new HashMap<>();
-        out.put("content", p.getContent());
+        out.put("content", filtered);
         out.put("totalElements", p.getTotalElements());
         out.put("page", p.getNumber());
         out.put("size", p.getSize());
         return ResponseEntity.ok(out);
+    }
+    
+    private boolean hasStatusMatch(ProgramUcrReport r, String status) {
+        String s = status.toLowerCase();
+        if ("normal".equals(s)) {
+            // Check if report has no Critical/High/Medium issues
+            return !hasAnyIssues(r);
+        }
+        // Check if any field has the specified status
+        return checkFieldForStatus(r.getSecurityRadiosCondition(), s) ||
+               checkFieldForStatus(r.getSecurityFlashlightsCondition(), s) ||
+               checkFieldForStatus(r.getSecurityMetalDetectorCondition(), s) ||
+               checkFieldForStatus(r.getSecurityBigSetKeysCondition(), s) ||
+               checkFieldForStatus(r.getSecurityFirstAidKitsCondition(), s) ||
+               checkFieldForStatus(r.getSecurityDeskComputerCondition(), s) ||
+               checkFieldForStatus(r.getAdminMeetingRoomsLockedCondition(), s) ||
+               checkFieldForStatus(r.getAdminDoorsSecureCondition(), s) ||
+               checkFieldForStatus(r.getInfraBackDoorCondition(), s) ||
+               checkFieldForStatus(r.getInfraEntranceExitDoorsCondition(), s) ||
+               checkFieldForStatus(r.getInfraSmokeDetectorsCondition(), s) ||
+               checkFieldForStatus(r.getInfraWindowsSecureCondition(), s) ||
+               checkFieldForStatus(r.getInfraLaundryAreaCondition(), s) ||
+               checkFieldForStatus(r.getInfraFireExtinguishersCondition(), s) ||
+               checkFieldForStatus(r.getInfraFireAlarmCondition(), s);
+    }
+    
+    private boolean checkFieldForStatus(String field, String status) {
+        return field != null && field.toLowerCase().contains(status);
+    }
+    
+    private boolean hasAnyIssues(ProgramUcrReport r) {
+        return checkFieldForStatus(r.getSecurityRadiosCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityRadiosCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityRadiosCondition(), "medium") ||
+               checkFieldForStatus(r.getSecurityFlashlightsCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityFlashlightsCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityFlashlightsCondition(), "medium") ||
+               checkFieldForStatus(r.getSecurityMetalDetectorCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityMetalDetectorCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityMetalDetectorCondition(), "medium") ||
+               checkFieldForStatus(r.getSecurityBigSetKeysCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityBigSetKeysCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityBigSetKeysCondition(), "medium") ||
+               checkFieldForStatus(r.getSecurityFirstAidKitsCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityFirstAidKitsCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityFirstAidKitsCondition(), "medium") ||
+               checkFieldForStatus(r.getSecurityDeskComputerCondition(), "critical") ||
+               checkFieldForStatus(r.getSecurityDeskComputerCondition(), "high") ||
+               checkFieldForStatus(r.getSecurityDeskComputerCondition(), "medium") ||
+               checkFieldForStatus(r.getAdminMeetingRoomsLockedCondition(), "critical") ||
+               checkFieldForStatus(r.getAdminMeetingRoomsLockedCondition(), "high") ||
+               checkFieldForStatus(r.getAdminMeetingRoomsLockedCondition(), "medium") ||
+               checkFieldForStatus(r.getAdminDoorsSecureCondition(), "critical") ||
+               checkFieldForStatus(r.getAdminDoorsSecureCondition(), "high") ||
+               checkFieldForStatus(r.getAdminDoorsSecureCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraBackDoorCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraBackDoorCondition(), "high") ||
+               checkFieldForStatus(r.getInfraBackDoorCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraEntranceExitDoorsCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraEntranceExitDoorsCondition(), "high") ||
+               checkFieldForStatus(r.getInfraEntranceExitDoorsCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraSmokeDetectorsCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraSmokeDetectorsCondition(), "high") ||
+               checkFieldForStatus(r.getInfraSmokeDetectorsCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraWindowsSecureCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraWindowsSecureCondition(), "high") ||
+               checkFieldForStatus(r.getInfraWindowsSecureCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraLaundryAreaCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraLaundryAreaCondition(), "high") ||
+               checkFieldForStatus(r.getInfraLaundryAreaCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraFireExtinguishersCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraFireExtinguishersCondition(), "high") ||
+               checkFieldForStatus(r.getInfraFireExtinguishersCondition(), "medium") ||
+               checkFieldForStatus(r.getInfraFireAlarmCondition(), "critical") ||
+               checkFieldForStatus(r.getInfraFireAlarmCondition(), "high") ||
+               checkFieldForStatus(r.getInfraFireAlarmCondition(), "medium");
     }
 
     @GetMapping("/reports/{reportId}")
