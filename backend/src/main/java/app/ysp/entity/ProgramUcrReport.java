@@ -22,6 +22,9 @@ public class ProgramUcrReport {
     @Column(name = "staff_id")
     private Long staffId;
 
+    @Column(name = "staff_name")
+    private String staffName;
+
     @Column(name = "report_date", nullable = false)
     private LocalDate reportDate;
 
@@ -293,6 +296,9 @@ public class ProgramUcrReport {
 
     public Long getStaffId() { return staffId; }
     public void setStaffId(Long staffId) { this.staffId = staffId; }
+
+    public String getStaffName() { return staffName; }
+    public void setStaffName(String staffName) { this.staffName = staffName; }
 
     public LocalDate getReportDate() { return reportDate; }
     public void setReportDate(LocalDate reportDate) { this.reportDate = reportDate; }

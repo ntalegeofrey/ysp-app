@@ -273,6 +273,7 @@ public class ProgramUcrController {
                 r.setStaffId(Long.parseLong(staffIdObj.toString()));
             } catch (NumberFormatException ignored) {}
         }
+        r.setStaffName(getString(body, "staffName"));
         
         LocalDate date;
         try {
