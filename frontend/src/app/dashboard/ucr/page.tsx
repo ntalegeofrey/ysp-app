@@ -814,24 +814,38 @@ export default function UCRPage() {
                       <tr>
                         <th className="p-3 text-left font-medium text-font-base">Date</th>
                         <th className="p-3 text-left font-medium text-font-base">Shift</th>
-                        <th className="p-3 text-left font-medium text-font-base">Key Issues</th>
+                        <th className="p-3 text-left font-medium text-font-base">Summary</th>
                         <th className="p-3 text-left font-medium text-font-base">Reporter</th>
-                        <th className="p-3 text-left font-medium text-font-base">Status</th>
+                        <th className="p-3 text-left font-medium text-font-base">Issues</th>
                         <th className="p-3 text-left font-medium text-font-base">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ucrReports.map((r: any) => {
                         const isToday = r.reportDate ? new Date(r.reportDate).toISOString().slice(0,10) === new Date().toISOString().slice(0,10) : false;
-                        const issueLabel = getIssueLabel(r);
+                        const issues = getAllIssues(r);
+                        const hasCritical = issues.some(i => i.condition.includes('Critical'));
+                        const hasHigh = issues.some(i => i.condition.includes('High'));
+                        const hasMedium = issues.some(i => i.condition.includes('Medium'));
+                        const summary = issues.length > 0 ? `${issues.length} issue${issues.length > 1 ? 's' : ''} reported` : 'All items normal';
                         return (
                           <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
                             <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
                             <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
-                            <td className="p-3 font-medium text-font-base">{issueLabel.slice(0, 60)}</td>
+                            <td className="p-3 text-sm text-font-base">{summary}</td>
                             <td className="p-3 text-font-detail">{r.staffId || '-'}</td>
                             <td className="p-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.computedSeverity || 'Normal')}`}>{r.computedSeverity || 'Normal'}</span>
+                              <div className="flex flex-wrap gap-1">
+                                {issues.length === 0 ? (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-success-lightest text-success font-medium">Normal</span>
+                                ) : (
+                                  <>
+                                    {hasCritical && <span className="text-xs px-2 py-1 rounded-full bg-error text-white font-medium">Critical</span>}
+                                    {hasHigh && <span className="text-xs px-2 py-1 rounded-full bg-warning text-white font-medium">High</span>}
+                                    {hasMedium && <span className="text-xs px-2 py-1 rounded-full bg-yellow-500 text-white font-medium">Medium</span>}
+                                  </>
+                                )}
+                              </div>
                             </td>
                             <td className="p-3 flex items-center gap-3">
                               <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View</button>
@@ -1363,6 +1377,7 @@ export default function UCRPage() {
           </div>
         </div>
       )}
+      
     {/* View Report Modal - Simple Issues List */}
     {viewOpen && viewData && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -1370,7 +1385,20 @@ export default function UCRPage() {
           <div className="p-4 border-b border-bd flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-font-base">UCR Report Issues</h3>
-              <p className="text-xs text-font-detail mt-1">{viewData.reportDate ? new Date(viewData.reportDate).toLocaleDateString() : ''} - {viewData.shiftTime || ''}</p>
+              <div className="flex items-center gap-4 mt-2 text-xs text-font-detail">
+                <div className="flex items-center gap-1">
+                  <i className="fa-solid fa-calendar"></i>
+                  <span>{viewData.reportDate ? new Date(viewData.reportDate).toLocaleDateString() : ''}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <i className="fa-solid fa-clock"></i>
+                  <span>{viewData.shiftTime || ''}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <i className="fa-solid fa-user"></i>
+                  <span>Reporter: {viewData.staffId || 'Unknown'}</span>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-3 py-1.5 rounded-md text-sm"><i className="fa-solid fa-print mr-1"></i>Print</button>
@@ -1430,5 +1458,3 @@ export default function UCRPage() {
     </div>
   );
 }
-
-export default UCRPage;
