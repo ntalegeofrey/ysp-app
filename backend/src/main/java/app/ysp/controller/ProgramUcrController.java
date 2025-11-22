@@ -267,6 +267,23 @@ public class ProgramUcrController {
         return ResponseEntity.ok(out);
     }
 
+    @PostMapping("/reports/{reportId}/resolve")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<?> resolveReport(
+            @PathVariable("id") Long programId,
+            @PathVariable("reportId") Long reportId
+    ) {
+        var report = ucrs.findOneByIdAndProgram(reportId, programId);
+        if (report == null) return ResponseEntity.notFound().build();
+        
+        report.setResolved(true);
+        report.setResolvedAt(java.time.LocalDateTime.now());
+        // TODO: Set resolvedBy to current user ID when auth context is available
+        ucrs.save(report);
+        
+        return ResponseEntity.ok(report);
+    }
+
     @GetMapping("/monthly-chart")
     @PreAuthorize("permitAll()")
     public ResponseEntity<?> monthlyChart(@PathVariable("id") Long programId, @RequestParam(value = "year", defaultValue = "0") int year) {

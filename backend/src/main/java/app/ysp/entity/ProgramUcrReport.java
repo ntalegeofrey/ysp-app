@@ -201,6 +201,16 @@ public class ProgramUcrReport {
     @Column(name = "additional_comments")
     private String additionalComments;
 
+    // Resolution tracking
+    @Column(name = "resolved")
+    private Boolean resolved = false;
+    
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+    
+    @Column(name = "resolved_by")
+    private Long resolvedBy;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
@@ -457,4 +467,13 @@ public class ProgramUcrReport {
 
     public String getAdditionalComments() { return additionalComments; }
     public void setAdditionalComments(String additionalComments) { this.additionalComments = additionalComments; }
+
+    public Boolean getResolved() { return resolved; }
+    public void setResolved(Boolean resolved) { this.resolved = resolved; }
+
+    public LocalDateTime getResolvedAt() { return resolvedAt; }
+    public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
+
+    public Long getResolvedBy() { return resolvedBy; }
+    public void setResolvedBy(Long resolvedBy) { this.resolvedBy = resolvedBy; }
 }

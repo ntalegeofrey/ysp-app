@@ -643,7 +643,7 @@ export default function UCRPage() {
 
           <div className="grid grid-cols-12 gap-6">
             {/* Persisting Issues */}
-            <div className="col-span-12 lg:col-span-8">
+            <div className="col-span-12 lg:col-span-12">
               <div className="bg-white rounded-lg border border-bd">
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">Persisting Issues Summary</h3>
