@@ -8,6 +8,7 @@ export default function UCRPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'new'>('overview');
   const [programId, setProgramId] = useState<string>('');
+  const [programName, setProgramName] = useState<string>('');
   // toasts
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info'|'success'|'error' }>>([]);
   const addToast = (title: string, tone: 'info'|'success'|'error' = 'info') => {
@@ -170,8 +171,9 @@ export default function UCRPage() {
   useEffect(() => {
     try {
       const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
-      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string, name?: string } : null;
       setProgramId(sp?.id ? String(sp.id) : '');
+      setProgramName(sp?.name || '');
     } catch {}
   }, []);
 
@@ -269,6 +271,235 @@ export default function UCRPage() {
     } catch {
       addToast('Failed to resolve issue.', 'error');
     }
+  };
+
+  const printReport = (report: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      addToast('Please allow popups to print reports', 'error');
+      return;
+    }
+
+    const issues = getAllIssues(report);
+    const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>UCR Report - ${dateStr}</title>
+        <style>
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px;
+            background: white;
+            color: #333;
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+          }
+          .logo {
+            width: 80px;
+            height: 80px;
+          }
+          .title-section h1 {
+            font-size: 28px;
+            color: #1e40af;
+            margin-bottom: 5px;
+          }
+          .title-section p {
+            font-size: 14px;
+            color: #666;
+          }
+          .report-info {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          .info-item {
+            display: flex;
+            gap: 10px;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #374151;
+            min-width: 100px;
+          }
+          .info-value {
+            color: #6b7280;
+          }
+          .section {
+            margin-bottom: 30px;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+          }
+          .issue-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+          }
+          .issue-item.high { border-left-color: #f59e0b; }
+          .issue-item.medium { border-left-color: #eab308; }
+          .issue-item.normal { border-left-color: #10b981; }
+          .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+          }
+          .issue-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #111827;
+          }
+          .issue-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .badge-critical { background: #dc2626; color: white; }
+          .badge-high { background: #f59e0b; color: white; }
+          .badge-medium { background: #eab308; color: white; }
+          .badge-normal { background: #10b981; color: white; }
+          .issue-comment {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+          }
+          .no-issues {
+            text-align: center;
+            padding: 40px;
+            color: #10b981;
+            font-size: 18px;
+            background: #f0fdf4;
+            border-radius: 8px;
+          }
+          .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 12px;
+          }
+          @page { margin: 20mm; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo-section">
+            <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="45" fill="#1e40af"/>
+              <text x="50" y="60" font-size="36" font-weight="bold" fill="white" text-anchor="middle">DYS</text>
+            </svg>
+            <div class="title-section">
+              <h1>Unit Condition Report</h1>
+              <p>Department of Youth Services</p>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 20px; font-weight: bold; color: #1e40af;">${programName || 'Program'}</div>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">Generated: ${new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+
+        <div class="report-info">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Report Date:</span>
+              <span class="info-value">${dateStr}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Shift:</span>
+              <span class="info-value">${report.shiftTime || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Reporter:</span>
+              <span class="info-value">${staffNames[report.staffId] || report.staffId || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total Issues:</span>
+              <span class="info-value">${issues.length}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Reported Issues</h2>
+          ${issues.length === 0 ? `
+            <div class="no-issues">
+              <div style="font-size: 48px; margin-bottom: 10px;">✓</div>
+              <div>No issues reported - All items in normal condition</div>
+            </div>
+          ` : issues.map(issue => {
+            const severity = issue.condition.toLowerCase();
+            const severityClass = severity.includes('critical') ? 'critical' : severity.includes('high') ? 'high' : severity.includes('medium') ? 'medium' : 'normal';
+            const badgeClass = 'badge-' + severityClass;
+            return '<div class="issue-item ' + severityClass + '">' +
+              '<div class="issue-header">' +
+                '<div class="issue-name">' + issue.label + '</div>' +
+                '<span class="issue-badge ' + badgeClass + '">' + issue.condition + '</span>' +
+              '</div>' +
+              '<div class="issue-comment">' + (issue.comment || 'No additional comments') + '</div>' +
+            '</div>';
+          }).join('')}
+        </div>
+
+        ${report.additionalComments ? `
+          <div class="section">
+            <h2 class="section-title">Additional Comments</h2>
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; line-height: 1.6;">
+              ${report.additionalComments}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          <p>This report was generated by the Youth Supervision Platform</p>
+          <p>Department of Youth Services - Confidential Document</p>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadMonthlyChart(); } }, [programId]);
@@ -921,7 +1152,12 @@ export default function UCRPage() {
                     </thead>
                     <tbody>
                       {ucrReports.map((r: any) => {
-                        const isToday = r.reportDate ? new Date(r.reportDate).toISOString().slice(0,10) === new Date().toISOString().slice(0,10) : false;
+                        // Compare dates without time component
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const reportDate = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
+                        if (reportDate) reportDate.setHours(0, 0, 0, 0);
+                        const isToday = reportDate ? reportDate.getTime() === today.getTime() : false;
                         const issues = getAllIssues(r);
                         const hasCritical = issues.some(i => i.condition.includes('Critical'));
                         const hasHigh = issues.some(i => i.condition.includes('High'));
@@ -946,13 +1182,32 @@ export default function UCRPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="p-3 flex items-center gap-3">
-                              <button onClick={() => onView(r.id)} className="text-primary hover:underline text-xs">View</button>
-                              {isToday && (
-                                <button onClick={() => onView(r.id, true)} className="text-xs text-font-detail hover:text-primary" title="Edit today's report">
-                                  <i className="fa-solid fa-pen-to-square"></i>
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => onView(r.id)} 
+                                  className="text-primary hover:bg-primary-lightest p-2 rounded transition-colors" 
+                                  title="View Report"
+                                >
+                                  <i className="fa-solid fa-eye"></i>
                                 </button>
-                              )}
+                                {isToday && (
+                                  <button 
+                                    onClick={() => onView(r.id, true)} 
+                                    className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
+                                    title="Edit Today's Report"
+                                  >
+                                    <i className="fa-solid fa-pen"></i>
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => printReport(r)} 
+                                  className="text-gray-600 hover:bg-gray-100 p-2 rounded transition-colors" 
+                                  title="Print/Download Report"
+                                >
+                                  <i className="fa-solid fa-print"></i>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
