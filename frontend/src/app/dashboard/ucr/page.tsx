@@ -255,13 +255,16 @@ export default function UCRPage() {
   };
 
   const printReport = (report: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      addToast('Please allow popups to print reports', 'error');
-      return;
-    }
+    try {
+      console.log('Print report called with:', report);
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print reports', 'error');
+        return;
+      }
 
-    const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      console.log('Date string:', dateStr);
     
     // Helper functions
     const getStatusDisplay = (status: string | null) => {
@@ -654,6 +657,11 @@ export default function UCRPage() {
       </html>
     `);
     printWindow.document.close();
+    console.log('Print window created successfully');
+    } catch (error) {
+      console.error('Print error:', error);
+      addToast('Failed to generate print report', 'error');
+    }
   };
 
   useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadChartData(); } }, [programId]);
