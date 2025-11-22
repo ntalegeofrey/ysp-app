@@ -431,7 +431,7 @@ export default function UCRPage() {
             </div>
             <div class="info-item">
               <span class="info-label">Reporter:</span>
-              <span class="info-value">${staffNames[report.staffId] || report.staffId || 'N/A'}</span>
+              <span class="info-value">${report.staffName || staffNames[report.staffId] || 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -773,7 +773,8 @@ export default function UCRPage() {
       const payload: any = {
         reportDate: reportDate || new Date().toISOString().slice(0,10),
         shiftTime: shiftVal,
-        staffId: staffId, // Reporter ID
+        staffId: staffId, // reporter ID for backend
+        staffName: staffName, // reporter name for display
         
         // Security Equipment (6 items)
         securityRadiosStatus: formData.securityEquipment?.[0]?.status || null,
@@ -876,6 +877,7 @@ export default function UCRPage() {
         
         // Additional comments
         additionalComments: comments || null,
+        reportStatus: reportStatus,
       };
       
       const url = editingId ? `/api/programs/${programId}/ucr/reports/${editingId}` : `/api/programs/${programId}/ucr/reports`;
@@ -1296,7 +1298,7 @@ export default function UCRPage() {
                             <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
                             <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
                             <td className="p-3 text-sm text-font-base">{summary}</td>
-                            <td className="p-3 text-font-detail">{staffNames[r.staffId] || r.staffId || '-'}</td>
+                            <td className="p-3 text-font-detail">{r.staffName || staffNames[r.staffId] || '-'}</td>
                             <td className="p-3">
                               <div className="flex flex-wrap gap-1">
                                 {issues.length === 0 ? (
