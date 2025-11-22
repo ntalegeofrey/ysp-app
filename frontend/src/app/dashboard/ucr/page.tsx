@@ -200,14 +200,13 @@ export default function UCRPage() {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}`, {
-        method: 'PATCH',
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}/resolve`, {
+        method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ status: 'Resolved' }),
       });
       if (!r.ok) {
         if (r.status === 403) {
@@ -540,33 +539,106 @@ export default function UCRPage() {
   // View modal
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
+  // Helper to extract the actual critical/high issue label from condition fields
+  const getIssueLabel = (report: any): string => {
+    const fields = [
+      { condition: report.securityRadiosCondition, comment: report.securityRadiosComments, label: 'Security Radios' },
+      { condition: report.securityFlashlightsCondition, comment: report.securityFlashlightsComments, label: 'Security Flashlights' },
+      { condition: report.securityMetalDetectorCondition, comment: report.securityMetalDetectorComments, label: 'Metal Detector' },
+      { condition: report.securityBigSetKeysCondition, comment: report.securityBigSetKeysComments, label: 'Security Keys' },
+      { condition: report.securityFirstAidKitsCondition, comment: report.securityFirstAidKitsComments, label: 'First Aid Kits' },
+      { condition: report.securityDeskComputerCondition, comment: report.securityDeskComputerComments, label: 'Desk Computer' },
+      { condition: report.adminMeetingRoomsLockedCondition, comment: report.adminMeetingRoomsLockedComments, label: 'Meeting Rooms Locked' },
+      { condition: report.adminDoorsSecureCondition, comment: report.adminDoorsSecureComments, label: 'Admin Doors Secure' },
+      { condition: report.infraBackDoorCondition, comment: report.infraBackDoorComments, label: 'Back Door' },
+      { condition: report.infraEntranceExitDoorsCondition, comment: report.infraEntranceExitDoorsComments, label: 'Entrance/Exit Doors' },
+      { condition: report.infraSmokeDetectorsCondition, comment: report.infraSmokeDetectorsComments, label: 'Smoke Detectors' },
+      { condition: report.infraWindowsSecureCondition, comment: report.infraWindowsSecureComments, label: 'Windows Secure' },
+      { condition: report.infraLaundryAreaCondition, comment: report.infraLaundryAreaComments, label: 'Laundry Area' },
+      { condition: report.infraFireExtinguishersCondition, comment: report.infraFireExtinguishersComments, label: 'Fire Extinguishers' },
+      { condition: report.infraFireAlarmCondition, comment: report.infraFireAlarmComments, label: 'Fire Alarm' },
+    ];
+    
+    // Find first Critical issue
+    for (const field of fields) {
+      if (field.condition?.includes('Critical')) {
+        return field.comment || `${field.label} - Critical`;
+      }
+    }
+    
+    // Find first High issue
+    for (const field of fields) {
+      if (field.condition?.includes('High')) {
+        return field.comment || `${field.label} - High Priority`;
+      }
+    }
+    
+    return report.issuesSummary || 'UCR Issue';
+  };
+
   const onView = async (id: string|number, asEdit?: boolean) => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
       if (!r.ok) return;
       const d = await r.json();
-      let payload: any = {};
-      try { payload = d.payloadJson ? JSON.parse(d.payloadJson) : {}; } catch {}
-      setViewData({ ...d, payload });
+      setViewData(d);
       if (asEdit) {
-        // Prefill form for editing (only allowed same day on backend)
+        // Prefill form for editing
         setReportDate(d.reportDate ? String(d.reportDate).slice(0,10) : '');
-        setShiftVal(d.shift || '7:00-3:00');
-        setComments(d.issuesSummary || '');
-        if (payload && typeof payload === 'object') {
-          setFormData((prev: any) => ({
-            ...prev,
-            ...payload,
-            roomSearches: Array.isArray(payload.roomSearches) ? payload.roomSearches : [],
-          }));
-        }
+        setShiftVal(d.shiftTime || '7:00-3:00');
+        setComments(d.additionalComments || '');
+        setStaffName(d.staffId ? String(d.staffId) : '');
+        
+        // Map all explicit fields back to form structure
+        const roomSearches = d.roomSearches ? (typeof d.roomSearches === 'string' ? JSON.parse(d.roomSearches) : d.roomSearches) : [];
+        
+        setFormData({
+          securityEquipment: [
+            { status: d.securityRadiosStatus, priority: d.securityRadiosCondition, comments: d.securityRadiosComments },
+            { status: d.securityFlashlightsStatus, priority: d.securityFlashlightsCondition, comments: d.securityFlashlightsComments },
+            { status: d.securityMetalDetectorStatus, priority: d.securityMetalDetectorCondition, comments: d.securityMetalDetectorComments },
+            { status: d.securityBigSetKeysStatus, priority: d.securityBigSetKeysCondition, comments: d.securityBigSetKeysComments },
+            { status: d.securityFirstAidKitsStatus, priority: d.securityFirstAidKitsCondition, comments: d.securityFirstAidKitsComments },
+            { status: d.securityDeskComputerStatus, priority: d.securityDeskComputerCondition, comments: d.securityDeskComputerComments },
+          ],
+          hardwareSecure: { value: d.hardwareSecureYesNo === 'Yes' ? true : d.hardwareSecureYesNo === 'No' ? false : null, comments: d.hardwareSecureComments },
+          searchesCompleted: { value: d.searchesCompletedYesNo === 'Yes' ? true : d.searchesCompletedYesNo === 'No' ? false : null },
+          fireDrillsCompleted: { value: d.fireDrillsCompletedYesNo === 'Yes' ? true : d.fireDrillsCompletedYesNo === 'No' ? false : null, comments: d.fireDrillsCompletedComments },
+          emergencyLighting: { value: d.emergencyLightingYesNo === 'Yes' ? true : d.emergencyLightingYesNo === 'No' ? false : null, comments: d.emergencyLightingComments },
+          notifications: [
+            { value: d.notificationsOppositeGenderYesNo === 'Yes' ? true : d.notificationsOppositeGenderYesNo === 'No' ? false : null, priority: d.notificationsOppositeGenderCondition, comments: d.notificationsOppositeGenderComments },
+          ],
+          adminOffices: [
+            { status: d.adminMeetingRoomsLockedStatus, priority: d.adminMeetingRoomsLockedCondition, comments: d.adminMeetingRoomsLockedComments },
+            { status: d.adminDoorsSecureStatus, priority: d.adminDoorsSecureCondition, comments: d.adminDoorsSecureComments },
+          ],
+          facilityInfrastructure: [
+            { status: d.infraBackDoorStatus, priority: d.infraBackDoorCondition, comments: d.infraBackDoorComments },
+            { status: d.infraEntranceExitDoorsStatus, priority: d.infraEntranceExitDoorsCondition, comments: d.infraEntranceExitDoorsComments },
+            { status: d.infraSmokeDetectorsStatus, priority: d.infraSmokeDetectorsCondition, comments: d.infraSmokeDetectorsComments },
+            { status: d.infraWindowsSecureStatus, priority: d.infraWindowsSecureCondition, comments: d.infraWindowsSecureComments },
+            { status: d.infraLaundryAreaStatus, priority: d.infraLaundryAreaCondition, comments: d.infraLaundryAreaComments },
+            { status: d.infraFireExtinguishersStatus, priority: d.infraFireExtinguishersCondition, comments: d.infraFireExtinguishersComments },
+            { status: d.infraFireAlarmStatus, priority: d.infraFireAlarmCondition, comments: d.infraFireAlarmComments },
+          ],
+          staffChores: [
+            { status: d.choreWorkspaceCleanStatus, comments: d.choreWorkspaceCleanComments },
+            { status: d.choreStaffBathroomStatus, comments: d.choreStaffBathroomComments },
+            { status: d.choreDayroomCleanStatus, comments: d.choreDayroomCleanComments },
+            { status: d.choreLaundryRoomCleanStatus, comments: d.choreLaundryRoomCleanComments },
+          ],
+          roomSearches: Array.isArray(roomSearches) ? roomSearches.map((rs: any) => ({ room: rs.room_number || rs.room, comments: rs.search_comments || rs.comments })) : [],
+        });
         setEditingId(id);
         setActiveTab('new');
       } else {
         setViewOpen(true);
       }
-    } catch {}
+    } catch (err) {
+      console.error('Error loading report:', err);
+      addToast('Failed to load report', 'error');
+    }
   };
 
   return (
@@ -653,33 +725,32 @@ export default function UCRPage() {
                   {openIssues.length === 0 && (
                     <div className="text-sm text-font-detail italic">No persisting issues at this time.</div>
                   )}
-                  {openIssues.map((issue) => {
-                    const status = (issue.status || '').toLowerCase();
+                  {openIssues.map((issue: any) => {
+                    const severity = (issue.computedSeverity || '').toLowerCase();
                     const borderClass =
-                      status === 'critical'
+                      severity === 'critical'
                         ? 'border-error bg-error-lightest'
-                        : status === 'high'
+                        : severity === 'high'
                         ? 'border-warning bg-highlight-lightest'
                         : 'border-yellow-400 bg-yellow-50';
                     const badgeClass =
-                      status === 'critical'
+                      severity === 'critical'
                         ? 'bg-error text-white'
-                        : status === 'high'
+                        : severity === 'high'
                         ? 'bg-warning text-font-base'
                         : 'bg-yellow-400 text-font-base';
-                    const label = (issue.issuesSummary || 'UCR Issue').slice(0, 140);
-                    const dateStr = issue.reportDate ? new Date(issue.reportDate).toLocaleString() : '';
+                    const label = getIssueLabel(issue).slice(0, 140);
+                    const dateStr = issue.reportDate ? new Date(issue.reportDate).toLocaleDateString() : '';
                     return (
                       <div key={String(issue.id)} className={`border-l-4 ${borderClass} p-4 rounded-r-lg`}>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
-                              <span className={`${badgeClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>{(issue.status || '').toUpperCase()}</span>
+                              <span className={`${badgeClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>{(issue.computedSeverity || 'Normal').toUpperCase()}</span>
                               <h4 className="font-semibold text-font-base truncate max-w-md">{label}</h4>
                             </div>
                             <p className="text-xs text-font-medium">
-                              Last reported: {dateStr}
-                              {issue.reporterName ? ` by ${issue.reporterName}` : ''}
+                              Reported: {dateStr} ({issue.shiftTime || 'N/A'})
                             </p>
                           </div>
                           <div className="flex space-x-2 ml-4">
@@ -688,12 +759,6 @@ export default function UCRPage() {
                               className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
                             >
                               <i className="fa-solid fa-eye mr-1"></i>View
-                            </button>
-                            <button
-                              onClick={() => router.push(`/dashboard/ucr/notify?reportId=${encodeURIComponent(String(issue.id))}&date=${encodeURIComponent(issue.reportDate || '')}&shift=${encodeURIComponent(issue.shift || '')}&status=${encodeURIComponent(issue.status || '')}&summary=${encodeURIComponent(label)}`)}
-                              className="bg-warning text-font-base px-3 py-1 rounded-md text-xs font-medium hover:bg-yellow-300"
-                            >
-                              <i className="fa-solid fa-bell mr-1"></i>Notify
                             </button>
                             <button
                               onClick={() => resolveIssue(issue.id)}
@@ -720,10 +785,10 @@ export default function UCRPage() {
                     <input value={filterDate} onChange={(e)=> { setFilterDate(e.target.value); setPageIdx(0); }} onBlur={()=> loadReports(true)} type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
                     <select value={filterStatus} onChange={(e)=> { setFilterStatus(e.target.value); setPageIdx(0); loadReports(true); }} className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                       <option>All Status</option>
-                      <option>No Issues</option>
+                      <option>Normal</option>
                       <option>Critical</option>
                       <option>High</option>
-                      <option>Resolved</option>
+                      <option>Medium</option>
                     </select>
                     <button onClick={() => loadReports(true)} className="px-3 py-2 text-sm bg-primary text-white rounded hover:bg-primary-light">Search</button>
                   </div>
@@ -743,12 +808,13 @@ export default function UCRPage() {
                     <tbody>
                       {ucrReports.map((r: any) => {
                         const isToday = r.reportDate ? new Date(r.reportDate).toISOString().slice(0,10) === new Date().toISOString().slice(0,10) : false;
+                        const issueLabel = getIssueLabel(r);
                         return (
                           <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
                             <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
                             <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
-                            <td className="p-3 font-medium text-font-base">{r.issuesSummary || 'No issues reported'}</td>
-                            <td className="p-3 text-font-detail">{r.staffId || ''}</td>
+                            <td className="p-3 font-medium text-font-base">{issueLabel.slice(0, 60)}</td>
+                            <td className="p-3 text-font-detail">{r.staffId || '-'}</td>
                             <td className="p-3">
                               <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(r.computedSeverity || 'Normal')}`}>{r.computedSeverity || 'Normal'}</span>
                             </td>
