@@ -621,7 +621,16 @@ export default function UCRPage() {
           </table>
         </div>
 
-        ${report.roomSearches && report.roomSearches.length > 0 ? `
+        ${(() => {
+          let searches = report.roomSearches;
+          // Parse if it's a JSON string
+          if (typeof searches === 'string') {
+            try { searches = JSON.parse(searches); } catch { searches = []; }
+          }
+          // Ensure it's an array
+          if (!Array.isArray(searches) || searches.length === 0) return '';
+          
+          return `
           <div class="section">
             <h2 class="section-title">Resident Room Searches</h2>
             <table>
@@ -629,12 +638,13 @@ export default function UCRPage() {
                 <th style="width: 30%;">Room Number</th>
                 <th style="width: 70%;">Search Comments</th>
               </tr>
-              ${report.roomSearches.map((search: any) => 
+              ${searches.map((search: any) => 
                 '<tr><td>' + (search.room_number || search.roomNumber || '-') + '</td><td>' + (search.search_comments || search.searchComments || '-') + '</td></tr>'
               ).join('')}
             </table>
           </div>
-        ` : ''}
+          `;
+        })()}
 
         ${report.additionalComments ? `
           <div class="section">
