@@ -280,8 +280,20 @@ export default function UCRPage() {
       return;
     }
 
-    const issues = getAllIssues(report);
     const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+    
+    // Helper function to get status display
+    const getStatusDisplay = (status: string | null) => {
+      if (!status) return '<span style="color: #9ca3af;">Not Checked</span>';
+      return status === 'ok' ? '<span style="color: #10b981; font-weight: bold;">✓ OK</span>' : '<span style="color: #dc2626; font-weight: bold;">⚠ Issue</span>';
+    };
+    
+    const getPriorityBadge = (priority: string) => {
+      if (priority === 'Critical') return '<span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">CRITICAL</span>';
+      if (priority === 'High') return '<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">HIGH</span>';
+      if (priority === 'Medium') return '<span style="background: #eab308; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">MEDIUM</span>';
+      return '<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">NORMAL</span>';
+    };
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -292,146 +304,118 @@ export default function UCRPage() {
           @media print {
             body { margin: 0; }
             .no-print { display: none; }
+            .page-break { page-break-before: always; }
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { 
             font-family: Arial, sans-serif; 
-            padding: 40px;
+            padding: 30px;
             background: white;
             color: #333;
+            font-size: 12px;
           }
           .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 3px solid #1e40af;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
           }
           .logo-section {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
           }
           .logo {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
           }
           .title-section h1 {
-            font-size: 28px;
+            font-size: 22px;
             color: #1e40af;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
           }
           .title-section p {
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
           }
           .report-info {
             background: #f3f4f6;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
           }
           .info-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
           }
           .info-item {
             display: flex;
-            gap: 10px;
+            gap: 8px;
           }
           .info-label {
             font-weight: bold;
             color: #374151;
-            min-width: 100px;
+            min-width: 80px;
           }
           .info-value {
             color: #6b7280;
           }
           .section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
+            break-inside: avoid;
           }
           .section-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #1e40af;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
             border-bottom: 2px solid #e5e7eb;
           }
-          .issue-item {
-            background: white;
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+          }
+          th {
+            background: #f3f4f6;
+            padding: 8px;
+            text-align: left;
+            font-size: 11px;
             border: 1px solid #e5e7eb;
-            border-left: 4px solid #dc2626;
-            padding: 15px;
-            margin-bottom: 12px;
-            border-radius: 4px;
           }
-          .issue-item.high { border-left-color: #f59e0b; }
-          .issue-item.medium { border-left-color: #eab308; }
-          .issue-item.normal { border-left-color: #10b981; }
-          .issue-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-          }
-          .issue-name {
-            font-weight: bold;
-            font-size: 16px;
-            color: #111827;
-          }
-          .issue-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          .badge-critical { background: #dc2626; color: white; }
-          .badge-high { background: #f59e0b; color: white; }
-          .badge-medium { background: #eab308; color: white; }
-          .badge-normal { background: #10b981; color: white; }
-          .issue-comment {
-            color: #6b7280;
-            font-size: 14px;
-            line-height: 1.5;
-          }
-          .no-issues {
-            text-align: center;
-            padding: 40px;
-            color: #10b981;
-            font-size: 18px;
-            background: #f0fdf4;
-            border-radius: 8px;
+          td {
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            font-size: 11px;
           }
           .footer {
-            margin-top: 50px;
-            padding-top: 20px;
+            margin-top: 30px;
+            padding-top: 15px;
             border-top: 2px solid #e5e7eb;
             text-align: center;
             color: #9ca3af;
-            font-size: 12px;
+            font-size: 10px;
           }
-          @page { margin: 20mm; }
+          @page { margin: 15mm; }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-section">
-            <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="50" cy="50" r="45" fill="#1e40af"/>
-              <text x="50" y="60" font-size="36" font-weight="bold" fill="white" text-anchor="middle">DYS</text>
-            </svg>
+            <img src="/logo.png" alt="DYS Logo" class="logo" onerror="this.style.display='none'"/>
             <div class="title-section">
               <h1>Unit Condition Report</h1>
               <p>Department of Youth Services</p>
             </div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 20px; font-weight: bold; color: #1e40af;">${programName || 'Program'}</div>
-            <div style="font-size: 14px; color: #666; margin-top: 5px;">Generated: ${new Date().toLocaleDateString()}</div>
+            <div style="font-size: 18px; font-weight: bold; color: #1e40af;">${programName || 'Program'}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 3px;">Generated: ${new Date().toLocaleDateString()}</div>
           </div>
         </div>
 
@@ -449,38 +433,139 @@ export default function UCRPage() {
               <span class="info-label">Reporter:</span>
               <span class="info-value">${staffNames[report.staffId] || report.staffId || 'N/A'}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">Total Issues:</span>
-              <span class="info-value">${issues.length}</span>
-            </div>
           </div>
         </div>
 
         <div class="section">
-          <h2 class="section-title">Reported Issues</h2>
-          ${issues.length === 0 ? `
-            <div class="no-issues">
-              <div style="font-size: 48px; margin-bottom: 10px;">✓</div>
-              <div>No issues reported - All items in normal condition</div>
-            </div>
-          ` : issues.map(issue => {
-            const severity = issue.condition.toLowerCase();
-            const severityClass = severity.includes('critical') ? 'critical' : severity.includes('high') ? 'high' : severity.includes('medium') ? 'medium' : 'normal';
-            const badgeClass = 'badge-' + severityClass;
-            return '<div class="issue-item ' + severityClass + '">' +
-              '<div class="issue-header">' +
-                '<div class="issue-name">' + issue.label + '</div>' +
-                '<span class="issue-badge ' + badgeClass + '">' + issue.condition + '</span>' +
-              '</div>' +
-              '<div class="issue-comment">' + (issue.comment || 'No additional comments') + '</div>' +
-            '</div>';
-          }).join('')}
+          <h2 class="section-title">Security Equipment & Procedures</h2>
+          <table>
+            <tr>
+              <th style="width: 40%;">Item</th>
+              <th style="width: 15%;">Status</th>
+              <th style="width: 15%;">Priority</th>
+              <th style="width: 30%;">Comments</th>
+            </tr>
+            <tr>
+              <td>11 Radios functional and charging</td>
+              <td>${getStatusDisplay(report.securityRadiosStatus)}</td>
+              <td>${getPriorityBadge(report.securityRadiosCondition || 'Normal')}</td>
+              <td>${report.securityRadiosComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>2 Flashlights functional</td>
+              <td>${getStatusDisplay(report.securityFlashlightsStatus)}</td>
+              <td>${getPriorityBadge(report.securityFlashlightsCondition || 'Normal')}</td>
+              <td>${report.securityFlashlightsComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Garrett metal detector functional</td>
+              <td>${getStatusDisplay(report.securityMetalDetectorStatus)}</td>
+              <td>${getPriorityBadge(report.securityMetalDetectorCondition || 'Normal')}</td>
+              <td>${report.securityMetalDetectorComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Big Set keys & keys present and secure</td>
+              <td>${getStatusDisplay(report.securityBigSetKeysStatus)}</td>
+              <td>${getPriorityBadge(report.securityBigSetKeysCondition || 'Normal')}</td>
+              <td>${report.securityBigSetKeysComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>First Aid kits available and stocked</td>
+              <td>${getStatusDisplay(report.securityFirstAidKitsStatus)}</td>
+              <td>${getPriorityBadge(report.securityFirstAidKitsCondition || 'Normal')}</td>
+              <td>${report.securityFirstAidKitsComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Desk Computer/Monitor functional</td>
+              <td>${getStatusDisplay(report.securityDeskComputerStatus)}</td>
+              <td>${getPriorityBadge(report.securityDeskComputerCondition || 'Normal')}</td>
+              <td>${report.securityDeskComputerComments || '-'}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Administrative Offices</h2>
+          <table>
+            <tr>
+              <th style="width: 40%;">Item</th>
+              <th style="width: 15%;">Status</th>
+              <th style="width: 15%;">Priority</th>
+              <th style="width: 30%;">Comments</th>
+            </tr>
+            <tr>
+              <td>Meeting Rooms locked</td>
+              <td>${getStatusDisplay(report.adminMeetingRoomsLockedStatus)}</td>
+              <td>${getPriorityBadge(report.adminMeetingRoomsLockedCondition || 'Normal')}</td>
+              <td>${report.adminMeetingRoomsLockedComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Administration doors locked and secure</td>
+              <td>${getStatusDisplay(report.adminDoorsSecureStatus)}</td>
+              <td>${getPriorityBadge(report.adminDoorsSecureCondition || 'Normal')}</td>
+              <td>${report.adminDoorsSecureComments || '-'}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Facility Infrastructure</h2>
+          <table>
+            <tr>
+              <th style="width: 40%;">Item</th>
+              <th style="width: 15%;">Status</th>
+              <th style="width: 15%;">Priority</th>
+              <th style="width: 30%;">Comments</th>
+            </tr>
+            <tr>
+              <td>Back door locked and secure</td>
+              <td>${getStatusDisplay(report.infraBackDoorStatus)}</td>
+              <td>${getPriorityBadge(report.infraBackDoorCondition || 'Normal')}</td>
+              <td>${report.infraBackDoorComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Entrance and exit doors locked and secured</td>
+              <td>${getStatusDisplay(report.infraEntranceExitDoorsStatus)}</td>
+              <td>${getPriorityBadge(report.infraEntranceExitDoorsCondition || 'Normal')}</td>
+              <td>${report.infraEntranceExitDoorsComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Smoke detectors functional</td>
+              <td>${getStatusDisplay(report.infraSmokeDetectorsStatus)}</td>
+              <td>${getPriorityBadge(report.infraSmokeDetectorsCondition || 'Normal')}</td>
+              <td>${report.infraSmokeDetectorsComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>All windows secure</td>
+              <td>${getStatusDisplay(report.infraWindowsSecureStatus)}</td>
+              <td>${getPriorityBadge(report.infraWindowsSecureCondition || 'Normal')}</td>
+              <td>${report.infraWindowsSecureComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Laundry area clean and orderly</td>
+              <td>${getStatusDisplay(report.infraLaundryAreaStatus)}</td>
+              <td>${getPriorityBadge(report.infraLaundryAreaCondition || 'Normal')}</td>
+              <td>${report.infraLaundryAreaComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Fire extinguishers in place/charged</td>
+              <td>${getStatusDisplay(report.infraFireExtinguishersStatus)}</td>
+              <td>${getPriorityBadge(report.infraFireExtinguishersCondition || 'Normal')}</td>
+              <td>${report.infraFireExtinguishersComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Fire alarm functional</td>
+              <td>${getStatusDisplay(report.infraFireAlarmStatus)}</td>
+              <td>${getPriorityBadge(report.infraFireAlarmCondition || 'Normal')}</td>
+              <td>${report.infraFireAlarmComments || '-'}</td>
+            </tr>
+          </table>
         </div>
 
         ${report.additionalComments ? `
           <div class="section">
             <h2 class="section-title">Additional Comments</h2>
-            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; line-height: 1.6;">
+            <div style="background: #f9fafb; padding: 12px; border-radius: 6px; line-height: 1.6; border: 1px solid #e5e7eb;">
               ${report.additionalComments}
             </div>
           </div>
@@ -529,6 +614,7 @@ export default function UCRPage() {
   const [shiftVal, setShiftVal] = useState<string>('7:00-3:00');
   const [comments, setComments] = useState<string>('');
   const [staffName, setStaffName] = useState<string>('');
+  const [staffId, setStaffId] = useState<number | null>(null);
 
   // Form data state for all toggles and inputs
   const [formData, setFormData] = useState<any>({
@@ -595,6 +681,7 @@ export default function UCRPage() {
         if (r.ok) {
           const me = await r.json();
           setStaffName(me.fullName || me.email || '');
+          setStaffId(me.id || null);
         }
       } catch {}
     };
@@ -640,6 +727,7 @@ export default function UCRPage() {
       const payload: any = {
         reportDate: reportDate || new Date().toISOString().slice(0,10),
         shiftTime: shiftVal,
+        staffId: staffId, // Reporter ID
         
         // Security Equipment (6 items)
         securityRadiosStatus: formData.securityEquipment?.[0]?.status || null,
