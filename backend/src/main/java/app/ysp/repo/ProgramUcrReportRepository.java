@@ -16,7 +16,9 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
     @Query("select r from ProgramUcrReport r where r.program.id = :programId order by r.reportDate desc, r.id desc")
     List<ProgramUcrReport> findAllByProgramOrder(@Param("programId") Long programId);
 
-    @Query("select r from ProgramUcrReport r where r.program.id = :programId and (:q is null or lower(coalesce(r.additionalComments,'')) like concat('%', lower(:q), '%')) and (:date is null or r.reportDate = :date) order by r.reportDate desc, r.id desc")
+    @Query(value = "select * from program_ucr_reports r where r.program_id = :programId and (:q is null or lower(coalesce(r.additional_comments,'')) like concat('%', lower(cast(:q as text)), '%')) and (:date is null or r.report_date = :date) order by r.report_date desc, r.id desc", 
+           countQuery = "select count(*) from program_ucr_reports r where r.program_id = :programId and (:q is null or lower(coalesce(r.additional_comments,'')) like concat('%', lower(cast(:q as text)), '%')) and (:date is null or r.report_date = :date)",
+           nativeQuery = true)
     Page<ProgramUcrReport> findByFilters(@Param("programId") Long programId, @Param("q") String q, @Param("date") LocalDate date, Pageable pageable);
 
     @Query("select count(r) from ProgramUcrReport r where r.program.id = :programId")
