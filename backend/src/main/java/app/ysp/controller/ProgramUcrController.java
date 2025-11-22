@@ -180,9 +180,12 @@ public class ProgramUcrController {
         ProgramUcrReport r = new ProgramUcrReport();
         r.setProgram(program);
         
-        // Set reporter as the logged-in user
-        if (auth != null && auth.getName() != null) {
-            r.setStaffId(Long.parseLong(auth.getName()));
+        // Set reporter from body if provided (frontend handles this)
+        Object staffIdObj = body.get("staffId");
+        if (staffIdObj != null) {
+            try {
+                r.setStaffId(Long.parseLong(staffIdObj.toString()));
+            } catch (NumberFormatException ignored) {}
         }
         
         LocalDate date;
