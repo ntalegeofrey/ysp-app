@@ -92,21 +92,21 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
     Page<ProgramUcrReport> findOpenIssues(@Param("programId") Long programId, Pageable pageable);
 
     @Query(value = "WITH all_conditions AS (" +
-           "  SELECT EXTRACT(MONTH FROM r.report_date)::int as month, LOWER(r.security_radios_condition) as cond FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_flashlights_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_metal_detector_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_big_set_keys_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_first_aid_kits_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_desk_computer_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_meeting_rooms_locked_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_doors_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_back_door_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_entrance_exit_doors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_smoke_detectors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_windows_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_laundry_area_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_extinguishers_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
-           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_alarm_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year AND (r.resolved IS NULL OR r.resolved = false) " +
+           "  SELECT EXTRACT(MONTH FROM r.report_date)::int as month, LOWER(r.security_radios_condition) as cond FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_flashlights_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_metal_detector_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_big_set_keys_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_first_aid_kits_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_desk_computer_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_meeting_rooms_locked_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_doors_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_back_door_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_entrance_exit_doors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_smoke_detectors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_windows_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_laundry_area_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_extinguishers_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_alarm_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
            ") " +
            "SELECT month, " +
            "  CASE WHEN cond LIKE '%critical%' THEN 'critical' WHEN cond LIKE '%high%' THEN 'high' WHEN cond LIKE '%medium%' THEN 'medium' ELSE NULL END as status, " +
@@ -117,9 +117,27 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
            "ORDER BY month", nativeQuery = true)
     List<Object[]> findMonthlyIssueCounts(@Param("programId") Long programId, @Param("year") int year);
 
-    @Query(value = "SELECT EXTRACT(MONTH FROM report_date)::int as month, COUNT(*) as cnt " +
-           "FROM program_ucr_reports " +
-           "WHERE program_id = :programId AND EXTRACT(YEAR FROM report_date) = :year AND resolved = true " +
+    @Query(value = "SELECT " +
+           "  EXTRACT(MONTH FROM r.report_date)::int as month, " +
+           "  SUM(" +
+           "    (CASE WHEN (LOWER(r.security_radios_condition) LIKE '%critical%' OR LOWER(r.security_radios_condition) LIKE '%high%' OR LOWER(r.security_radios_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityRadios%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.security_flashlights_condition) LIKE '%critical%' OR LOWER(r.security_flashlights_condition) LIKE '%high%' OR LOWER(r.security_flashlights_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityFlashlights%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.security_metal_detector_condition) LIKE '%critical%' OR LOWER(r.security_metal_detector_condition) LIKE '%high%' OR LOWER(r.security_metal_detector_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityMetalDetector%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.security_big_set_keys_condition) LIKE '%critical%' OR LOWER(r.security_big_set_keys_condition) LIKE '%high%' OR LOWER(r.security_big_set_keys_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityBigSetKeys%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.security_first_aid_kits_condition) LIKE '%critical%' OR LOWER(r.security_first_aid_kits_condition) LIKE '%high%' OR LOWER(r.security_first_aid_kits_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityFirstAidKits%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.security_desk_computer_condition) LIKE '%critical%' OR LOWER(r.security_desk_computer_condition) LIKE '%high%' OR LOWER(r.security_desk_computer_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%securityDeskComputer%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%critical%' OR LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%high%' OR LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%adminMeetingRoomsLocked%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.admin_doors_secure_condition) LIKE '%critical%' OR LOWER(r.admin_doors_secure_condition) LIKE '%high%' OR LOWER(r.admin_doors_secure_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%adminDoorsSecure%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_back_door_condition) LIKE '%critical%' OR LOWER(r.infra_back_door_condition) LIKE '%high%' OR LOWER(r.infra_back_door_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraBackDoor%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_entrance_exit_doors_condition) LIKE '%critical%' OR LOWER(r.infra_entrance_exit_doors_condition) LIKE '%high%' OR LOWER(r.infra_entrance_exit_doors_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraEntranceExitDoors%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_smoke_detectors_condition) LIKE '%critical%' OR LOWER(r.infra_smoke_detectors_condition) LIKE '%high%' OR LOWER(r.infra_smoke_detectors_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraSmokeDetectors%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_windows_secure_condition) LIKE '%critical%' OR LOWER(r.infra_windows_secure_condition) LIKE '%high%' OR LOWER(r.infra_windows_secure_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraWindowsSecure%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_laundry_area_condition) LIKE '%critical%' OR LOWER(r.infra_laundry_area_condition) LIKE '%high%' OR LOWER(r.infra_laundry_area_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraLaundryArea%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_fire_extinguishers_condition) LIKE '%critical%' OR LOWER(r.infra_fire_extinguishers_condition) LIKE '%high%' OR LOWER(r.infra_fire_extinguishers_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraFireExtinguishers%' THEN 1 ELSE 0 END) + " +
+           "    (CASE WHEN (LOWER(r.infra_fire_alarm_condition) LIKE '%critical%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%high%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%medium%') AND r.resolved_issues LIKE '%infraFireAlarm%' THEN 1 ELSE 0 END) " +
+           "  ) as cnt " +
+           "FROM program_ucr_reports r " +
+           "WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
            "GROUP BY month ORDER BY month", nativeQuery = true)
     List<Object[]> findResolvedCountsByMonth(@Param("programId") Long programId, @Param("year") int year);
 }
