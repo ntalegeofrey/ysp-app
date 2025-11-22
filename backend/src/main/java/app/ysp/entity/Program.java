@@ -1,11 +1,13 @@
 package app.ysp.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "programs")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Program {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
