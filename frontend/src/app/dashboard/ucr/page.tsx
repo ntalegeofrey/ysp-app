@@ -1203,7 +1203,7 @@ export default function UCRPage() {
               </div>
               <div className="p-4 space-y-4">
                 {[
-                  'Meeting Rooms A & B (212A, 211GB) locked',
+                  'Meeting Rooms locked (if not comment which one and mark as issue)',
                   'Administration doors locked and secure',
                 ].map((label, idx) => (
                   <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-b border-bd last:border-b-0">
