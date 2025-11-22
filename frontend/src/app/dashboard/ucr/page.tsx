@@ -802,7 +802,13 @@ export default function UCRPage() {
                               </button>
                               <button
                                 onClick={() => {
-                                  addToast('Notification sent to program manager', 'success');
+                                  const params = new URLSearchParams();
+                                  params.set('reportId', String(issue.reportId));
+                                  if (issue.reportDate) params.set('date', issue.reportDate);
+                                  if (issue.shiftTime) params.set('shift', issue.shiftTime);
+                                  params.set('status', issue.condition);
+                                  params.set('summary', `${issue.label}: ${issue.comment}`);
+                                  router.push(`/dashboard/ucr/notify?${params.toString()}`);
                                 }}
                                 className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-blue-600"
                               >
