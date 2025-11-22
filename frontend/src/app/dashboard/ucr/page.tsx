@@ -87,7 +87,7 @@ export default function UCRPage() {
       : 'bg-green-100 text-success';
 
   // Chart data
-  const [chartData, setChartData] = useState<{ critical: number[]; high: number[]; medium: number[] }>({ critical: new Array(12).fill(0), high: new Array(12).fill(0), medium: new Array(12).fill(0) });
+  const [chartData, setChartData] = useState<{ critical: number[]; high: number[]; medium: number[]; resolved: number[] }>({ critical: new Array(12).fill(0), high: new Array(12).fill(0), medium: new Array(12).fill(0), resolved: new Array(12).fill(0) });
   const loadChartData = async () => {
     if (!programId) return;
     try {
@@ -97,15 +97,17 @@ export default function UCRPage() {
         console.error('Failed to load chart data:', r.status, r.statusText);
         return;
       }
-      if (r.ok) {
-        const d = await r.json();
-        setChartData({ 
-          critical: d.critical || new Array(12).fill(0), 
-          high: d.high || new Array(12).fill(0), 
-          medium: d.medium || new Array(12).fill(0) 
-        });
-      }
-    } catch {}
+      const d = await r.json();
+      console.log('Chart data loaded:', d);
+      setChartData({ 
+        critical: d.critical || new Array(12).fill(0), 
+        high: d.high || new Array(12).fill(0), 
+        medium: d.medium || new Array(12).fill(0),
+        resolved: d.resolved || new Array(12).fill(0)
+      });
+    } catch (e) {
+      console.error('loadChartData error:', e);
+    }
   };
 
   // Load Highcharts and render the chart; feed series from backend stats if desired later
@@ -150,6 +152,7 @@ export default function UCRPage() {
             { name: 'Critical Issues', data: chartData.critical, color: '#CD0D0D' },
             { name: 'High Priority', data: chartData.high, color: '#f6c51b' },
             { name: 'Medium Priority', data: chartData.medium, color: '#8AAAC7' },
+            { name: 'Resolved', data: chartData.resolved, color: '#10b981' },
           ],
           plotOptions: { column: { pointPadding: 0.2, borderWidth: 0 } },
           tooltip: {
@@ -196,29 +199,7 @@ export default function UCRPage() {
   };
 
   // Load monthly chart data
-  const loadMonthlyChart = async () => {
-    if (!programId) return;
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const year = new Date().getFullYear();
-      const r = await fetch(`/api/programs/${programId}/ucr/monthly-chart?year=${year}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-      if (!r.ok) return;
-      const data = await r.json();
-      // data is array of {month, status, cnt}
-      const critical = Array(12).fill(0);
-      const high = Array(12).fill(0);
-      const medium = Array(12).fill(0);
-      data.forEach((item: any) => {
-        const monthIdx = (item.month || 1) - 1;
-        if (item.status === 'critical') critical[monthIdx] = item.cnt || 0;
-        else if (item.status === 'high') high[monthIdx] = item.cnt || 0;
-        else if (item.status === 'medium') medium[monthIdx] = item.cnt || 0;
-      });
-      setChartData({ critical, high, medium });
-    } catch (e) {
-      console.error('loadMonthlyChart error:', e);
-    }
-  };
+  // Removed duplicate loadMonthlyChart - using loadChartData instead
 
   // Open issues summary (Critical/High/Medium)
   type OpenIssue = Ucr;
@@ -267,7 +248,7 @@ export default function UCRPage() {
         return;
       }
       addToast('Issue marked as resolved.', 'success');
-      await Promise.all([loadOpenIssues(), loadStats(), loadMonthlyChart(), loadReports(true)]);
+      await Promise.all([loadOpenIssues(), loadStats(), loadChartData(), loadReports(true)]);
     } catch {
       addToast('Failed to resolve issue.', 'error');
     }
@@ -675,7 +656,7 @@ export default function UCRPage() {
     printWindow.document.close();
   };
 
-  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadMonthlyChart(); } }, [programId]);
+  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadChartData(); } }, [programId]);
   useEffect(() => { if (programId) { loadReports(); } }, [pageIdx]);
 
   // SSE live refresh

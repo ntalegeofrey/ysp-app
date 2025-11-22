@@ -116,4 +116,10 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
            "GROUP BY month, status " +
            "ORDER BY month", nativeQuery = true)
     List<Object[]> findMonthlyIssueCounts(@Param("programId") Long programId, @Param("year") int year);
+
+    @Query(value = "SELECT EXTRACT(MONTH FROM report_date)::int as month, COUNT(*) as cnt " +
+           "FROM program_ucr_reports " +
+           "WHERE program_id = :programId AND EXTRACT(YEAR FROM report_date) = :year AND resolved = true " +
+           "GROUP BY month ORDER BY month", nativeQuery = true)
+    List<Object[]> findResolvedCountsByMonth(@Param("programId") Long programId, @Param("year") int year);
 }

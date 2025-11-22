@@ -440,35 +440,51 @@ public class ProgramUcrController {
     @PreAuthorize("permitAll()")
     public ResponseEntity<?> monthlyChart(@PathVariable("id") Long programId, @RequestParam(value = "year", defaultValue = "0") int year) {
         if (year <= 0) year = java.time.Year.now().getValue();
-        var results = ucrs.findMonthlyIssueCounts(programId, year);
+        List<Object[]> rawData = ucrs.findMonthlyIssueCounts(programId, year);
         
         // Initialize arrays for 12 months
         int[] critical = new int[12];
         int[] high = new int[12];
         int[] medium = new int[12];
+        int[] resolved = new int[12];
         
-        for (Object[] row : results) {
-            int month = ((Number) row[0]).intValue() - 1; // 0-based index
-            String status = (String) row[1];
+        // Process raw data: [month, status, count]
+        for (Object[] row : rawData) {
+            int month = ((Number) row[0]).intValue(); // 1-12
+            String status = (String) row[1]; // 'critical', 'high', 'medium'
             int count = ((Number) row[2]).intValue();
             
-            if (month >= 0 && month < 12) {
-                if ("critical".equals(status)) {
-                    critical[month] = count;
-                } else if ("high".equals(status)) {
-                    high[month] = count;
-                } else if ("medium".equals(status)) {
-                    medium[month] = count;
-                }
+            int idx = month - 1; // Convert to 0-11 for array index
+            if (idx < 0 || idx > 11) continue;
+            
+            if ("critical".equalsIgnoreCase(status)) {
+                critical[idx] = count;
+            } else if ("high".equalsIgnoreCase(status)) {
+                high[idx] = count;
+            } else if ("medium".equalsIgnoreCase(status)) {
+                medium[idx] = count;
             }
         }
         
-        Map<String, Object> out = new HashMap<>();
-        out.put("critical", critical);
-        out.put("high", high);
-        out.put("medium", medium);
-        out.put("year", year);
-        return ResponseEntity.ok(out);
+        // Get resolved counts by month
+        List<Object[]> resolvedData = ucrs.findResolvedCountsByMonth(programId, year);
+        for (Object[] row : resolvedData) {
+            int month = ((Number) row[0]).intValue();
+            int count = ((Number) row[1]).intValue();
+            int idx = month - 1;
+            if (idx >= 0 && idx < 12) {
+                resolved[idx] = count;
+            }
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("critical", critical);
+        result.put("high", high);
+        result.put("medium", medium);
+        result.put("resolved", resolved);
+        result.put("year", year);
+        
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/notify")
