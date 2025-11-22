@@ -801,6 +801,14 @@ export default function UCRPage() {
                                 <i className="fa-solid fa-eye mr-1"></i>View
                               </button>
                               <button
+                                onClick={() => {
+                                  addToast('Notification sent to program manager', 'success');
+                                }}
+                                className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-blue-600"
+                              >
+                                <i className="fa-solid fa-bell mr-1"></i>Notify
+                              </button>
+                              <button
                                 onClick={() => resolveIssue(issue.reportId)}
                                 className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
                               >
