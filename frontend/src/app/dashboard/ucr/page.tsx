@@ -211,7 +211,8 @@ export default function UCRPage() {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=${persistingIssuesPage}&size=${persistingIssuesPerPage}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      // Fetch ALL reports with issues (not paginated) to get accurate count
+      const r = await fetch(`/api/programs/${programId}/ucr/open-issues?page=0&size=1000`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
       console.log('loadOpenIssues response:', r);
       if (!r.ok) {
         console.error('Failed to load open issues:', r.status, r.statusText);
@@ -219,7 +220,6 @@ export default function UCRPage() {
       }
       if (r.ok) {
         const d = await r.json();
-        console.log('loadOpenIssues data:', d);
         setOpenIssues(d.content || []);
       }
     } catch (e) {
