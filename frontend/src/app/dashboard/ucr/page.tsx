@@ -257,16 +257,30 @@ export default function UCRPage() {
   const printReport = (report: any) => {
     console.log('=== PRINT FUNCTION START ===', report);
     try {
-      console.log('Opening print window...');
+      // Open new window
       const printWindow = window.open('', '_blank');
-      console.log('Print window object:', printWindow);
       if (!printWindow) {
         addToast('Please allow popups to print reports', 'error');
         return;
       }
 
+      // Format date
       const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
-      console.log('Date string:', dateStr);
+      
+      // Parse room searches safely
+      let roomSearchesArray: any[] = [];
+      if (report.roomSearches) {
+        if (typeof report.roomSearches === 'string') {
+          try {
+            roomSearchesArray = JSON.parse(report.roomSearches);
+          } catch (e) {
+            console.error('Failed to parse roomSearches:', e);
+            roomSearchesArray = [];
+          }
+        } else if (Array.isArray(report.roomSearches)) {
+          roomSearchesArray = report.roomSearches;
+        }
+      }
     
     // Helper functions
     const getStatusDisplay = (status: string | null) => {
@@ -621,16 +635,7 @@ export default function UCRPage() {
           </table>
         </div>
 
-        ${(() => {
-          let searches = report.roomSearches;
-          // Parse if it's a JSON string
-          if (typeof searches === 'string') {
-            try { searches = JSON.parse(searches); } catch { searches = []; }
-          }
-          // Ensure it's an array
-          if (!Array.isArray(searches) || searches.length === 0) return '';
-          
-          return `
+        ${roomSearchesArray.length > 0 ? `
           <div class="section">
             <h2 class="section-title">Resident Room Searches</h2>
             <table>
@@ -638,13 +643,12 @@ export default function UCRPage() {
                 <th style="width: 30%;">Room Number</th>
                 <th style="width: 70%;">Search Comments</th>
               </tr>
-              ${searches.map((search: any) => 
+              ${roomSearchesArray.map((search: any) => 
                 '<tr><td>' + (search.room_number || search.roomNumber || '-') + '</td><td>' + (search.search_comments || search.searchComments || '-') + '</td></tr>'
               ).join('')}
             </table>
           </div>
-          `;
-        })()}
+        ` : ''}
 
         ${report.additionalComments ? `
           <div class="section">
