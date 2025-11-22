@@ -326,6 +326,7 @@ public class ProgramUcrController {
             try { r.setReportDate(LocalDate.parse(Objects.toString(body.get("reportDate"), null))); } catch (Exception ignored) {}
         }
         if (body.containsKey("shiftTime")) r.setShiftTime(getString(body, "shiftTime"));
+        if (body.containsKey("staffName")) r.setStaffName(getString(body, "staffName"));
 
         // Map all fields from body to report
         mapFieldsToReport(r, body);
