@@ -562,9 +562,55 @@ export default function UCRPage() {
           </table>
         </div>
 
+        <div class="section">
+          <h2 class="section-title">Staff Chores</h2>
+          <table>
+            <tr>
+              <th style="width: 50%;">Item</th>
+              <th style="width: 20%;">Status</th>
+              <th style="width: 30%;">Comments</th>
+            </tr>
+            <tr>
+              <td>Workspace clean (common area, desk)</td>
+              <td>${report.choreWorkspaceCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreWorkspaceCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${report.choreWorkspaceCleanComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Staff bathroom cleaned and mopped</td>
+              <td>${report.choreStaffBathroomStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreStaffBathroomStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${report.choreStaffBathroomComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Dayroom cleaned and mopped</td>
+              <td>${report.choreDayroomCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreDayroomCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${report.choreDayroomCleanComments || '-'}</td>
+            </tr>
+            <tr>
+              <td>Laundry room cleaned and mopped</td>
+              <td>${report.choreLaundryRoomCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreLaundryRoomCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${report.choreLaundryRoomCleanComments || '-'}</td>
+            </tr>
+          </table>
+        </div>
+
+        ${report.roomSearches && report.roomSearches.length > 0 ? `
+          <div class="section">
+            <h2 class="section-title">Resident Room Searches</h2>
+            <table>
+              <tr>
+                <th style="width: 30%;">Room Number</th>
+                <th style="width: 70%;">Search Comments</th>
+              </tr>
+              ${report.roomSearches.map((search: any) => 
+                '<tr><td>' + (search.room_number || search.roomNumber || '-') + '</td><td>' + (search.search_comments || search.searchComments || '-') + '</td></tr>'
+              ).join('')}
+            </table>
+          </div>
+        ` : ''}
+
         ${report.additionalComments ? `
           <div class="section">
-            <h2 class="section-title">Additional Comments</h2>
+            <h2 class="section-title">Additional Comments / Notes</h2>
             <div style="background: #f9fafb; padding: 12px; border-radius: 6px; line-height: 1.6; border: 1px solid #e5e7eb;">
               ${report.additionalComments}
             </div>
