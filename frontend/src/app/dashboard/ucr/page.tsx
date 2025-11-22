@@ -27,33 +27,33 @@ export default function UCRPage() {
 
   type Ucr = { id: number|string; reportDate: string; shift?: string; reporterName?: string; status?: string; issuesSummary?: string };
   const [ucrReports, setUcrReports] = useState<Ucr[]>([]);
-  const [totalReports, setTotalReports] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number>(0);
   const [pageIdx, setPageIdx] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(5);
   const [q, setQ] = useState<string>('');
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('All Status');
-  const loadReports = async (resetPage = false) => {
+  const loadReports = async (reset?: boolean) => {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const params = new URLSearchParams({
-        page: String(resetPage ? 0 : pageIdx),
-        size: String(pageSize),
-      });
-      if (q) params.set('q', q);
-      if (filterDate) params.set('date', filterDate);
-      if (filterStatus) params.set('status', filterStatus);
-      const r = await fetch(`/api/programs/${programId}/ucr/reports/page?${params.toString()}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-      if (!r.ok) {
-        console.error('Failed to load UCR reports:', r.status, r.statusText);
-        return;
-      }
+      const params = new URLSearchParams();
+      params.set('page', reset ? '0' : String(pageIdx));
+      params.set('size', '5');
+      if (q && q.trim() !== '') params.set('q', q);
+      if (filterDate && filterDate.trim() !== '') params.set('date', filterDate);
+      if (filterStatus && filterStatus !== 'All Status' && filterStatus.trim() !== '') params.set('status', filterStatus);
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/page?${params}`, { credentials:'include', headers:{ ...(token?{Authorization:`Bearer ${token}`}:{}) } });
+      if (!r.ok) return;
       const data = await r.json();
       setUcrReports(data.content || []);
-      setTotalReports(data.totalElements || 0);
-      if (resetPage) setPageIdx(0);
-    } catch {}
+      setTotalElements(data.totalElements || 0);
+      setTotalPages(data.totalElements? Math.ceil(data.totalElements / 5) : 0);
+      if (reset) setPageIdx(0);
+    } catch (e) {
+      console.error('loadReports error:', e);
+    }
   };
 
   const statusBadge = (s: string) =>
@@ -173,6 +173,31 @@ export default function UCRPage() {
     } catch {}
   };
 
+  // Load monthly chart data
+  const loadMonthlyChart = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const year = new Date().getFullYear();
+      const r = await fetch(`/api/programs/${programId}/ucr/monthly-chart?year=${year}`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
+      if (!r.ok) return;
+      const data = await r.json();
+      // data is array of {month, status, cnt}
+      const critical = Array(12).fill(0);
+      const high = Array(12).fill(0);
+      const medium = Array(12).fill(0);
+      data.forEach((item: any) => {
+        const monthIdx = (item.month || 1) - 1;
+        if (item.status === 'critical') critical[monthIdx] = item.cnt || 0;
+        else if (item.status === 'high') high[monthIdx] = item.cnt || 0;
+        else if (item.status === 'medium') medium[monthIdx] = item.cnt || 0;
+      });
+      setChartData({ critical, high, medium });
+    } catch (e) {
+      console.error('loadMonthlyChart error:', e);
+    }
+  };
+
   // Open issues summary (Critical/High/Medium)
   type OpenIssue = Ucr;
   const [openIssues, setOpenIssues] = useState<OpenIssue[]>([]);
@@ -219,13 +244,13 @@ export default function UCRPage() {
         return;
       }
       addToast('Issue marked as resolved.', 'success');
-      await Promise.all([loadOpenIssues(), loadStats(), loadChartData(), loadReports(true)]);
+      await Promise.all([loadOpenIssues(), loadStats(), loadMonthlyChart(), loadReports(true)]);
     } catch {
       addToast('Failed to resolve issue.', 'error');
     }
   };
 
-  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadChartData(); } }, [programId]);
+  useEffect(() => { if (programId) { loadReports(true); loadStats(); loadOpenIssues(); loadMonthlyChart(); } }, [programId]);
   useEffect(() => { if (programId) { loadReports(); } }, [pageIdx]);
 
   // SSE live refresh
@@ -797,7 +822,7 @@ export default function UCRPage() {
                 <div className="p-4 border-b border-bd">
                   <h3 className="text-lg font-semibold text-font-base">UCR Reports Archive</h3>
                   <div className="flex items-center gap-4 mt-3">
-                    <input value={q} onChange={(e)=> { setQ(e.target.value); setPageIdx(0); loadReports(true); }} type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input value={q} onChange={(e)=> { const val = e.target.value; setQ(val); setPageIdx(0); if (val === '') { loadReports(true); } }} onBlur={()=> loadReports(true)} type="text" placeholder="Search reports by date or key issues..." className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
                     <input value={filterDate} onChange={(e)=> { setFilterDate(e.target.value); setPageIdx(0); loadReports(true); }} type="date" className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
                     <select value={filterStatus} onChange={(e)=> { setFilterStatus(e.target.value); setPageIdx(0); loadReports(true); }} className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                       <option>All Status</option>
@@ -862,10 +887,10 @@ export default function UCRPage() {
                   </table>
                 </div>
                 <div className="p-4 border-t border-bd flex justify-between items-center">
-                  <p className="text-sm text-font-detail">Showing {ucrReports.length} of {totalReports} reports</p>
+                  <p className="text-sm text-font-detail">Showing {ucrReports.length} of {totalElements} reports</p>
                   <div className="flex items-center gap-2">
                     <button disabled={pageIdx<=0} onClick={()=> setPageIdx(p=> Math.max(0, p-1))} className={`px-3 py-2 text-sm rounded ${pageIdx<=0? 'bg-gray-200 text-gray-500' : 'bg-white border border-bd hover:bg-primary-lightest'}`}>Prev</button>
-                    <button disabled={(pageIdx+1)*pageSize >= totalReports} onClick={()=> setPageIdx(p=> p+1)} className={`px-3 py-2 text-sm rounded ${(pageIdx+1)*pageSize >= totalReports? 'bg-gray-200 text-gray-500' : 'bg-primary text-white hover:bg-primary-light'}`}>See More</button>
+                    <button disabled={(pageIdx+1)*pageSize >= totalElements} onClick={()=> setPageIdx(p=> p+1)} className={`px-3 py-2 text-sm rounded ${(pageIdx+1)*pageSize >= totalElements? 'bg-gray-200 text-gray-500' : 'bg-primary text-white hover:bg-primary-light'}`}>See More</button>
                   </div>
                 </div>
               </div>

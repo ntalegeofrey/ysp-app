@@ -66,21 +66,43 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
            "OR LOWER(r.infra_fire_alarm_condition) LIKE '%critical%')", nativeQuery = true)
     long countHigh(@Param("programId") Long programId);
 
+    // Count ALL unresolved issues (Critical + High + Medium)
+    @Query(value = "SELECT COUNT(*) FROM program_ucr_reports r WHERE r.program_id = :programId " +
+           "AND (r.resolved = false OR r.resolved IS NULL) " +
+           "AND (LOWER(r.security_radios_condition) LIKE '%critical%' OR LOWER(r.security_radios_condition) LIKE '%high%' OR LOWER(r.security_radios_condition) LIKE '%medium%' " +
+           "OR LOWER(r.security_flashlights_condition) LIKE '%critical%' OR LOWER(r.security_flashlights_condition) LIKE '%high%' OR LOWER(r.security_flashlights_condition) LIKE '%medium%' " +
+           "OR LOWER(r.security_metal_detector_condition) LIKE '%critical%' OR LOWER(r.security_metal_detector_condition) LIKE '%high%' OR LOWER(r.security_metal_detector_condition) LIKE '%medium%' " +
+           "OR LOWER(r.security_big_set_keys_condition) LIKE '%critical%' OR LOWER(r.security_big_set_keys_condition) LIKE '%high%' OR LOWER(r.security_big_set_keys_condition) LIKE '%medium%' " +
+           "OR LOWER(r.security_first_aid_kits_condition) LIKE '%critical%' OR LOWER(r.security_first_aid_kits_condition) LIKE '%high%' OR LOWER(r.security_first_aid_kits_condition) LIKE '%medium%' " +
+           "OR LOWER(r.security_desk_computer_condition) LIKE '%critical%' OR LOWER(r.security_desk_computer_condition) LIKE '%high%' OR LOWER(r.security_desk_computer_condition) LIKE '%medium%' " +
+           "OR LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%critical%' OR LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%high%' OR LOWER(r.admin_meeting_rooms_locked_condition) LIKE '%medium%' " +
+           "OR LOWER(r.admin_doors_secure_condition) LIKE '%critical%' OR LOWER(r.admin_doors_secure_condition) LIKE '%high%' OR LOWER(r.admin_doors_secure_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_back_door_condition) LIKE '%critical%' OR LOWER(r.infra_back_door_condition) LIKE '%high%' OR LOWER(r.infra_back_door_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_entrance_exit_doors_condition) LIKE '%critical%' OR LOWER(r.infra_entrance_exit_doors_condition) LIKE '%high%' OR LOWER(r.infra_entrance_exit_doors_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_smoke_detectors_condition) LIKE '%critical%' OR LOWER(r.infra_smoke_detectors_condition) LIKE '%high%' OR LOWER(r.infra_smoke_detectors_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_windows_secure_condition) LIKE '%critical%' OR LOWER(r.infra_windows_secure_condition) LIKE '%high%' OR LOWER(r.infra_windows_secure_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_laundry_area_condition) LIKE '%critical%' OR LOWER(r.infra_laundry_area_condition) LIKE '%high%' OR LOWER(r.infra_laundry_area_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_fire_extinguishers_condition) LIKE '%critical%' OR LOWER(r.infra_fire_extinguishers_condition) LIKE '%high%' OR LOWER(r.infra_fire_extinguishers_condition) LIKE '%medium%' " +
+           "OR LOWER(r.infra_fire_alarm_condition) LIKE '%critical%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%high%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%medium%')", nativeQuery = true)
+    long countAllIssues(@Param("programId") Long programId);
+
     @Query("select r from ProgramUcrReport r where r.program.id = :programId and (r.resolved = false or r.resolved is null) and (r.securityRadiosCondition like '%Critical%' or r.securityRadiosCondition like '%High%' or r.securityRadiosCondition like '%Medium%' or r.securityFlashlightsCondition like '%Critical%' or r.securityFlashlightsCondition like '%High%' or r.securityFlashlightsCondition like '%Medium%' or r.securityMetalDetectorCondition like '%Critical%' or r.securityMetalDetectorCondition like '%High%' or r.securityMetalDetectorCondition like '%Medium%' or r.securityBigSetKeysCondition like '%Critical%' or r.securityBigSetKeysCondition like '%High%' or r.securityBigSetKeysCondition like '%Medium%' or r.securityFirstAidKitsCondition like '%Critical%' or r.securityFirstAidKitsCondition like '%High%' or r.securityFirstAidKitsCondition like '%Medium%' or r.securityDeskComputerCondition like '%Critical%' or r.securityDeskComputerCondition like '%High%' or r.securityDeskComputerCondition like '%Medium%' or r.adminMeetingRoomsLockedCondition like '%Critical%' or r.adminMeetingRoomsLockedCondition like '%High%' or r.adminMeetingRoomsLockedCondition like '%Medium%' or r.adminDoorsSecureCondition like '%Critical%' or r.adminDoorsSecureCondition like '%High%' or r.adminDoorsSecureCondition like '%Medium%' or r.infraBackDoorCondition like '%Critical%' or r.infraBackDoorCondition like '%High%' or r.infraBackDoorCondition like '%Medium%' or r.infraEntranceExitDoorsCondition like '%Critical%' or r.infraEntranceExitDoorsCondition like '%High%' or r.infraEntranceExitDoorsCondition like '%Medium%' or r.infraSmokeDetectorsCondition like '%Critical%' or r.infraSmokeDetectorsCondition like '%High%' or r.infraSmokeDetectorsCondition like '%Medium%' or r.infraWindowsSecureCondition like '%Critical%' or r.infraWindowsSecureCondition like '%High%' or r.infraWindowsSecureCondition like '%Medium%' or r.infraLaundryAreaCondition like '%Critical%' or r.infraLaundryAreaCondition like '%High%' or r.infraLaundryAreaCondition like '%Medium%' or r.infraFireExtinguishersCondition like '%Critical%' or r.infraFireExtinguishersCondition like '%High%' or r.infraFireExtinguishersCondition like '%Medium%' or r.infraFireAlarmCondition like '%Critical%' or r.infraFireAlarmCondition like '%High%' or r.infraFireAlarmCondition like '%Medium%') order by r.reportDate desc, r.id desc")
     Page<ProgramUcrReport> findOpenIssues(@Param("programId") Long programId, Pageable pageable);
 
-    @Query(value = "SELECT EXTRACT(MONTH FROM r.report_date)::int as month, " +
-           "CASE " +
-           "WHEN (LOWER(r.security_radios_condition) LIKE '%critical%' OR LOWER(r.security_flashlights_condition) LIKE '%critical%' " +
-           "      OR LOWER(r.security_metal_detector_condition) LIKE '%critical%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%critical%') THEN 'critical' " +
-           "WHEN (LOWER(r.security_radios_condition) LIKE '%high%' OR LOWER(r.security_flashlights_condition) LIKE '%high%' " +
-           "      OR LOWER(r.security_metal_detector_condition) LIKE '%high%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%high%') THEN 'high' " +
-           "WHEN (LOWER(r.security_radios_condition) LIKE '%medium%' OR LOWER(r.security_flashlights_condition) LIKE '%medium%' " +
-           "      OR LOWER(r.security_metal_detector_condition) LIKE '%medium%' OR LOWER(r.infra_fire_alarm_condition) LIKE '%medium%') THEN 'medium' " +
-           "ELSE 'normal' END as status, COUNT(*) as cnt " +
-           "FROM program_ucr_reports r " +
-           "WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
-           "GROUP BY EXTRACT(MONTH FROM r.report_date), status " +
+    @Query(value = "WITH all_conditions AS (" +
+           "  SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int as month, " +
+           "    LOWER(r.security_radios_condition) as cond FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_flashlights_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_metal_detector_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_big_set_keys_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_alarm_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           ") " +
+           "SELECT month, " +
+           "  CASE WHEN cond LIKE '%critical%' THEN 'critical' WHEN cond LIKE '%high%' THEN 'high' WHEN cond LIKE '%medium%' THEN 'medium' ELSE NULL END as status, " +
+           "  COUNT(DISTINCT id) as cnt " +
+           "FROM all_conditions " +
+           "WHERE cond LIKE '%critical%' OR cond LIKE '%high%' OR cond LIKE '%medium%' " +
+           "GROUP BY month, status " +
            "ORDER BY month", nativeQuery = true)
     List<Object[]> findMonthlyIssueCounts(@Param("programId") Long programId, @Param("year") int year);
 }

@@ -179,6 +179,12 @@ public class ProgramUcrController {
 
         ProgramUcrReport r = new ProgramUcrReport();
         r.setProgram(program);
+        
+        // Set reporter as the logged-in user
+        if (auth != null && auth.getName() != null) {
+            r.setStaffId(Long.parseLong(auth.getName()));
+        }
+        
         LocalDate date;
         try {
             Object d = body.get("reportDate");
@@ -247,7 +253,7 @@ public class ProgramUcrController {
         LocalDate end = now.atEndOfMonth();
         Map<String, Object> out = new HashMap<>();
         out.put("total", ucrs.countByProgramId(programId));
-        out.put("critical", ucrs.countCritical(programId));
+        out.put("critical", ucrs.countAllIssues(programId)); // Count ALL unresolved issues (Critical + High + Medium)
         out.put("high", ucrs.countHigh(programId));
         out.put("monthCount", ucrs.countInRange(programId, start, end));
         return ResponseEntity.ok(out);
