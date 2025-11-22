@@ -92,16 +92,25 @@ public interface ProgramUcrReportRepository extends JpaRepository<ProgramUcrRepo
     Page<ProgramUcrReport> findOpenIssues(@Param("programId") Long programId, Pageable pageable);
 
     @Query(value = "WITH all_conditions AS (" +
-           "  SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int as month, " +
-           "    LOWER(r.security_radios_condition) as cond FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
-           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_flashlights_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
-           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_metal_detector_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
-           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_big_set_keys_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
-           "  UNION ALL SELECT r.id, EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_alarm_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  SELECT EXTRACT(MONTH FROM r.report_date)::int as month, LOWER(r.security_radios_condition) as cond FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_flashlights_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_metal_detector_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_big_set_keys_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_first_aid_kits_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.security_desk_computer_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_meeting_rooms_locked_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.admin_doors_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_back_door_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_entrance_exit_doors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_smoke_detectors_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_windows_secure_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_laundry_area_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_extinguishers_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
+           "  UNION ALL SELECT EXTRACT(MONTH FROM r.report_date)::int, LOWER(r.infra_fire_alarm_condition) FROM program_ucr_reports r WHERE r.program_id = :programId AND EXTRACT(YEAR FROM r.report_date) = :year " +
            ") " +
            "SELECT month, " +
            "  CASE WHEN cond LIKE '%critical%' THEN 'critical' WHEN cond LIKE '%high%' THEN 'high' WHEN cond LIKE '%medium%' THEN 'medium' ELSE NULL END as status, " +
-           "  COUNT(DISTINCT id) as cnt " +
+           "  COUNT(*) as cnt " +
            "FROM all_conditions " +
            "WHERE cond LIKE '%critical%' OR cond LIKE '%high%' OR cond LIKE '%medium%' " +
            "GROUP BY month, status " +
