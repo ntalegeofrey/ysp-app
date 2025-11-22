@@ -1,5 +1,6 @@
 package app.ysp.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "program_ucr_reports")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProgramUcrReport {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
