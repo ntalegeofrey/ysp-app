@@ -1132,7 +1132,7 @@ export default function UCRPage() {
             </div>
             <div className="bg-white p-5 rounded-lg border border-bd flex items-center justify-between">
               <div>
-                <p className="text-sm text-font-detail">Issues</p>
+                <p className="text-sm text-font-detail">Unresolved Issues</p>
                 <p className="text-3xl font-bold text-error">{stats.critical}</p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
