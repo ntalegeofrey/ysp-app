@@ -255,6 +255,7 @@ export default function UCRPage() {
   };
 
   const printReport = (report: any) => {
+    alert('Print function called!'); // Test if function is reached
     try {
       console.log('Print report called with:', report);
       const printWindow = window.open('', '_blank');
