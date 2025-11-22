@@ -277,17 +277,72 @@ public class ProgramUcrController {
     @PreAuthorize("permitAll()")
     public ResponseEntity<?> resolveReport(
             @PathVariable("id") Long programId,
-            @PathVariable("reportId") Long reportId
+            @PathVariable("reportId") Long reportId,
+            @RequestBody(required = false) Map<String, Object> body
     ) {
         var report = ucrs.findOneByIdAndProgram(reportId, programId);
         if (report == null) return ResponseEntity.notFound().build();
         
-        report.setResolved(true);
-        report.setResolvedAt(java.time.LocalDateTime.now());
-        // TODO: Set resolvedBy to current user ID when auth context is available
-        ucrs.save(report);
+        // Get the specific issue field being resolved
+        String issueField = body != null ? getString(body, "issueField") : null;
         
+        if (issueField != null && !issueField.isBlank()) {
+            // Resolve specific issue
+            String current = report.getResolvedIssues();
+            java.util.Set<String> resolved = new java.util.HashSet<>();
+            if (current != null && !current.isBlank()) {
+                resolved.addAll(java.util.Arrays.asList(current.split(",")));
+            }
+            resolved.add(issueField);
+            report.setResolvedIssues(String.join(",", resolved));
+            
+            // Check if all issues are now resolved
+            boolean allResolved = checkAllIssuesResolved(report, resolved);
+            if (allResolved) {
+                report.setResolved(true);
+                report.setResolvedAt(java.time.LocalDateTime.now());
+            }
+        } else {
+            // Resolve entire report
+            report.setResolved(true);
+            report.setResolvedAt(java.time.LocalDateTime.now());
+        }
+        
+        ucrs.save(report);
         return ResponseEntity.ok(report);
+    }
+    
+    private boolean checkAllIssuesResolved(ProgramUcrReport r, java.util.Set<String> resolved) {
+        // Check if all Critical/High/Medium issues are resolved
+        String[] fields = {
+            "securityRadios", "securityFlashlights", "securityMetalDetector",
+            "securityBigSetKeys", "securityFirstAidKits", "securityDeskComputer",
+            "adminMeetingRoomsLocked", "adminDoorsSecure",
+            "infraBackDoor", "infraEntranceExitDoors", "infraSmokeDetectors",
+            "infraWindowsSecure", "infraLaundryArea", "infraFireExtinguishers", "infraFireAlarm"
+        };
+        
+        for (String field : fields) {
+            String condition = getConditionValue(r, field);
+            if (condition != null && (condition.toLowerCase().contains("critical") || 
+                condition.toLowerCase().contains("high") || 
+                condition.toLowerCase().contains("medium"))) {
+                if (!resolved.contains(field)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    
+    private String getConditionValue(ProgramUcrReport r, String field) {
+        try {
+            String methodName = "get" + field.substring(0,1).toUpperCase() + field.substring(1) + "Condition";
+            var method = ProgramUcrReport.class.getMethod(methodName);
+            return (String) method.invoke(r);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @GetMapping("/monthly-chart")

@@ -221,17 +221,15 @@ export default function UCRPage() {
     }
   };
 
-  const resolveIssue = async (id: string | number) => {
+  const resolveIssue = async (reportId: number, fieldName: string) => {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const r = await fetch(`/api/programs/${programId}/ucr/reports/${id}/resolve`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      const r = await fetch(`/api/programs/${programId}/ucr/reports/${reportId}/resolve`, { 
+        method:'POST', 
+        credentials:'include', 
+        headers: { 'Accept':'application/json', 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) },
+        body: JSON.stringify({ issueField: fieldName })
       });
       if (!r.ok) {
         if (r.status === 403) {
@@ -565,36 +563,41 @@ export default function UCRPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
   // Helper to extract ALL individual issues from a report
-  const getAllIssues = (report: any): Array<{label: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> => {
+  const getAllIssues = (report: any): Array<{label: string, fieldName: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> => {
     const fields = [
-      { condition: report.securityRadiosCondition, comment: report.securityRadiosComments, label: 'Security Radios' },
-      { condition: report.securityFlashlightsCondition, comment: report.securityFlashlightsComments, label: 'Security Flashlights' },
-      { condition: report.securityMetalDetectorCondition, comment: report.securityMetalDetectorComments, label: 'Metal Detector' },
-      { condition: report.securityBigSetKeysCondition, comment: report.securityBigSetKeysComments, label: 'Security Keys' },
-      { condition: report.securityFirstAidKitsCondition, comment: report.securityFirstAidKitsComments, label: 'First Aid Kits' },
-      { condition: report.securityDeskComputerCondition, comment: report.securityDeskComputerComments, label: 'Desk Computer' },
-      { condition: report.adminMeetingRoomsLockedCondition, comment: report.adminMeetingRoomsLockedComments, label: 'Meeting Rooms Locked' },
-      { condition: report.adminDoorsSecureCondition, comment: report.adminDoorsSecureComments, label: 'Admin Doors Secure' },
-      { condition: report.infraBackDoorCondition, comment: report.infraBackDoorComments, label: 'Back Door' },
-      { condition: report.infraEntranceExitDoorsCondition, comment: report.infraEntranceExitDoorsComments, label: 'Entrance/Exit Doors' },
-      { condition: report.infraSmokeDetectorsCondition, comment: report.infraSmokeDetectorsComments, label: 'Smoke Detectors' },
-      { condition: report.infraWindowsSecureCondition, comment: report.infraWindowsSecureComments, label: 'Windows Secure' },
-      { condition: report.infraLaundryAreaCondition, comment: report.infraLaundryAreaComments, label: 'Laundry Area' },
-      { condition: report.infraFireExtinguishersCondition, comment: report.infraFireExtinguishersComments, label: 'Fire Extinguishers' },
-      { condition: report.infraFireAlarmCondition, comment: report.infraFireAlarmComments, label: 'Fire Alarm' },
+      { fieldName: 'securityRadios', condition: report.securityRadiosCondition, comment: report.securityRadiosComments, label: 'Security Radios' },
+      { fieldName: 'securityFlashlights', condition: report.securityFlashlightsCondition, comment: report.securityFlashlightsComments, label: 'Security Flashlights' },
+      { fieldName: 'securityMetalDetector', condition: report.securityMetalDetectorCondition, comment: report.securityMetalDetectorComments, label: 'Metal Detector' },
+      { fieldName: 'securityBigSetKeys', condition: report.securityBigSetKeysCondition, comment: report.securityBigSetKeysComments, label: 'Security Keys' },
+      { fieldName: 'securityFirstAidKits', condition: report.securityFirstAidKitsCondition, comment: report.securityFirstAidKitsComments, label: 'First Aid Kits' },
+      { fieldName: 'securityDeskComputer', condition: report.securityDeskComputerCondition, comment: report.securityDeskComputerComments, label: 'Desk Computer' },
+      { fieldName: 'adminMeetingRoomsLocked', condition: report.adminMeetingRoomsLockedCondition, comment: report.adminMeetingRoomsLockedComments, label: 'Meeting Rooms Locked' },
+      { fieldName: 'adminDoorsSecure', condition: report.adminDoorsSecureCondition, comment: report.adminDoorsSecureComments, label: 'Admin Doors Secure' },
+      { fieldName: 'infraBackDoor', condition: report.infraBackDoorCondition, comment: report.infraBackDoorComments, label: 'Back Door' },
+      { fieldName: 'infraEntranceExitDoors', condition: report.infraEntranceExitDoorsCondition, comment: report.infraEntranceExitDoorsComments, label: 'Entrance/Exit Doors' },
+      { fieldName: 'infraSmokeDetectors', condition: report.infraSmokeDetectorsCondition, comment: report.infraSmokeDetectorsComments, label: 'Smoke Detectors' },
+      { fieldName: 'infraWindowsSecure', condition: report.infraWindowsSecureCondition, comment: report.infraWindowsSecureComments, label: 'Windows Secure' },
+      { fieldName: 'infraLaundryArea', condition: report.infraLaundryAreaCondition, comment: report.infraLaundryAreaComments, label: 'Laundry Area' },
+      { fieldName: 'infraFireExtinguishers', condition: report.infraFireExtinguishersCondition, comment: report.infraFireExtinguishersComments, label: 'Fire Extinguishers' },
+      { fieldName: 'infraFireAlarm', condition: report.infraFireAlarmCondition, comment: report.infraFireAlarmComments, label: 'Fire Alarm' },
     ];
     
-    const issues: Array<{label: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> = [];
+    const resolvedIssues = report.resolvedIssues ? report.resolvedIssues.split(',') : [];
+    const issues: Array<{label: string, fieldName: string, condition: string, comment: string, reportId: number, reportDate: string, shiftTime: string}> = [];
     fields.forEach(f => {
       if (f.condition && (f.condition.includes('Critical') || f.condition.includes('High') || f.condition.includes('Medium'))) {
-        issues.push({
-          label: f.label,
-          condition: f.condition,
-          comment: f.comment || 'No comment provided',
-          reportId: report.id,
-          reportDate: report.reportDate,
-          shiftTime: report.shiftTime
-        });
+        // Only include if not resolved
+        if (!resolvedIssues.includes(f.fieldName)) {
+          issues.push({
+            label: f.label,
+            fieldName: f.fieldName,
+            condition: f.condition,
+            comment: f.comment || 'No comment provided',
+            reportId: report.id,
+            reportDate: report.reportDate,
+            shiftTime: report.shiftTime
+          });
+        }
       }
     });
     return issues;
@@ -815,7 +818,7 @@ export default function UCRPage() {
                                 <i className="fa-solid fa-bell mr-1"></i>Notify
                               </button>
                               <button
-                                onClick={() => resolveIssue(issue.reportId)}
+                                onClick={() => resolveIssue(issue.reportId, issue.fieldName)}
                                 className="bg-success text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-green-600"
                               >
                                 <i className="fa-solid fa-check mr-1"></i>Resolved

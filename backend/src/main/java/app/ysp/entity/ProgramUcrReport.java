@@ -210,6 +210,10 @@ public class ProgramUcrReport {
     
     @Column(name = "resolved_by")
     private Long resolvedBy;
+    
+    // Track which individual issues have been resolved (comma-separated field names)
+    @Column(name = "resolved_issues", columnDefinition = "TEXT")
+    private String resolvedIssues;
 
     @PrePersist
     public void prePersist() {
@@ -476,4 +480,7 @@ public class ProgramUcrReport {
 
     public Long getResolvedBy() { return resolvedBy; }
     public void setResolvedBy(Long resolvedBy) { this.resolvedBy = resolvedBy; }
+    
+    public String getResolvedIssues() { return resolvedIssues; }
+    public void setResolvedIssues(String resolvedIssues) { this.resolvedIssues = resolvedIssues; }
 }
