@@ -1060,12 +1060,6 @@ export default function UCRPage() {
                             </div>
                             <div className="flex space-x-2 ml-4">
                               <button
-                                onClick={() => onView(issue.reportId)}
-                                className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
-                              >
-                                <i className="fa-solid fa-eye mr-1"></i>View
-                              </button>
-                              <button
                                 onClick={() => {
                                   const params = new URLSearchParams();
                                   params.set('reportId', String(issue.reportId));
@@ -1075,7 +1069,7 @@ export default function UCRPage() {
                                   params.set('summary', `${issue.label}: ${issue.comment}`);
                                   router.push(`/dashboard/ucr/notify?${params.toString()}`);
                                 }}
-                                className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-blue-600"
+                                className="bg-primary text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-primary-light"
                               >
                                 <i className="fa-solid fa-bell mr-1"></i>Notify
                               </button>
