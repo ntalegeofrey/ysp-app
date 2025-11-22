@@ -282,7 +282,7 @@ export default function UCRPage() {
 
     const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
     
-    // Helper function to get status display
+    // Helper functions
     const getStatusDisplay = (status: string | null) => {
       if (!status) return '<span style="color: #9ca3af;">Not Checked</span>';
       return status === 'ok' ? '<span style="color: #10b981; font-weight: bold;">✓ OK</span>' : '<span style="color: #dc2626; font-weight: bold;">⚠ Issue</span>';
@@ -294,6 +294,48 @@ export default function UCRPage() {
       if (priority === 'Medium') return '<span style="background: #eab308; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">MEDIUM</span>';
       return '<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">NORMAL</span>';
     };
+
+    // Pre-compute all values
+    const secRadiosStat = getStatusDisplay(report.securityRadiosStatus);
+    const secRadiosPri = getPriorityBadge(report.securityRadiosCondition || 'Normal');
+    const secFlashlightsStat = getStatusDisplay(report.securityFlashlightsStatus);
+    const secFlashlightsPri = getPriorityBadge(report.securityFlashlightsCondition || 'Normal');
+    const secMetalStat = getStatusDisplay(report.securityMetalDetectorStatus);
+    const secMetalPri = getPriorityBadge(report.securityMetalDetectorCondition || 'Normal');
+    const secKeysStat = getStatusDisplay(report.securityBigSetKeysStatus);
+    const secKeysPri = getPriorityBadge(report.securityBigSetKeysCondition || 'Normal');
+    const secAidStat = getStatusDisplay(report.securityFirstAidKitsStatus);
+    const secAidPri = getPriorityBadge(report.securityFirstAidKitsCondition || 'Normal');
+    const secCompStat = getStatusDisplay(report.securityDeskComputerStatus);
+    const secCompPri = getPriorityBadge(report.securityDeskComputerCondition || 'Normal');
+    const adminMeetStat = getStatusDisplay(report.adminMeetingRoomsLockedStatus);
+    const adminMeetPri = getPriorityBadge(report.adminMeetingRoomsLockedCondition || 'Normal');
+    const adminDoorsStat = getStatusDisplay(report.adminDoorsSecureStatus);
+    const adminDoorsPri = getPriorityBadge(report.adminDoorsSecureCondition || 'Normal');
+    const infraBackStat = getStatusDisplay(report.infraBackDoorStatus);
+    const infraBackPri = getPriorityBadge(report.infraBackDoorCondition || 'Normal');
+    const infraEntranceStat = getStatusDisplay(report.infraEntranceExitDoorsStatus);
+    const infraEntrancePri = getPriorityBadge(report.infraEntranceExitDoorsCondition || 'Normal');
+    const infraSmokeStat = getStatusDisplay(report.infraSmokeDetectorsStatus);
+    const infraSmokePri = getPriorityBadge(report.infraSmokeDetectorsCondition || 'Normal');
+    const infraWindowsStat = getStatusDisplay(report.infraWindowsSecureStatus);
+    const infraWindowsPri = getPriorityBadge(report.infraWindowsSecureCondition || 'Normal');
+    const infraLaundryStat = getStatusDisplay(report.infraLaundryAreaStatus);
+    const infraLaundryPri = getPriorityBadge(report.infraLaundryAreaCondition || 'Normal');
+    const infraFireExtStat = getStatusDisplay(report.infraFireExtinguishersStatus);
+    const infraFireExtPri = getPriorityBadge(report.infraFireExtinguishersCondition || 'Normal');
+    const infraAlarmStat = getStatusDisplay(report.infraFireAlarmStatus);
+    const infraAlarmPri = getPriorityBadge(report.infraFireAlarmCondition || 'Normal');
+    
+    const getSatisfactoryDisplay = (status: string | null) => {
+      if (!status) return '<span style="color: #9ca3af;">Not Checked</span>';
+      return status === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>';
+    };
+    
+    const choreWorkStat = getSatisfactoryDisplay(report.choreWorkspaceCleanStatus);
+    const choreBathStat = getSatisfactoryDisplay(report.choreStaffBathroomStatus);
+    const choreDayStat = getSatisfactoryDisplay(report.choreDayroomCleanStatus);
+    const choreLaundryStat = getSatisfactoryDisplay(report.choreLaundryRoomCleanStatus);
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -447,38 +489,38 @@ export default function UCRPage() {
             </tr>
             <tr>
               <td>11 Radios functional and charging</td>
-              <td>${getStatusDisplay(report.securityRadiosStatus)}</td>
-              <td>${getPriorityBadge(report.securityRadiosCondition || 'Normal')}</td>
+              <td>${secRadiosStat}</td>
+              <td>${secRadiosPri}</td>
               <td>${report.securityRadiosComments || '-'}</td>
             </tr>
             <tr>
               <td>2 Flashlights functional</td>
-              <td>${getStatusDisplay(report.securityFlashlightsStatus)}</td>
-              <td>${getPriorityBadge(report.securityFlashlightsCondition || 'Normal')}</td>
+              <td>${secFlashlightsStat}</td>
+              <td>${secFlashlightsPri}</td>
               <td>${report.securityFlashlightsComments || '-'}</td>
             </tr>
             <tr>
               <td>Garrett metal detector functional</td>
-              <td>${getStatusDisplay(report.securityMetalDetectorStatus)}</td>
-              <td>${getPriorityBadge(report.securityMetalDetectorCondition || 'Normal')}</td>
+              <td>${secMetalStat}</td>
+              <td>${secMetalPri}</td>
               <td>${report.securityMetalDetectorComments || '-'}</td>
             </tr>
             <tr>
               <td>Big Set keys & keys present and secure</td>
-              <td>${getStatusDisplay(report.securityBigSetKeysStatus)}</td>
-              <td>${getPriorityBadge(report.securityBigSetKeysCondition || 'Normal')}</td>
+              <td>${secKeysStat}</td>
+              <td>${secKeysPri}</td>
               <td>${report.securityBigSetKeysComments || '-'}</td>
             </tr>
             <tr>
               <td>First Aid kits available and stocked</td>
-              <td>${getStatusDisplay(report.securityFirstAidKitsStatus)}</td>
-              <td>${getPriorityBadge(report.securityFirstAidKitsCondition || 'Normal')}</td>
+              <td>${secAidStat}</td>
+              <td>${secAidPri}</td>
               <td>${report.securityFirstAidKitsComments || '-'}</td>
             </tr>
             <tr>
               <td>Desk Computer/Monitor functional</td>
-              <td>${getStatusDisplay(report.securityDeskComputerStatus)}</td>
-              <td>${getPriorityBadge(report.securityDeskComputerCondition || 'Normal')}</td>
+              <td>${secCompStat}</td>
+              <td>${secCompPri}</td>
               <td>${report.securityDeskComputerComments || '-'}</td>
             </tr>
           </table>
@@ -495,14 +537,14 @@ export default function UCRPage() {
             </tr>
             <tr>
               <td>Meeting Rooms locked</td>
-              <td>${getStatusDisplay(report.adminMeetingRoomsLockedStatus)}</td>
-              <td>${getPriorityBadge(report.adminMeetingRoomsLockedCondition || 'Normal')}</td>
+              <td>${adminMeetStat}</td>
+              <td>${adminMeetPri}</td>
               <td>${report.adminMeetingRoomsLockedComments || '-'}</td>
             </tr>
             <tr>
               <td>Administration doors locked and secure</td>
-              <td>${getStatusDisplay(report.adminDoorsSecureStatus)}</td>
-              <td>${getPriorityBadge(report.adminDoorsSecureCondition || 'Normal')}</td>
+              <td>${adminDoorsStat}</td>
+              <td>${adminDoorsPri}</td>
               <td>${report.adminDoorsSecureComments || '-'}</td>
             </tr>
           </table>
@@ -519,44 +561,44 @@ export default function UCRPage() {
             </tr>
             <tr>
               <td>Back door locked and secure</td>
-              <td>${getStatusDisplay(report.infraBackDoorStatus)}</td>
-              <td>${getPriorityBadge(report.infraBackDoorCondition || 'Normal')}</td>
+              <td>${infraBackStat}</td>
+              <td>${infraBackPri}</td>
               <td>${report.infraBackDoorComments || '-'}</td>
             </tr>
             <tr>
               <td>Entrance and exit doors locked and secured</td>
-              <td>${getStatusDisplay(report.infraEntranceExitDoorsStatus)}</td>
-              <td>${getPriorityBadge(report.infraEntranceExitDoorsCondition || 'Normal')}</td>
+              <td>${infraEntranceStat}</td>
+              <td>${infraEntrancePri}</td>
               <td>${report.infraEntranceExitDoorsComments || '-'}</td>
             </tr>
             <tr>
               <td>Smoke detectors functional</td>
-              <td>${getStatusDisplay(report.infraSmokeDetectorsStatus)}</td>
-              <td>${getPriorityBadge(report.infraSmokeDetectorsCondition || 'Normal')}</td>
+              <td>${infraSmokeStat}</td>
+              <td>${infraSmokePri}</td>
               <td>${report.infraSmokeDetectorsComments || '-'}</td>
             </tr>
             <tr>
               <td>All windows secure</td>
-              <td>${getStatusDisplay(report.infraWindowsSecureStatus)}</td>
-              <td>${getPriorityBadge(report.infraWindowsSecureCondition || 'Normal')}</td>
+              <td>${infraWindowsStat}</td>
+              <td>${infraWindowsPri}</td>
               <td>${report.infraWindowsSecureComments || '-'}</td>
             </tr>
             <tr>
               <td>Laundry area clean and orderly</td>
-              <td>${getStatusDisplay(report.infraLaundryAreaStatus)}</td>
-              <td>${getPriorityBadge(report.infraLaundryAreaCondition || 'Normal')}</td>
+              <td>${infraLaundryStat}</td>
+              <td>${infraLaundryPri}</td>
               <td>${report.infraLaundryAreaComments || '-'}</td>
             </tr>
             <tr>
               <td>Fire extinguishers in place/charged</td>
-              <td>${getStatusDisplay(report.infraFireExtinguishersStatus)}</td>
-              <td>${getPriorityBadge(report.infraFireExtinguishersCondition || 'Normal')}</td>
+              <td>${infraFireExtStat}</td>
+              <td>${infraFireExtPri}</td>
               <td>${report.infraFireExtinguishersComments || '-'}</td>
             </tr>
             <tr>
               <td>Fire alarm functional</td>
-              <td>${getStatusDisplay(report.infraFireAlarmStatus)}</td>
-              <td>${getPriorityBadge(report.infraFireAlarmCondition || 'Normal')}</td>
+              <td>${infraAlarmStat}</td>
+              <td>${infraAlarmPri}</td>
               <td>${report.infraFireAlarmComments || '-'}</td>
             </tr>
           </table>
@@ -572,22 +614,22 @@ export default function UCRPage() {
             </tr>
             <tr>
               <td>Workspace clean (common area, desk)</td>
-              <td>${report.choreWorkspaceCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreWorkspaceCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${choreWorkStat}</td>
               <td>${report.choreWorkspaceCleanComments || '-'}</td>
             </tr>
             <tr>
               <td>Staff bathroom cleaned and mopped</td>
-              <td>${report.choreStaffBathroomStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreStaffBathroomStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${choreBathStat}</td>
               <td>${report.choreStaffBathroomComments || '-'}</td>
             </tr>
             <tr>
               <td>Dayroom cleaned and mopped</td>
-              <td>${report.choreDayroomCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreDayroomCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${choreDayStat}</td>
               <td>${report.choreDayroomCleanComments || '-'}</td>
             </tr>
             <tr>
               <td>Laundry room cleaned and mopped</td>
-              <td>${report.choreLaundryRoomCleanStatus === 'satisfactory' ? '<span style="color: #10b981; font-weight: bold;">✓ Satisfactory</span>' : report.choreLaundryRoomCleanStatus === 'unsatisfactory' ? '<span style="color: #dc2626; font-weight: bold;">✗ Unsatisfactory</span>' : '<span style="color: #9ca3af;">Not Checked</span>'}</td>
+              <td>${choreLaundryStat}</td>
               <td>${report.choreLaundryRoomCleanComments || '-'}</td>
             </tr>
           </table>
