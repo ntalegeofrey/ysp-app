@@ -539,45 +539,6 @@ public class ProgramUcrController {
         return ResponseEntity.ok(java.util.Map.of("sent", emails.size()));
     }
 
-    @GetMapping("/monthly-chart")
-    @PreAuthorize("permitAll()")
-    public ResponseEntity<?> getMonthlyChart(@PathVariable("id") Long programId) {
-        if (programId == null) return ResponseEntity.badRequest().build();
-        
-        int currentYear = java.time.LocalDate.now().getYear();
-        List<Object[]> rawData = ucrs.findMonthlyIssueCounts(programId, currentYear);
-        
-        // Initialize arrays for 12 months
-        int[] critical = new int[12];
-        int[] high = new int[12];
-        int[] medium = new int[12];
-        
-        // Process raw data: [month, status, count]
-        for (Object[] row : rawData) {
-            int month = ((Number) row[0]).intValue(); // 1-12
-            String status = (String) row[1]; // 'critical', 'high', 'medium'
-            int count = ((Number) row[2]).intValue();
-            
-            int idx = month - 1; // Convert to 0-11 for array index
-            if (idx < 0 || idx > 11) continue;
-            
-            if ("critical".equalsIgnoreCase(status)) {
-                critical[idx] = count;
-            } else if ("high".equalsIgnoreCase(status)) {
-                high[idx] = count;
-            } else if ("medium".equalsIgnoreCase(status)) {
-                medium[idx] = count;
-            }
-        }
-        
-        Map<String, int[]> result = new HashMap<>();
-        result.put("critical", critical);
-        result.put("high", high);
-        result.put("medium", medium);
-        
-        return ResponseEntity.ok(result);
-    }
-
     private static String escape(String in) {
         if (in == null) return "";
         return in
