@@ -53,7 +53,8 @@ export default function UCRPage() {
       if (reset) setPageIdx(0);
       
       // Load staff names for reporters
-      const staffIds = [...new Set((data.content || []).map((r: any) => r.staffId).filter(Boolean))];
+      const staffIdsSet = new Set((data.content || []).map((r: any) => r.staffId).filter(Boolean));
+      const staffIds = Array.from(staffIdsSet);
       if (staffIds.length > 0) {
         try {
           const staffRes = await fetch(`/api/users/by-ids?ids=${staffIds.join(',')}`, { 
