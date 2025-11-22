@@ -267,19 +267,39 @@ export default function UCRPage() {
       // Format date
       const dateStr = report.reportDate ? new Date(report.reportDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
       
-      // Parse room searches safely
-      let roomSearchesArray: any[] = [];
-      if (report.roomSearches) {
-        if (typeof report.roomSearches === 'string') {
-          try {
-            roomSearchesArray = JSON.parse(report.roomSearches);
-          } catch (e) {
-            console.error('Failed to parse roomSearches:', e);
-            roomSearchesArray = [];
+      // Parse room searches safely and build HTML
+      let roomSearchesHTML = '';
+      try {
+        let searches: any[] = [];
+        if (report.roomSearches) {
+          if (typeof report.roomSearches === 'string') {
+            searches = JSON.parse(report.roomSearches);
+          } else if (Array.isArray(report.roomSearches)) {
+            searches = report.roomSearches;
           }
-        } else if (Array.isArray(report.roomSearches)) {
-          roomSearchesArray = report.roomSearches;
         }
+        
+        if (Array.isArray(searches) && searches.length > 0) {
+          const rows = searches.map(s => 
+            `<tr><td>${s.room_number || s.roomNumber || '-'}</td><td>${s.search_comments || s.searchComments || '-'}</td></tr>`
+          ).join('');
+          
+          roomSearchesHTML = `
+            <div class="section">
+              <h2 class="section-title">Resident Room Searches</h2>
+              <table>
+                <tr>
+                  <th style="width: 30%;">Room Number</th>
+                  <th style="width: 70%;">Search Comments</th>
+                </tr>
+                ${rows}
+              </table>
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.error('Error building room searches HTML:', e);
+        roomSearchesHTML = '';
       }
     
     // Helper functions
@@ -635,20 +655,7 @@ export default function UCRPage() {
           </table>
         </div>
 
-        ${roomSearchesArray.length > 0 ? `
-          <div class="section">
-            <h2 class="section-title">Resident Room Searches</h2>
-            <table>
-              <tr>
-                <th style="width: 30%;">Room Number</th>
-                <th style="width: 70%;">Search Comments</th>
-              </tr>
-              ${roomSearchesArray.map((search: any) => 
-                '<tr><td>' + (search.room_number || search.roomNumber || '-') + '</td><td>' + (search.search_comments || search.searchComments || '-') + '</td></tr>'
-              ).join('')}
-            </table>
-          </div>
-        ` : ''}
+        ${roomSearchesHTML}
 
         ${report.additionalComments ? `
           <div class="section">
