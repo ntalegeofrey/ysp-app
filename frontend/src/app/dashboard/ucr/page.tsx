@@ -93,18 +93,16 @@ export default function UCRPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const r = await fetch(`/api/programs/${programId}/ucr/monthly-chart`, { credentials:'include', headers: { 'Accept':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-      if (!r.ok) {
-        console.error('Failed to load chart data:', r.status, r.statusText);
-        return;
+      if (r.ok) {
+        const d = await r.json();
+        console.log('Chart data loaded:', d);
+        setChartData({
+          critical: d.critical || new Array(12).fill(0),
+          high: d.high || new Array(12).fill(0),
+          medium: d.medium || new Array(12).fill(0),
+          resolved: d.resolved || new Array(12).fill(0),
+        });
       }
-      const d = await r.json();
-      console.log('Chart data loaded:', d);
-      setChartData({ 
-        critical: d.critical || new Array(12).fill(0), 
-        high: d.high || new Array(12).fill(0), 
-        medium: d.medium || new Array(12).fill(0),
-        resolved: d.resolved || new Array(12).fill(0)
-      });
     } catch (e) {
       console.error('loadChartData error:', e);
     }
@@ -702,7 +700,13 @@ export default function UCRPage() {
           if (!data?.type) return;
           const pid = data?.programId ? String(data.programId) : '';
           if (pid && pid !== programId) return;
-          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { loadReports(); loadStats(); loadOpenIssues(); loadChartData(); }
+          if (data.type === 'programs.ucr.created' || data.type === 'programs.ucr.updated') { 
+            console.log('SSE: UCR updated, refreshing all data including chart');
+            loadReports(); 
+            loadStats(); 
+            loadOpenIssues(); 
+            loadChartData(); 
+          }
         } catch {}
       };
     } catch {}
