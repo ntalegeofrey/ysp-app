@@ -40,6 +40,9 @@ public class ProgramResident {
     @Column(name = "temporary_location")
     private String temporaryLocation;
 
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -69,6 +72,9 @@ public class ProgramResident {
 
     public String getTemporaryLocation() { return temporaryLocation; }
     public void setTemporaryLocation(String temporaryLocation) { this.temporaryLocation = temporaryLocation; }
+
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
 
     public String getFullName() { return ((lastName!=null?lastName:"") + ", " + (firstName!=null?firstName:" ")).trim(); }
 }

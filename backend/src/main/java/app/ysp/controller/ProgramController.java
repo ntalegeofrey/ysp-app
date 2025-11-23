@@ -8,6 +8,7 @@ import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.UserRepository;
 import app.ysp.repo.ProgramResidentRepository;
+import app.ysp.repo.RegionRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -25,13 +26,15 @@ public class ProgramController {
     private final ProgramAssignmentRepository assignments;
     private final UserRepository users;
     private final ProgramResidentRepository residents;
+    private final RegionRepository regions;
     private final SseHub sseHub;
 
-    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, SseHub sseHub) {
+    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, RegionRepository regions, SseHub sseHub) {
         this.programs = programs;
         this.assignments = assignments;
         this.users = users;
         this.residents = residents;
+        this.regions = regions;
         this.sseHub = sseHub;
     }
 
@@ -160,24 +163,40 @@ public class ProgramController {
             pa.setUserEmail(item.userEmail);
             pa.setUserId(item.userId);
 
+            final User assignedUser = (item.userId != null)
+                    ? users.findById(item.userId).orElse(null)
+                    : null;
+
             // Enrich staff registry fields from User when available
-            if (item.userId != null) {
-                users.findById(item.userId).ifPresent((User u) -> {
-                    pa.setFirstName(u.getFullName() != null ? u.getFullName().split(" ")[0] : null);
-                    // last name best-effort: take last token of fullName
-                    if (u.getFullName() != null && u.getFullName().contains(" ")) {
-                        String[] parts = u.getFullName().trim().split(" ");
-                        pa.setLastName(parts[parts.length - 1]);
-                    }
-                    pa.setEmployeeId(u.getEmployeeNumber());
-                    pa.setTitle(u.getJobTitle());
-                    pa.setStatus(Boolean.TRUE.equals(u.getEnabled()) ? "active" : "not_active");
-                });
+            if (assignedUser != null) {
+                if (assignedUser.getFullName() != null && !assignedUser.getFullName().isBlank()) {
+                    String[] parts = assignedUser.getFullName().trim().split(" ");
+                    if (parts.length > 0) pa.setFirstName(parts[0]);
+                    if (parts.length > 1) pa.setLastName(parts[parts.length - 1]);
+                }
+                pa.setEmployeeId(assignedUser.getEmployeeNumber());
+                pa.setTitle(assignedUser.getJobTitle());
+                pa.setStatus(Boolean.TRUE.equals(assignedUser.getEnabled()) ? "active" : "not_active");
             }
 
             String rt = item.roleType != null ? item.roleType.toUpperCase() : "";
             if ("REGIONAL_ADMIN".equals(rt) || "PROGRAM_DIRECTOR".equals(rt) || "ASSISTANT_DIRECTOR".equals(rt)) {
                 pa.setCategory("Administration");
+            }
+
+            // If this is the regional administrator for the program, sync into regions table
+            if ("REGIONAL_ADMIN".equals(rt) && assignedUser != null && program.getRegion() != null && !program.getRegion().isBlank()) {
+                regions.findByNameIgnoreCase(program.getRegion())
+                        .ifPresent(r -> {
+                            // best-effort split of full name
+                            if (assignedUser.getFullName() != null && !assignedUser.getFullName().isBlank()) {
+                                String[] parts = assignedUser.getFullName().trim().split(" ");
+                                if (parts.length > 0) r.setRegionalDirectorFirstName(parts[0]);
+                                if (parts.length > 1) r.setRegionalDirectorLastName(parts[parts.length - 1]);
+                            }
+                            r.setRegionalDirectorEmail(assignedUser.getEmail());
+                            regions.save(r);
+                        });
             }
             toSave.add(pa);
         }

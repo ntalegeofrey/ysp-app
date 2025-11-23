@@ -32,6 +32,7 @@ export default function OnboardingPage() {
   const [resRoom, setResRoom] = useState<string>('');
   const [resFirstName, setResFirstName] = useState<string>('');
   const [resLastName, setResLastName] = useState<string>('');
+  const [resDob, setResDob] = useState<string>('');
   const [resAdmissionDate, setResAdmissionDate] = useState<string>('');
   const [resStatus, setResStatus] = useState<string>('General Population');
   const [resAdvocate, setResAdvocate] = useState<string>('');
@@ -116,7 +117,7 @@ export default function OnboardingPage() {
   }, [activeTab, programId]);
 
   // Residents state + loader
-  type ProgramResident = { id: number|string; firstName: string; lastName: string; residentId?: string; room?: string; status?: string; advocate?: string; admissionDate?: string; temporaryLocation?: string };
+  type ProgramResident = { id: number|string; firstName: string; lastName: string; residentId?: string; room?: string; status?: string; advocate?: string; admissionDate?: string; temporaryLocation?: string; dateOfBirth?: string };
   const [residents, setResidents] = useState<ProgramResident[]>([]);
   const loadResidents = async () => {
     if (!programId) return;
@@ -471,13 +472,14 @@ export default function OnboardingPage() {
                   status: resStatus || undefined,
                   advocate: resAdvocate || undefined,
                   admissionDate: resAdmissionDate || undefined,
+                  dateOfBirth: resDob || undefined,
                 };
                 const resp = await fetch(`/api/programs/${programId}/residents`, { method:'POST', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify(payload) });
                 if (!resp.ok) { addToast('Failed to add resident', 'error'); return; }
                 addToast('Resident added to program', 'success');
                 try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident added to program', tone: 'success' })); } catch {}
                 // clear form completely
-                setResFirstName(''); setResLastName(''); setResAdmissionDate(''); setResResidentId(''); setResRoom(''); setResStatus('General Population'); setResAdvocate('');
+                setResFirstName(''); setResLastName(''); setResDob(''); setResAdmissionDate(''); setResResidentId(''); setResRoom(''); setResStatus('General Population'); setResAdvocate('');
                 await loadResidents();
                 // fetch next auto id for next entry
                 try {
@@ -505,6 +507,8 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="date"
+                    value={resDob}
+                    onChange={(e)=> setResDob(e.target.value)}
                     className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   />
                 </div>
