@@ -1470,7 +1470,7 @@ export default function UCRPage() {
                                   {isEditable && (
                                     <button 
                                       onClick={() => window.location.href = `/dashboard/ucr/${r.id}/edit`} 
-                                      className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
+                                      className="text-primary hover:bg-primary-lightest p-2 rounded transition-colors" 
                                       title="Edit Report"
                                     >
                                       <i className="fa-solid fa-pen-to-square"></i>
