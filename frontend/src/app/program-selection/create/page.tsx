@@ -161,12 +161,18 @@ export default function CreateProgramPage() {
     let cancelled = false;
     const loadUsers = async () => {
       try {
-        const token = localStorage.getItem('token') || '';
-        const resp = await fetch('/admin/users', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const resp = await fetch('/api/users/search?q=', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
         if (!resp.ok) return;
         const data = await resp.json();
         if (!cancelled) {
-          setAllUsers((data || []).map((u: any) => ({ id: u.id, email: u.email, fullName: u.fullName, jobTitle: u.jobTitle })));
+          setAllUsers((data || []).map((u: any) => ({ id: typeof u.id === 'string' ? Number(u.id) : u.id, email: u.email, fullName: u.fullName, jobTitle: u.jobTitle })));
         }
       } catch {}
     };
