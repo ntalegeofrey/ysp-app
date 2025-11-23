@@ -958,6 +958,8 @@ export default function UCRPage() {
       addToast(editingId ? 'UCR updated' : 'UCR submitted for review', 'success');
       setEditingId(null);
       setComments(''); setReportDate(''); setShiftVal('7:00-3:00');
+      // Navigate to overview tab
+      setActiveTab('overview');
       // Refresh archive and stats
       loadReports(true);
       loadStats();
@@ -1341,7 +1343,7 @@ export default function UCRPage() {
                         today.setHours(0, 0, 0, 0);
                         const reportDate = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
                         if (reportDate) reportDate.setHours(0, 0, 0, 0);
-                        const isToday = reportDate ? reportDate.getTime() === today.getTime() : false;
+                        const isEditable = reportDate ? reportDate.getTime() >= today.getTime() : false; // Current or future dates
                         const issues = getAllIssues(r);
                         const hasCritical = issues.some(i => i.condition.includes('Critical'));
                         const hasHigh = issues.some(i => i.condition.includes('High'));
@@ -1375,13 +1377,13 @@ export default function UCRPage() {
                                 >
                                   <i className="fa-solid fa-eye"></i>
                                 </button>
-                                {isToday && (
+                                {isEditable && (
                                   <button 
-                                    onClick={() => onView(r.id, true)} 
+                                    onClick={() => window.location.href = `/dashboard/ucr/edit/${r.id}`} 
                                     className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
-                                    title="Edit Today's Report"
+                                    title="Edit Report"
                                   >
-                                    <i className="fa-solid fa-pen"></i>
+                                    <i className="fa-solid fa-pen-to-square"></i>
                                   </button>
                                 )}
                                 <button 
