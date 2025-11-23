@@ -8,11 +8,12 @@ export default function UCRNotifyPage() {
   const search = useSearchParams();
 
   const [programId, setProgramId] = useState<string>('');
-  const [subject, setSubject] = useState<string>('');
-  const [priority, setPriority] = useState<string>('critical');
-  const [category, setCategory] = useState<string>('HVAC');
-  const [categoryOther, setCategoryOther] = useState<string>('');
-  const [message, setMessage] = useState<string>('');
+  const [subjectLine, setSubjectLine] = useState<string>('');
+  const [priorityLevel, setPriorityLevel] = useState<string>('');
+  const [issueCategory, setIssueCategory] = useState<string>('');
+  const [issueTitle, setIssueTitle] = useState<string>('');
+  const [issueSummary, setIssueSummary] = useState<string>('');
+  const [additionalComments, setAdditionalComments] = useState<string>('');
   const [senderName, setSenderName] = useState<string>('');
   const [senderTitle, setSenderTitle] = useState<string>('');
   const [status, setStatus] = useState<{ tone: 'idle' | 'success' | 'error'; text: string }>({ tone: 'idle', text: '' });
@@ -45,21 +46,41 @@ export default function UCRNotifyPage() {
   const reportSummary = search.get('summary');
 
   useEffect(() => {
-    // Prefill subject and message from linked UCR if present
-    if (reportSummary && !subject) {
-      const base = reportStatus ? `${reportStatus.toUpperCase()}: ${reportSummary}` : reportSummary;
-      const suffix = [reportDate, reportShift].filter(Boolean).join(' ');
-      setSubject(suffix ? `${base} - ${suffix}` : base);
+    if (!reportSummary) return;
+
+    // Derive category and title from "Label: Comment" style summary
+    const parts = reportSummary.split(':');
+    const label = parts[0]?.trim() || '';
+    const comment = parts.slice(1).join(':').trim();
+
+    const derivedCategory = label || issueCategory;
+    const derivedTitle = comment || reportSummary;
+
+    // Derive priority level from status (e.g. "Critical", "High Priority")
+    let derivedPriority = '';
+    if (reportStatus) {
+      const s = reportStatus.toLowerCase();
+      if (s.includes('critical')) derivedPriority = 'Critical';
+      else if (s.includes('high')) derivedPriority = 'High';
+      else if (s.includes('medium')) derivedPriority = 'Medium';
+      else derivedPriority = 'Normal';
     }
-    if (reportSummary && !message) {
-      const lines = [
-        `Issue: ${reportSummary}`,
-        reportDate ? `Date: ${reportDate}` : '',
-        reportShift ? `Shift: ${reportShift}` : '',
-      ].filter(Boolean);
-      setMessage(lines.join('\n') + (lines.length ? '\n\n' : '') + 'Please review this Unit Condition Report issue.');
-    }
-  }, [reportSummary, reportDate, reportShift, reportStatus, subject, message]);
+
+    const datePart = reportDate || '';
+    const shiftPart = reportShift || '';
+    const suffix = [datePart, shiftPart].filter(Boolean).join(' ');
+    const priorityPrefix = derivedPriority ? `${derivedPriority.toUpperCase()}: ` : '';
+    const subjectBase = derivedCategory && derivedTitle
+      ? `${priorityPrefix}${derivedCategory}: ${derivedTitle}`
+      : `${priorityPrefix}${reportSummary}`;
+    const fullSubject = suffix ? `${subjectBase} - ${suffix}` : subjectBase;
+
+    if (!subjectLine) setSubjectLine(fullSubject);
+    if (!priorityLevel && derivedPriority) setPriorityLevel(derivedPriority);
+    if (!issueCategory && derivedCategory) setIssueCategory(derivedCategory);
+    if (!issueTitle && derivedTitle) setIssueTitle(derivedTitle);
+    if (!issueSummary) setIssueSummary(reportSummary);
+  }, [reportSummary, reportDate, reportShift, reportStatus, subjectLine, priorityLevel, issueCategory, issueTitle, issueSummary]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,11 +91,12 @@ export default function UCRNotifyPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const body = {
-        subject: subject || undefined,
-        priority,
-        category,
-        categoryOther: category === 'Other' ? categoryOther : undefined,
-        message,
+        subjectLine: subjectLine || undefined,
+        priorityLevel: priorityLevel || undefined,
+        issueCategory: issueCategory || undefined,
+        issueTitle: issueTitle || undefined,
+        issueSummary: issueSummary || undefined,
+        additionalComments: additionalComments || undefined,
         reportId: reportId || undefined,
         reportDate: reportDate || undefined,
         shift: reportShift || undefined,
@@ -89,8 +111,13 @@ export default function UCRNotifyPage() {
         setStatus({ tone: 'error', text: 'Failed to send notification.' });
         return;
       }
-      setStatus({ tone: 'success', text: 'Notification sent to program leadership.' });
-      setTimeout(() => router.back(), 1200);
+      setStatus({ tone: 'success', text: 'Supervisors notified.' });
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('global-toast', JSON.stringify({ title: 'Supervisors notified.', tone: 'success' }));
+        }
+      } catch {}
+      setTimeout(() => router.back(), 800);
     } catch {
       setStatus({ tone: 'error', text: 'Failed to send notification.' });
     }
@@ -107,11 +134,19 @@ export default function UCRNotifyPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center mb-2">
-                <span className="bg-error text-white text-xs font-bold px-2 py-1 rounded-full mr-3">CRITICAL</span>
-                <h3 className="text-lg font-semibold text-font-base">HVAC System Failure - North Wing</h3>
+                <span className="bg-error text-white text-xs font-bold px-2 py-1 rounded-full mr-3">
+                  {(priorityLevel || 'Critical').toUpperCase()}
+                </span>
+                <h3 className="text-lg font-semibold text-font-base">{issueTitle || 'Unit issue'}</h3>
               </div>
-              <p className="text-sm text-font-detail mb-2">Reported 3 times in the last 7 days. Temperature complaints increasing.</p>
-              <p className="text-xs text-font-medium">Last reported: Today, 2:30 PM by J. Smith</p>
+              {issueSummary && (
+                <p className="text-sm text-font-detail mb-2">{issueSummary}</p>
+              )}
+              {reportDate && (
+                <p className="text-xs text-font-medium">
+                  Last reported: {reportDate}{reportShift ? `, ${reportShift}` : ''}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -121,7 +156,7 @@ export default function UCRNotifyPage() {
       <section className="bg-white rounded-lg border border-bd">
         <div className="p-6 border-b border-bd">
           <h3 className="text-lg font-semibold text-font-base">Supervisor Notification Form</h3>
-          <p className="text-sm text-font-detail mt-1">This notification will be sent via email and push notification</p>
+          <p className="text-sm text-font-detail mt-1">This notification will be sent to the Program Director and Assistant Program Director via email.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -131,12 +166,9 @@ export default function UCRNotifyPage() {
                 <i className="fa-solid fa-user-tie mr-2 text-primary"></i>
                 Notify Supervisor
               </label>
-              <select className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
-                <option>Michael Rodriguez - Facility Manager</option>
-                <option>Sarah Thompson - Assistant Director</option>
-                <option>David Chen - Maintenance Supervisor</option>
-                <option>Lisa Johnson - Program Director</option>
-              </select>
+              <div className="w-full px-3 py-2 border border-bd rounded-md bg-bg-subtle text-sm text-font-detail">
+                Program Director &amp; Assistant Program Director for this program will be notified automatically.
+              </div>
             </div>
 
             <div>
@@ -144,15 +176,9 @@ export default function UCRNotifyPage() {
                 <i className="fa-solid fa-flag mr-2 text-error"></i>
                 Priority Level
               </label>
-              <select
-                className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                <option value="critical">Critical - Immediate Action Required</option>
-                <option value="high">High - Action Required Today</option>
-                <option value="medium">Medium - Action Required This Week</option>
-              </select>
+              <div className="w-full px-3 py-2 border border-bd rounded-md bg-bg-subtle text-sm text-font-base">
+                {priorityLevel || 'Normal'}
+              </div>
             </div>
           </div>
 
@@ -161,31 +187,9 @@ export default function UCRNotifyPage() {
               <i className="fa-solid fa-tags mr-2 text-primary"></i>
               Issue Category
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {['HVAC','Plumbing','Electrical','Security','Safety','Structural','Equipment','Other'].map((c) => (
-                <label key={c} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input
-                    type="radio"
-                    name="category"
-                    className="text-primary focus:ring-primary"
-                    checked={category === c}
-                    onChange={() => setCategory(c)}
-                  />
-                  <span>{c}</span>
-                </label>
-              ))}
+            <div className="w-full px-3 py-2 border border-bd rounded-md bg-bg-subtle text-sm text-font-base">
+              {issueCategory || 'Facility Issue'}
             </div>
-            {category === 'Other' && (
-              <div className="mt-3">
-                <input
-                  type="text"
-                  value={categoryOther}
-                  onChange={(e) => setCategoryOther(e.target.value)}
-                  placeholder="Describe the issue"
-                  className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-              </div>
-            )}
           </div>
 
           <div>
@@ -195,8 +199,8 @@ export default function UCRNotifyPage() {
             </label>
             <input
               type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              value={subjectLine}
+              onChange={(e) => setSubjectLine(e.target.value)}
               placeholder="Subject line for email"
               className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
             />
@@ -211,8 +215,8 @@ export default function UCRNotifyPage() {
               rows={6}
               className="w-full px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
               placeholder="Provide additional context, urgency details, affected areas, safety concerns, or specific actions needed..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={additionalComments}
+              onChange={(e) => setAdditionalComments(e.target.value)}
             />
           </div>
 
@@ -225,18 +229,6 @@ export default function UCRNotifyPage() {
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" defaultChecked className="text-primary focus:ring-primary rounded" />
                 <span className="text-font-detail">Send email notification immediately</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="text-primary focus:ring-primary rounded" />
-                <span className="text-font-detail">Send push notification to mobile device</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" className="text-primary focus:ring-primary rounded" />
-                <span className="text-font-detail">Also notify Assistant Director</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" className="text-primary focus:ring-primary rounded" />
-                <span className="text-font-detail">Create follow-up reminder in 2 hours if unacknowledged</span>
               </label>
             </div>
           </div>
@@ -264,10 +256,6 @@ export default function UCRNotifyPage() {
               Cancel
             </button>
             <div className="flex gap-3">
-              <button type="button" className="px-6 py-2 bg-primary-lighter text-font-base border border-bd rounded-lg hover:bg-primary-lightest transition-colors duration-200">
-                <i className="fa-solid fa-eye mr-2"></i>
-                Preview
-              </button>
               <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors duration-200 font-medium">
                 <i className="fa-solid fa-paper-plane mr-2"></i>
                 Send Notification

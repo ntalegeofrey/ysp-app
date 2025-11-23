@@ -2,9 +2,11 @@ package app.ysp.controller;
 
 import app.ysp.entity.Program;
 import app.ysp.entity.ProgramUcrReport;
+import app.ysp.entity.ProgramUcrNotification;
 import app.ysp.entity.ProgramAssignment;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.ProgramUcrReportRepository;
+import app.ysp.repo.ProgramUcrNotificationRepository;
 import app.ysp.repo.UserRepository;
 import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.service.SseHub;
@@ -25,14 +27,22 @@ public class ProgramUcrController {
 
     private final ProgramRepository programs;
     private final ProgramUcrReportRepository ucrs;
+    private final ProgramUcrNotificationRepository notifications;
     private final SseHub sseHub;
     private final UserRepository users;
     private final ProgramAssignmentRepository assignments;
     private final MailService mailService;
 
-    public ProgramUcrController(ProgramRepository programs, ProgramUcrReportRepository ucrs, SseHub sseHub, UserRepository users, ProgramAssignmentRepository assignments, MailService mailService) {
+    public ProgramUcrController(ProgramRepository programs,
+                               ProgramUcrReportRepository ucrs,
+                               ProgramUcrNotificationRepository notifications,
+                               SseHub sseHub,
+                               UserRepository users,
+                               ProgramAssignmentRepository assignments,
+                               MailService mailService) {
         this.programs = programs;
         this.ucrs = ucrs;
+        this.notifications = notifications;
         this.sseHub = sseHub;
         this.users = users;
         this.assignments = assignments;
@@ -489,10 +499,22 @@ public class ProgramUcrController {
 
     @PostMapping("/notify")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> notifySupervisors(@PathVariable("id") Long programId, @RequestBody Map<String, Object> body, Authentication auth) {
+    public ResponseEntity<?> notifySupervisors(@PathVariable("id") Long programId,
+                                               @RequestBody Map<String, Object> body,
+                                               Authentication auth) {
         Optional<Program> optProgram = programs.findById(programId);
         if (optProgram.isEmpty()) return ResponseEntity.notFound().build();
         Program program = optProgram.get();
+
+        // Resolve linked UCR report (if provided)
+        Long reportId = null;
+        if (body.get("reportId") != null) {
+            try { reportId = Long.parseLong(Objects.toString(body.get("reportId"))); } catch (NumberFormatException ignored) {}
+        }
+        ProgramUcrReport report = null;
+        if (reportId != null) {
+            report = ucrs.findOneByIdAndProgram(reportId, programId);
+        }
 
         // Resolve sender info from authenticated user
         String senderName = "";
@@ -507,11 +529,22 @@ public class ProgramUcrController {
             }
         }
 
-        String subject = Objects.toString(body.get("subject"), "UCR Supervisor Notification");
-        String priority = Objects.toString(body.get("priority"), "");
-        String category = Objects.toString(body.get("category"), "");
-        String categoryOther = Objects.toString(body.get("categoryOther"), "");
-        String message = Objects.toString(body.get("message"), "");
+        // New structured fields from frontend
+        String subjectLine = Objects.toString(body.get("subjectLine"), null);
+        String priorityLevel = Objects.toString(body.get("priorityLevel"), "");
+        String issueCategory = Objects.toString(body.get("issueCategory"), "");
+        String issueTitle = Objects.toString(body.get("issueTitle"), "");
+        String issueSummary = Objects.toString(body.get("issueSummary"), "");
+        String additionalComments = Objects.toString(body.get("additionalComments"), "");
+
+        // Backwards-compat: allow old fields if new ones are not provided
+        String legacySubject = Objects.toString(body.get("subject"), "UCR Supervisor Notification");
+        String legacyPriority = Objects.toString(body.get("priority"), "");
+        String legacyCategory = Objects.toString(body.get("category"), "");
+        String legacyCategoryOther = Objects.toString(body.get("categoryOther"), "");
+        String legacyMessage = Objects.toString(body.get("message"), "");
+
+        String finalSubject = subjectLine != null && !subjectLine.isBlank() ? subjectLine : legacySubject;
 
         // Find PD and Assistant Director assignments for this program
         java.util.List<ProgramAssignment> ass = assignments.findByProgram_Id(programId);
@@ -527,16 +560,45 @@ public class ProgramUcrController {
             return ResponseEntity.status(400).body(java.util.Map.of("error", "No program director or assistant director email configured for this program."));
         }
 
+        // Build HTML body
         StringBuilder html = new StringBuilder();
         html.append("<div style='font-family:Arial,sans-serif;font-size:14px;'>");
         html.append("<h2>Unit Condition Report Notification</h2>");
         html.append("<p><strong>Program:</strong> ").append(escape(program.getName())).append("</p>");
-        if (!priority.isBlank()) html.append("<p><strong>Priority:</strong> ").append(escape(priority)).append("</p>");
-        if (!category.isBlank()) html.append("<p><strong>Category:</strong> ").append(escape(category)).append("</p>");
-        if (!categoryOther.isBlank()) html.append("<p><strong>Other Details:</strong> ").append(escape(categoryOther)).append("</p>");
-        if (!message.isBlank()) {
-            html.append("<p><strong>Summary:</strong><br/>").append(escape(message).replace("\n", "<br/>")).append("</p>");
+
+        String effectivePriority = !priorityLevel.isBlank() ? priorityLevel : legacyPriority;
+        if (!effectivePriority.isBlank()) {
+            html.append("<p><strong>Priority:</strong> ").append(escape(effectivePriority)).append("</p>");
         }
+        String effectiveCategory = !issueCategory.isBlank() ? issueCategory : legacyCategory;
+        if (!effectiveCategory.isBlank()) {
+            html.append("<p><strong>Category:</strong> ").append(escape(effectiveCategory)).append("</p>");
+        }
+
+        if (report != null) {
+            html.append("<p><strong>Report Date:</strong> ").append(escape(String.valueOf(report.getReportDate()))).append("</p>");
+            if (report.getShiftTime() != null) {
+                html.append("<p><strong>Shift:</strong> ").append(escape(report.getShiftTime())).append("</p>");
+            }
+        }
+
+        String summaryBlock = !issueSummary.isBlank() ? issueSummary : legacyMessage;
+        if (!summaryBlock.isBlank()) {
+            html.append("<p><strong>Issue Summary:</strong><br/>")
+                .append(escape(summaryBlock).replace("\n", "<br/>"))
+                .append("</p>");
+        }
+        if (!additionalComments.isBlank()) {
+            html.append("<p><strong>Additional Comments:</strong><br/>")
+                .append(escape(additionalComments).replace("\n", "<br/>"))
+                .append("</p>");
+        }
+        if (!legacyCategoryOther.isBlank()) {
+            html.append("<p><strong>Other Details:</strong><br/>")
+                .append(escape(legacyCategoryOther).replace("\n", "<br/>"))
+                .append("</p>");
+        }
+
         if (!senderName.isBlank() || !senderTitle.isBlank()) {
             html.append("<hr/><p><strong>Reported by:</strong> ");
             html.append(escape(senderName));
@@ -547,11 +609,36 @@ public class ProgramUcrController {
         }
         html.append("</div>");
 
+        // Send email via MailService (Mailpit-backed)
         for (String to : emails) {
             try {
-                mailService.sendRawHtml(to, subject, html.toString());
+                mailService.sendRawHtml(to, finalSubject, html.toString());
             } catch (Exception ignored) {}
         }
+
+        // Persist notification record
+        ProgramUcrNotification notif = new ProgramUcrNotification();
+        notif.setProgram(program);
+        if (report != null) notif.setUcrReport(report);
+        notif.setAlertStatus(effectivePriority != null ? effectivePriority : "");
+        notif.setIssueTitle(issueTitle);
+        notif.setIssueSummary(issueSummary);
+        if (report != null) {
+            // Approximate last reported metadata
+            if (report.getReportDate() != null) {
+                notif.setIssueLastReportedAt(report.getReportDate().atStartOfDay());
+            }
+            notif.setIssueLastReportedBy(report.getStaffName());
+            notif.setIssueOccurrenceCount(1);
+        }
+        notif.setIssueCategory(effectiveCategory);
+        notif.setPriorityLevel(effectivePriority);
+        notif.setSubjectLine(finalSubject);
+        notif.setAdditionalComments(additionalComments);
+        notif.setNotifiedToEmails(String.join(",", emails));
+        notif.setNotificationChannel("EMAIL");
+        notif.setSentAt(java.time.LocalDateTime.now());
+        notifications.save(notif);
 
         return ResponseEntity.ok(java.util.Map.of("sent", emails.size()));
     }
