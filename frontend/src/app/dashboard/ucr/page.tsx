@@ -33,12 +33,10 @@ export default function UCRPage() {
   const [totalElements, setTotalElements] = useState<number>(0);
   const [pageIdx, setPageIdx] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(5);
-  const [q, setQ] = useState<string>('');
-  // Archive filters
+  // Archive filters: status + optional date range
   const [filterStatus, setFilterStatus] = useState<string>('All Status');
   const [filterFrom, setFilterFrom] = useState<string>('');
   const [filterTo, setFilterTo] = useState<string>('');
-  const [activeArchiveFilter, setActiveArchiveFilter] = useState<'none' | 'search' | 'status' | 'date'>('none');
   const loadReports = async (reset?: boolean) => {
     if (!programId) return;
     try {
@@ -46,8 +44,6 @@ export default function UCRPage() {
       const params = new URLSearchParams();
       params.set('page', reset ? '0' : String(pageIdx));
       params.set('size', '5');
-      // Keep server-side q support but primary filtering is client-side for archive UX
-      if (q && q.trim() !== '') params.set('q', q);
       const r = await fetch(`/api/programs/${programId}/ucr/reports/page?${params}`, { credentials:'include', headers:{ ...(token?{Authorization:`Bearer ${token}`}:{}) } });
       if (!r.ok) return;
       const data = await r.json();
@@ -1141,22 +1137,13 @@ export default function UCRPage() {
     }
   };
 
-  // Client-side filtering for archive table with independent modes (search OR status OR date)
-  const normalizedSearch = q.trim().toLowerCase();
+  // Client-side filtering for archive table: status + optional date range
   const normalizedStatus = filterStatus && filterStatus !== 'All Status' ? filterStatus : '';
   const filteredReports = ucrReports.filter((r: any) => {
-    const dateObj = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
-    const shiftText = (r.shiftTime || r.shift || '') as string;
-    const summaryText = getIssueLabel(r);
-    const staffText = (r.staffName || staffNames[r.staffId] || '') as string;
     const statusText = (r.reportStatus || '') as string;
+    const dateObj = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
 
-    // Text search across key fields
-    const dateText = dateObj ? dateObj.toLocaleDateString() : '';
-    const haystack = [dateText, shiftText, summaryText, staffText, statusText].join(' ').toLowerCase();
-    const matchSearch = !normalizedSearch || haystack.includes(normalizedSearch);
-
-    // Status-only filter
+    // Status filter
     const matchStatus = !normalizedStatus || statusText === normalizedStatus;
 
     // Date range filter (inclusive)
@@ -1171,15 +1158,10 @@ export default function UCRPage() {
         if (dateObj > to) matchDate = false;
       }
     } else if (filterFrom || filterTo) {
-      // No date on record but date filter is active -> exclude
       matchDate = false;
     }
 
-    if (activeArchiveFilter === 'search') return matchSearch;
-    if (activeArchiveFilter === 'status') return matchStatus;
-    if (activeArchiveFilter === 'date') return matchDate;
-    // No active filter: show all
-    return true;
+    return matchStatus && matchDate;
   });
 
   return (
@@ -1377,11 +1359,9 @@ export default function UCRPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setQ('');
                         setFilterStatus('All Status');
                         setFilterFrom('');
                         setFilterTo('');
-                        setActiveArchiveFilter('none');
                         setPageIdx(0);
                         loadReports(true);
                       }}
@@ -1392,21 +1372,6 @@ export default function UCRPage() {
                     </button>
                   </div>
                   <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        value={q}
-                        onChange={(e)=> {
-                          const val = e.target.value;
-                          setQ(val);
-                          setPageIdx(0);
-                          setActiveArchiveFilter(val.trim() ? 'search' : 'none');
-                        }}
-                        onBlur={()=> { if (!q.trim()) { setActiveArchiveFilter('none'); } loadReports(true); }}
-                        type="text"
-                        placeholder="Search reports by date, shift, issues, or staff..."
-                        className="flex-1 px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                      />
-                    </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-2">
                         <input
@@ -1414,7 +1379,6 @@ export default function UCRPage() {
                           onChange={(e)=> {
                             setFilterFrom(e.target.value);
                             setPageIdx(0);
-                            setActiveArchiveFilter(e.target.value || filterTo ? 'date' : 'none');
                           }}
                           type="date"
                           className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm"
@@ -1425,7 +1389,6 @@ export default function UCRPage() {
                           onChange={(e)=> {
                             setFilterTo(e.target.value);
                             setPageIdx(0);
-                            setActiveArchiveFilter(filterFrom || e.target.value ? 'date' : 'none');
                           }}
                           type="date"
                           className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm"
@@ -1437,7 +1400,6 @@ export default function UCRPage() {
                           const val = e.target.value;
                           setFilterStatus(val);
                           setPageIdx(0);
-                          setActiveArchiveFilter(val !== 'All Status' ? 'status' : 'none');
                         }}
                         className="px-3 py-2 border border-bd rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm text-font-base bg-white"
                       >
