@@ -794,6 +794,18 @@ export default function UCRPage() {
     run();
   }, []);
   const [editingId, setEditingId] = useState<string | number | null>(null);
+  
+  // Check URL for edit mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const editId = urlParams.get('edit');
+      if (editId) {
+        setActiveTab('new');
+        onView(editId, true);
+      }
+    }
+  }, []);
 
   const submitNew = async () => {
     if (!programId) { addToast('No program selected', 'error'); return; }
@@ -1135,9 +1147,9 @@ export default function UCRPage() {
             <i className={`fa-solid fa-chart-line mr-2 ${activeTab === 'overview' ? 'text-primary' : 'text-font-detail'}`}></i>
             Overview
           </button>
-          <button className={`${tabBtnBase} ${activeTab === 'new' ? tabBtnActive : tabBtnInactive}`} onClick={() => setActiveTab('new')}>
+          <button className={`${tabBtnBase} ${activeTab === 'new' ? tabBtnActive : tabBtnInactive}`} onClick={() => { setEditingId(null); setActiveTab('new'); }}>
             <i className={`fa-solid fa-plus mr-2 ${activeTab === 'new' ? 'text-primary' : 'text-font-detail'}`}></i>
-            New UCR Report
+            {editingId ? 'Edit UCR Report' : 'New UCR Report'}
           </button>
         </nav>
       </div>
@@ -1385,7 +1397,10 @@ export default function UCRPage() {
                                 </button>
                                 {isEditable && (
                                   <button 
-                                    onClick={() => window.location.href = `/dashboard/ucr/edit/${r.id}`} 
+                                    onClick={() => {
+                                      setActiveTab('new');
+                                      onView(r.id, true);
+                                    }} 
                                     className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
                                     title="Edit Report"
                                   >
@@ -1947,7 +1962,7 @@ export default function UCRPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-3 py-1.5 rounded-md text-sm"><i className="fa-solid fa-print mr-1"></i>Print</button>
+              {/* <button onClick={() => window.print()} className="bg-primary-lightest text-primary px-3 py-1.5 rounded-md text-sm"><i className="fa-solid fa-print mr-1"></i>Print</button> */}
               <button onClick={() => setViewOpen(false)} className="text-font-detail hover:text-font-base"><i className="fa-solid fa-times"></i></button>
             </div>
           </div>
