@@ -1,9 +1,307 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function FirePlanPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'report' | 'archive' | 'floor'>('current');
+
+  // Program context
+  const [programId, setProgramId] = useState<string>('');
+
+  // Staff + residents for counts
+  type AssignmentLite = { userEmail: string; roleType?: string; firstName?: string; lastName?: string; title?: string };
+  const [assignments, setAssignments] = useState<AssignmentLite[]>([]);
+
+  type ResidentLite = { id: number | string };
+  const [residents, setResidents] = useState<ResidentLite[]>([]);
+
+  // Staff directory (for nicer labels)
+  type StaffLite = { email: string; fullName?: string; jobTitle?: string };
+  const [staffList, setStaffList] = useState<StaffLite[]>([]);
+
+  // Staff assignments configurator
+  const [selectedStaffEmail, setSelectedStaffEmail] = useState<string>('');
+  const [routeType, setRouteType] = useState<string>('PRIMARY');
+  const [exitChoice, setExitChoice] = useState<string>('Exit A');
+  const [exitOther, setExitOther] = useState<string>('');
+  const [residentRooms, setResidentRooms] = useState<string>('');
+
+  type StaffAssignment = {
+    id: string;
+    staffEmail: string;
+    staffName: string;
+    staffTitle?: string;
+    routeType: 'PRIMARY' | 'SECONDARY' | 'SEPARATIONS';
+    residentRooms: string;
+    exitLabel: string;
+  };
+  const [staffAssignments, setStaffAssignments] = useState<StaffAssignment[]>([
+    {
+      id: 'seed-1',
+      staffEmail: 'j.smith@test.com',
+      staffName: 'J. Smith',
+      staffTitle: 'Lead',
+      routeType: 'PRIMARY',
+      residentRooms: 'Residents A1-A4',
+      exitLabel: 'Main Stairwell → Exit A',
+    },
+    {
+      id: 'seed-2',
+      staffEmail: 'm.johnson@test.com',
+      staffName: 'M. Johnson',
+      staffTitle: undefined,
+      routeType: 'SEPARATIONS',
+      residentRooms: 'Resident B2 (Separation)',
+      exitLabel: 'East Stairwell → Exit C',
+    },
+    {
+      id: 'seed-3',
+      staffEmail: 'k.williams@test.com',
+      staffName: 'K. Williams',
+      staffTitle: undefined,
+      routeType: 'SECONDARY',
+      residentRooms: 'Residents C1-C3',
+      exitLabel: 'West Stairwell → Exit B',
+    },
+  ]);
+
+  // Evacuation routes configurator
+  type RouteConfig = {
+    id: string;
+    name: string;
+    status: 'Available' | 'Restricted';
+    description: string;
+  };
+  const [routes, setRoutes] = useState<RouteConfig[]>([
+    {
+      id: 'route-1',
+      name: 'Primary Route A',
+      status: 'Available',
+      description: 'Units A & B → Main Stairwell → Exit A → Assembly Point 1',
+    },
+    {
+      id: 'route-2',
+      name: 'Secondary Route B',
+      status: 'Available',
+      description: 'Units C & D → West Stairwell → Exit B → Assembly Point 2',
+    },
+    {
+      id: 'route-3',
+      name: 'Separation Route C',
+      status: 'Restricted',
+      description: 'Separated Residents → East Stairwell → Exit C → Assembly Point 3',
+    },
+  ]);
+  const [routeChoice, setRouteChoice] = useState<string>('Primary Route A');
+  const [routeUnitText, setRouteUnitText] = useState<string>('');
+  const [routeAvailability, setRouteAvailability] = useState<'Available' | 'Restricted'>('Available');
+
+  // Assembly points configurator
+  type AssemblyPoint = {
+    id: string;
+    label: string;
+    description: string;
+    isPrimary: boolean;
+    staffSummary: string;
+  };
+  const [assemblyPoints, setAssemblyPoints] = useState<AssemblyPoint[]>([
+    {
+      id: 'ap-1',
+      label: 'Assembly Point 1',
+      description: 'Front Parking Lot\nUnits A & B\nStaff: J. Smith, L. Davis',
+      isPrimary: true,
+      staffSummary: 'J. Smith, L. Davis',
+    },
+    {
+      id: 'ap-2',
+      label: 'Assembly Point 2',
+      description: 'Side Yard\nUnits C & D\nStaff: K. Williams, R. Brown',
+      isPrimary: false,
+      staffSummary: 'K. Williams, R. Brown',
+    },
+    {
+      id: 'ap-3',
+      label: 'Assembly Point 3',
+      description: 'Separated Area\nRear Courtyard\nStaff: M. Johnson, T. Wilson',
+      isPrimary: false,
+      staffSummary: 'M. Johnson, T. Wilson',
+    },
+  ]);
+  const [apChoice, setApChoice] = useState<string>('Assembly Point 1');
+  const [apFlowDescription, setApFlowDescription] = useState<string>('');
+  const [apRouteType, setApRouteType] = useState<string>('PRIMARY');
+
+  // Resolve selected program and load data similar to Unit Registry
+  useEffect(() => {
+    try {
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? (JSON.parse(spRaw) as { id?: number | string }) : null;
+      setProgramId(sp?.id ? String(sp.id) : '');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!programId) return;
+
+    const loadAssignments = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/assignments`, {
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const arr: Array<any> = await res.json();
+        setAssignments(
+          (arr || []).map((a) => ({
+            userEmail: a.userEmail,
+            roleType: a.roleType,
+            firstName: a.firstName,
+            lastName: a.lastName,
+            title: a.title,
+          }))
+        );
+      } catch {}
+    };
+
+    const loadResidents = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/residents`, {
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const arr: Array<any> = await res.json();
+        setResidents((arr || []).map((r) => ({ id: r.id })) as ResidentLite[]);
+      } catch {}
+    };
+
+    const loadStaffDirectory = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/users/search?q=', {
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const arr: Array<any> = await res.json();
+        setStaffList(
+          (arr || []).map((u) => ({
+            email: u.email,
+            fullName: u.fullName,
+            jobTitle: u.jobTitle,
+          }))
+        );
+      } catch {}
+    };
+
+    loadAssignments();
+    loadResidents();
+    loadStaffDirectory();
+  }, [programId]);
+
+  const staffByEmail = useMemo(
+    () =>
+      Object.fromEntries(
+        staffList.map((s) => [
+          (s.email || '').toLowerCase(),
+          s,
+        ])
+      ),
+    [staffList]
+  );
+
+  const nonDirectorStaff = useMemo(
+    () =>
+      assignments.filter((a) => {
+        const rt = (a.roleType || '').toUpperCase();
+        return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR'].includes(rt);
+      }),
+    [assignments]
+  );
+
+  const totalStaff = nonDirectorStaff.length;
+  const totalResidents = residents.length;
+  const supervisorsCount = nonDirectorStaff.filter((a) =>
+    ((a.title || '').toLowerCase().includes('supervisor'))
+  ).length;
+
+  const now = new Date();
+  const hours = now.getHours();
+  const shiftLabel = (() => {
+    if (hours >= 7 && hours < 15) return 'Day (7:00 AM - 3:00 PM)';
+    if (hours >= 15 && hours < 23) return 'Evening (3:00 PM - 11:00 PM)';
+    return 'Night (11:00 PM - 7:00 AM)';
+  })();
+
+  const handleAddStaffAssignment = () => {
+    if (!selectedStaffEmail || !residentRooms.trim()) return;
+    const key = selectedStaffEmail.toLowerCase();
+    const staff = staffByEmail[key];
+    const name = staff?.fullName || selectedStaffEmail;
+    const parts = (name || '').trim().split(' ');
+    const displayName =
+      parts.length === 0
+        ? selectedStaffEmail
+        : `${parts[0].charAt(0)}. ${parts[parts.length - 1]}`;
+    const routeKind = routeType === 'SECONDARY' ? 'SECONDARY' : routeType === 'SEPARATIONS' ? 'SEPARATIONS' : 'PRIMARY';
+    const exitLabel = exitChoice === 'Other' && exitOther.trim() ? exitOther.trim() : exitChoice;
+
+    setStaffAssignments((prev) => [
+      ...prev,
+      {
+        id: String(Date.now() + Math.random()),
+        staffEmail: selectedStaffEmail,
+        staffName: displayName,
+        staffTitle: staff?.jobTitle,
+        routeType: routeKind as StaffAssignment['routeType'],
+        residentRooms: residentRooms.trim(),
+        exitLabel,
+      },
+    ]);
+
+    setResidentRooms('');
+  };
+
+  const handleAddRoute = () => {
+    if (!routeUnitText.trim()) return;
+    setRoutes((prev) => [
+      ...prev,
+      {
+        id: String(Date.now() + Math.random()),
+        name: routeChoice,
+        status: routeAvailability,
+        description: routeUnitText.trim(),
+      },
+    ]);
+    setRouteUnitText('');
+  };
+
+  const handleAddAssemblyPoint = () => {
+    if (!apFlowDescription.trim()) return;
+    const label = apChoice;
+    setAssemblyPoints((prev) => [
+      ...prev,
+      {
+        id: String(Date.now() + Math.random()),
+        label,
+        description: apFlowDescription.trim(),
+        isPrimary: apRouteType === 'PRIMARY',
+        staffSummary: '',
+      },
+    ]);
+    setApFlowDescription('');
+  };
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -51,333 +349,18 @@ export default function FirePlanPage() {
                 </h3>
                 <div className="flex items-center space-x-3">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-success text-white">Active Plan</span>
-                  <button onClick={handlePrint} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
+                  <button
+                    onClick={handlePrint}
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm"
+                  >
                     <i className="fa-solid fa-print mr-2"></i>
                     Print Plan
                   </button>
                 </div>
               </div>
-              <div className="mt-3 text-sm text-font-detail">Generated: Oct 28, 2024 at 7:00 AM | Shift: Day (7:00 AM - 3:00 PM)</div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-primary-lightest p-4 rounded-lg">
-                  <h4 className="font-semibold text-font-base mb-2">Total Staff</h4>
-                  <div className="text-2xl font-bold text-primary">12</div>
-                  <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
-                </div>
-                <div className="bg-highlight-lightest p-4 rounded-lg">
-                  <h4 className="font-semibold text-font-base mb-2">Total Residents</h4>
-                  <div className="text-2xl font-bold text-warning">24</div>
-                  <div className="text-sm text-font-detail">3 on Separation</div>
-                </div>
-                <div className="bg-error-lightest p-4 rounded-lg">
-                  <h4 className="font-semibold text-font-base mb-2">Special Assignments</h4>
-                  <div className="text-2xl font-bold text-error">5</div>
-                  <div className="text-sm text-font-detail">3 Separations • 2 Medical</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
-                  <div className="space-y-3">
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">J. Smith (Lead)</span>
-                        <span className="bg-primary text-white text-xs px-2 py-1 rounded">Primary Route</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Assigned: Residents A1-A4 | Route: Main Stairwell → Exit A</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">M. Johnson</span>
-                        <span className="bg-error text-white text-xs px-2 py-1 rounded">1:1 Separation</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Assigned: Resident B2 (Separation) | Route: East Stairwell → Exit C</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">K. Williams</span>
-                        <span className="bg-primary-light text-white text-xs px-2 py-1 rounded">Secondary Route</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Assigned: Residents C1-C3 | Route: West Stairwell → Exit B</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
-                  <div className="space-y-3">
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">Primary Route A</span>
-                        <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Units A & B → Main Stairwell → Exit A → Assembly Point 1</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">Secondary Route B</span>
-                        <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Units C & D → West Stairwell → Exit B → Assembly Point 2</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">Separation Route C</span>
-                        <span className="bg-warning text-white text-xs px-2 py-1 rounded">Restricted</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Separated Residents → East Stairwell → Exit C → Assembly Point 3</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="border border-bd rounded-lg p-4 text-center">
-                    <div className="w-12 h-12 bg-success rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fa-solid fa-1 text-white"></i>
-                    </div>
-                    <h5 className="font-medium text-font-base mb-2">Assembly Point 1</h5>
-                    <div className="text-sm text-font-detail">Front Parking Lot<br/>Units A & B<br/>Staff: J. Smith, L. Davis</div>
-                  </div>
-                  <div className="border border-bd rounded-lg p-4 text-center">
-                    <div className="w-12 h-12 bg-success rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fa-solid fa-2 text-white"></i>
-                    </div>
-                    <h5 className="font-medium text-font-base mb-2">Assembly Point 2</h5>
-                    <div className="text-sm text-font-detail">Side Yard<br/>Units C & D<br/>Staff: K. Williams, R. Brown</div>
-                  </div>
-                  <div className="border border-bd rounded-lg p-4 text-center">
-                    <div className="w-12 h-12 bg-error rounded-full flex items-center justify-center mx-auto mb-3">
-                      <i className="fa-solid fa-3 text-white"></i>
-                    </div>
-                    <h5 className="font-medium text-font-base mb-2">Assembly Point 3</h5>
-                    <div className="text-sm text-font-detail">Separated Area<br/>Rear Courtyard<br/>Staff: M. Johnson, T. Wilson</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Plan Generator */}
-          <div className="bg-white rounded-lg border border-bd">
-            <div className="p-6 border-b border-bd">
-              <h3 className="text-lg font-semibold text-font-base flex items-center">
-                <i className="fa-solid fa-route text-primary mr-3"></i>
-                Generate New Fire Plan
-              </h3>
-              <div className="mt-2 text-sm text-font-detail">Create a customized evacuation plan based on current shift roster and resident status</div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-font-base mb-4">Current Shift Staff</h4>
-                  <div className="border border-bd rounded-lg max-h-80 overflow-y-auto">
-                    <div className="p-3 border-b border-bd bg-bg-subtle">
-                      <div className="flex items-center justify-between text-sm font-medium">
-                        <span>Staff Member</span>
-                        <span>Assignment</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="p-3 border-b border-bd flex items-center justify-between">
-                        <span className="text-sm text-font-base">J. Smith (Supervisor)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option>Lead Evacuator</option>
-                          <option>Group Leader</option>
-                          <option>1:1 Assignment</option>
-                        </select>
-                      </div>
-                      <div className="p-3 border-b border-bd flex items-center justify-between">
-                        <span className="text-sm text-font-base">M. Johnson (JJYDS II)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option defaultValue={'1:1 Assignment'}>1:1 Assignment</option>
-                          <option>Group Leader</option>
-                          <option>Support Staff</option>
-                        </select>
-                      </div>
-                      <div className="p-3 border-b border-bd flex items-center justify-between">
-                        <span className="text-sm text-font-base">K. Williams (JJYDS I)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option defaultValue={'Group Leader'}>Group Leader</option>
-                          <option>1:1 Assignment</option>
-                          <option>Support Staff</option>
-                        </select>
-                      </div>
-                      <div className="p-3 border-b border-bd flex items-center justify-between">
-                        <span className="text-sm text-font-base">L. Davis (Support)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option defaultValue={'Support Staff'}>Support Staff</option>
-                          <option>Group Leader</option>
-                          <option>1:1 Assignment</option>
-                        </select>
-                      </div>
-                      <div className="p-3 border-b border-bd flex items-center justify-between">
-                        <span className="text-sm text-font-base">R. Brown (JJYDS III)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option defaultValue={'Group Leader'}>Group Leader</option>
-                          <option>1:1 Assignment</option>
-                          <option>Support Staff</option>
-                        </select>
-                      </div>
-                      <div className="p-3 flex items-center justify-between">
-                        <span className="text-sm text-font-base">T. Wilson (Caseworker)</span>
-                        <select className="text-sm border border-bd rounded px-2 py-1">
-                          <option defaultValue={'Support Staff'}>Support Staff</option>
-                          <option>Group Leader</option>
-                          <option>1:1 Assignment</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-font-base mb-4">Residents & Status (15 Total)</h4>
-                  <div className="border border-bd rounded-lg max-h-80 overflow-y-auto">
-                    <div className="p-3 border-b border-bd bg-bg-subtle">
-                      <div className="flex items-center justify-between text-sm font-medium">
-                        <span>Resident ID</span>
-                        <span>Status</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      {[
-                        { id: 'Resident A01', status: 'Regular' },
-                        { id: 'Resident A02', status: 'Separation' },
-                        { id: 'Resident A03', status: 'Regular' },
-                        { id: 'Resident B01', status: 'Medical' },
-                        { id: 'Resident B02', status: 'Regular' },
-                        { id: 'Resident B03', status: 'Separation' },
-                        { id: 'Resident C01', status: 'Regular' },
-                        { id: 'Resident C02', status: 'Behavioral Watch' },
-                        { id: 'Resident C03', status: 'Regular' },
-                        { id: 'Resident D01', status: 'Regular' },
-                        { id: 'Resident D02', status: 'Regular' },
-                        { id: 'Resident D03', status: 'Medical' },
-                        { id: 'Resident E01', status: 'Regular' },
-                        { id: 'Resident E02', status: 'Regular' },
-                        { id: 'Resident E03', status: 'Regular' },
-                      ].map((r) => (
-                        <div key={r.id} className="p-2 border-b border-bd flex items-center justify-between">
-                          <span className="text-sm text-font-base">{r.id}</span>
-                          <select className="text-xs border border-bd rounded px-2 py-1" defaultValue={r.status}>
-                            <option>Regular</option>
-                            <option>Separation</option>
-                            <option>Medical</option>
-                            <option>Behavioral Watch</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-font-base mb-4">Route Configuration & Plan Generation</h4>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Primary Evacuation Route</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" defaultValue="Main Stairwell → Exit A">
-                      <option>Main Stairwell → Exit A</option>
-                      <option>West Stairwell → Exit B</option>
-                      <option>East Stairwell → Exit C</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Secondary Route</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>Main Stairwell → Exit A</option>
-                      <option>West Stairwell → Exit B</option>
-                      <option>East Stairwell → Exit C</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Special Assignment</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>1:1 Separation</option>
-                      <option>Medical Watch</option>
-                      <option>Behavioral Watch</option>
-                      <option>Group Leader</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold text-font-base mb-4">Evacuation Route Assignment</h4>
-                    <div className="space-y-3">
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Primary Route A</span>
-                          <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Units A & B → Main Stairwell → Exit A → Assembly Point 1</div>
-                      </div>
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Secondary Route B</span>
-                          <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Units C & D → West Stairwell → Exit B → Assembly Point 2</div>
-                      </div>
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Separation Route C</span>
-                          <span className="bg-warning text-white text-xs px-2 py-1 rounded">Restricted</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Separated Residents → East Stairwell → Exit C → Assembly Point 3</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
-                    <div className="space-y-3">
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Assembly Point 1</span>
-                          <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Front Parking Lot<br/>Units A & B<br/>Staff: J. Smith, L. Davis</div>
-                      </div>
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Assembly Point 2</span>
-                          <span className="bg-success text-white text-xs px-2 py-1 rounded">Available</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Side Yard<br/>Units C & D<br/>Staff: K. Williams, R. Brown</div>
-                      </div>
-                      <div className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">Assembly Point 3</span>
-                          <span className="bg-error text-white text-xs px-2 py-1 rounded">Restricted</span>
-                        </div>
-                        <div className="text-sm text-font-detail">Separated Area<br/>Rear Courtyard<br/>Staff: M. Johnson, T. Wilson</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-bd rounded-lg p-4">
-                  <h4 className="font-semibold text-font-base mb-4">Plan Generation Summary</h4>
-                  <div className="text-sm text-font-detail space-y-2">
-                    <p>• <strong>Primary Route:</strong> Main Stairwell → Exit A (Staff: J. Smith, L. Davis)</p>
-                    <p>• <strong>Secondary Route:</strong> West Stairwell → Exit B (Staff: K. Williams, R. Brown)</p>
-                    <p>• <strong>Special Assignment:</strong> 1:1 Separation (Staff: M. Johnson, T. Wilson)</p>
-                    <p>• <strong>Assembly Points:</strong> 3 total points available</p>
-                    <p>• <strong>Special Status:</strong> 3 residents on separation, 2 on medical watch</p>
-                    <p>• <strong>Staff Coverage:</strong> 12 staff members assigned</p>
-                    <p>• <strong>Evacuation Time:</strong> Estimated 15-20 minutes</p>
-                  </div>
-                </div>
+              <div className="mt-3 text-sm text-font-detail">
+                Generated: {now.toLocaleDateString()} at{' '}
+                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} | Shift: {shiftLabel}
               </div>
             </div>
           </div>
@@ -385,7 +368,7 @@ export default function FirePlanPage() {
       )}
 
       {/* Drill Report */}
-      {activeTab === 'report' && (
+      {(activeTab as string) === 'report' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
             <div className="flex items-center justify-between">
@@ -563,7 +546,7 @@ export default function FirePlanPage() {
       )}
 
       {/* Drill Archive */}
-      {activeTab === 'archive' && (
+      {(activeTab as string) === 'archive' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
             <h3 className="text-lg font-semibold text-font-base flex items-center">
@@ -635,7 +618,7 @@ export default function FirePlanPage() {
       )}
 
       {/* Floor Plan */}
-      {activeTab === 'floor' && (
+      {(activeTab as string) === 'floor' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
             <div className="flex items-center justify-between">
@@ -644,11 +627,17 @@ export default function FirePlanPage() {
                 Facility Floor Plan & Exit Routes
               </h3>
               <div className="flex items-center gap-3">
-                <button onClick={handleUpdateFloorPlan} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
+                <button
+                  onClick={handleUpdateFloorPlan}
+                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm"
+                >
                   <i className="fa-solid fa-upload mr-2"></i>
                   Update Floor Plan
                 </button>
-                <button onClick={handlePrint} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
+                <button
+                  onClick={handlePrint}
+                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm"
+                >
                   <i className="fa-solid fa-print mr-2"></i>
                   Print Plan
                 </button>
@@ -656,34 +645,25 @@ export default function FirePlanPage() {
             </div>
           </div>
           <div className="p-6">
-            <div className="bg-gray-100 rounded-lg p-8 text-center">
-              <img className="w-full h-auto max-h-96 object-contain rounded-lg shadow-md" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png" alt="facility floor plan with fire exit routes, emergency exits marked in red, assembly points marked with green circles, stairwells and corridors clearly labeled, professional architectural style" />
-            </div>
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold text-font-base mb-3">Exit Route Legend</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-error rounded mr-3"></div>
-                    <span className="text-sm text-font-base">Primary Exit Routes</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-warning rounded mr-3"></div>
-                    <span className="text-sm text-font-base">Secondary Exit Routes</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-success rounded mr-3"></div>
-                    <span className="text-sm text-font-base">Assembly Points</span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-gray-100 rounded-lg p-8 text-center">
+                <span className="text-sm text-font-base">Assembly Points</span>
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <h4 className="font-semibold text-font-base mb-3">Plan Details</h4>
                 <div className="text-sm text-font-detail space-y-1">
-                  <p><strong>Last Updated:</strong> October 1, 2024</p>
-                  <p><strong>Scale:</strong> 1:100</p>
-                  <p><strong>Total Exits:</strong> 6 exits available</p>
-                  <p><strong>Assembly Points:</strong> 3 designated areas</p>
+                  <p>
+                    <strong>Last Updated:</strong> October 1, 2024
+                  </p>
+                  <p>
+                    <strong>Scale:</strong> 1:100
+                  </p>
+                  <p>
+                    <strong>Total Exits:</strong> 6 exits available
+                  </p>
+                  <p>
+                    <strong>Assembly Points:</strong> 3 designated areas
+                  </p>
                 </div>
               </div>
             </div>
