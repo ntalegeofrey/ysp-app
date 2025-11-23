@@ -90,9 +90,11 @@ export default function EditUCRPage() {
 
   useEffect(() => {
     const storedProgramId = typeof window !== 'undefined' ? localStorage.getItem('selectedProgramId') : null;
+    console.log('Edit page - programId:', storedProgramId, 'reportId:', reportId);
     setProgramId(storedProgramId);
 
     if (!storedProgramId || !reportId) {
+      console.log('Missing programId or reportId, redirecting...');
       router.push('/dashboard/ucr');
       return;
     }
@@ -101,6 +103,7 @@ export default function EditUCRPage() {
     const fetchReport = async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        console.log('Fetching report from:', `/api/programs/${storedProgramId}/ucr/reports/${reportId}`);
         const response = await fetch(`/api/programs/${storedProgramId}/ucr/reports/${reportId}`, {
           credentials: 'include',
           headers: {
@@ -109,13 +112,16 @@ export default function EditUCRPage() {
           }
         });
 
+        console.log('Response status:', response.status);
         if (!response.ok) {
+          console.log('Response not OK, redirecting');
           addToast('Failed to load report', 'error');
           router.push('/dashboard/ucr');
           return;
         }
 
         const data = await response.json();
+        console.log('Report data loaded:', data);
         
         // Pre-populate form fields
         setReportDate(data.reportDate || '');
