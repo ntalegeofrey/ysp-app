@@ -515,7 +515,7 @@ export default function EditUCRPage() {
                             i === idx ? { ...item, status: 'issue' } : item
                           ),
                         }))}
-                        className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                       >
                         Issue
                       </button>
@@ -868,7 +868,7 @@ export default function EditUCRPage() {
                             ),
                           }))
                         }
-                        className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                       >
                         Issue
                       </button>
@@ -957,7 +957,7 @@ export default function EditUCRPage() {
                             ),
                           }))
                         }
-                        className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                       >
                         Issue
                       </button>
@@ -1043,7 +1043,7 @@ export default function EditUCRPage() {
                             ),
                           }))
                         }
-                        className={`flex-1 py-1.5 ${formData.staffChores[idx]?.status === 'unsatisfactory' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                        className={`flex-1 py-1.5 ${formData.staffChores[idx]?.status === 'unsatisfactory' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                       >
                         Unsatisfactory
                       </button>

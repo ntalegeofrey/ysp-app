@@ -167,9 +167,21 @@ export default function UCRNotifyPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center mb-2">
-                <span className="bg-error text-white text-xs font-bold px-2 py-1 rounded-full mr-3">
-                  {(priorityLevel || 'Critical').toUpperCase()}
-                </span>
+                {(() => {
+                  const p = (priorityLevel || 'Critical').toLowerCase();
+                  const chipClass = p.includes('critical')
+                    ? 'bg-error text-white'
+                    : p.includes('high')
+                    ? 'bg-warning text-font-base'
+                    : p.includes('medium')
+                    ? 'bg-highlight text-font-base'
+                    : 'bg-green-100 text-success';
+                  return (
+                    <span className={`${chipClass} text-xs font-bold px-2 py-1 rounded-full mr-3`}>
+                      {(priorityLevel || 'Critical').toUpperCase()}
+                    </span>
+                  );
+                })()}
                 <h3 className="text-lg font-semibold text-font-base">{issueTitle || 'Unit issue'}</h3>
               </div>
               {issueSummary && (

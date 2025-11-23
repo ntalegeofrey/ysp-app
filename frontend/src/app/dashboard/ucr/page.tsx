@@ -3,6 +3,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { logoUrl } from '../../utils/logo';
 
 export default function UCRPage() {
   const router = useRouter();
@@ -67,10 +68,15 @@ export default function UCRPage() {
           if (staffRes.ok) {
             const staffData = await staffRes.json();
             const nameMap: Record<number, string> = {};
+            const titleMap: Record<number, string> = {};
             staffData.forEach((user: any) => {
               nameMap[user.id] = user.fullName || user.email || `User ${user.id}`;
+              if (user.jobTitle) {
+                titleMap[user.id] = String(user.jobTitle);
+              }
             });
             setStaffNames(prev => ({...prev, ...nameMap}));
+            setStaffTitles(prev => ({...prev, ...titleMap}));
           }
         } catch {}
       }
@@ -207,6 +213,7 @@ export default function UCRPage() {
   const [persistingIssuesPage, setPersistingIssuesPage] = useState<number>(0);
   const [persistingIssuesPerPage] = useState<number>(6);
   const [staffNames, setStaffNames] = useState<Record<number, string>>({});
+  const [staffTitles, setStaffTitles] = useState<Record<number, string>>({});
   const loadOpenIssues = async () => {
     if (!programId) return;
     try {
@@ -471,7 +478,7 @@ export default function UCRPage() {
       <body>
         <div class="header">
           <div class="logo-section">
-            <img src="/logo.png" alt="DYS Logo" class="logo" onerror="this.style.display='none'"/>
+            <img src="${logoUrl}" alt="DYS Logo" class="logo" onerror="this.style.display='none'"/>
             <div class="title-section">
               <h1>Unit Condition Report</h1>
               <p>Department of Youth Services</p>
@@ -497,6 +504,12 @@ export default function UCRPage() {
               <span class="info-label">Reporter:</span>
               <span class="info-value">${report.staffName || staffNames[report.staffId] || 'N/A'}</span>
             </div>
+            ${staffTitles && report.staffId && staffTitles[report.staffId] ? `
+            <div class="info-item">
+              <span class="info-label">Position:</span>
+              <span class="info-value">${staffTitles[report.staffId]}</span>
+            </div>
+            ` : ''}
           </div>
         </div>
 
@@ -1610,7 +1623,7 @@ export default function UCRPage() {
                         </button>
                         <button 
                           onClick={() => setFormData((prev: any) => ({ ...prev, securityEquipment: prev.securityEquipment.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
-                          className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                          className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                         >
                           Issue
                         </button>
@@ -1833,7 +1846,7 @@ export default function UCRPage() {
                         </button>
                         <button 
                           onClick={() => setFormData((prev: any) => ({ ...prev, adminOffices: prev.adminOffices.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
-                          className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                          className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                         >
                           Issue
                         </button>
@@ -1891,7 +1904,7 @@ export default function UCRPage() {
                         </button>
                         <button 
                           onClick={() => setFormData((prev: any) => ({ ...prev, facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) => i === idx ? { ...item, status: 'issue' } : item) }))}
-                          className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                          className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-error text-white' : 'hover:bg-gray-50'}`}
                         >
                           Issue
                         </button>
