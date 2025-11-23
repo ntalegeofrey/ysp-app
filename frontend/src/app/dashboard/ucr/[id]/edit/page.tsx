@@ -89,7 +89,19 @@ export default function EditUCRPage() {
   };
 
   useEffect(() => {
-    const storedProgramId = typeof window !== 'undefined' ? localStorage.getItem('selectedProgramId') : null;
+    let storedProgramId: string | null = null;
+    try {
+      if (typeof window !== 'undefined') {
+        const spRaw = localStorage.getItem('selectedProgram');
+        if (spRaw) {
+          const sp = JSON.parse(spRaw) as { id?: number | string };
+          storedProgramId = sp?.id ? String(sp.id) : null;
+        }
+      }
+    } catch {
+      storedProgramId = null;
+    }
+
     console.log('Edit page - programId:', storedProgramId, 'reportId:', reportId);
     setProgramId(storedProgramId);
 
@@ -465,20 +477,677 @@ export default function EditUCRPage() {
             </div>
           </section>
 
-          {/* Placeholder for full form - Copy all sections from main page */}
-          <div className="bg-white rounded-lg border border-bd p-6">
-            <div className="text-center py-12 text-font-detail">
-              <i className="fa-solid fa-pen-to-square text-4xl mb-4 text-primary"></i>
-              <p className="text-lg font-medium">Full form sections will be added here</p>
-              <p className="mt-2">Copy all form sections from the main UCR page:</p>
-              <ul className="mt-4 text-left max-w-md mx-auto space-y-1">
-                <li>• Security Equipment & Procedures</li>
-                <li>• Administrative Offices</li>
-                <li>• Facility Infrastructure</li>
-                <li>• Staff Chores</li>
-                <li>• Resident Room Searches</li>
-                <li>• Additional Comments</li>
-              </ul>
+          {/* Security Equipment & Procedures */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-primary">Security Equipment & Procedures</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {[
+                { label: '11 Radios functional and charging', extra: 'Problems in use, work order #' },
+                { label: '2 Flashlights functional', extra: 'Problems in use, work order #' },
+                { label: 'Garrett metal detector functional', extra: 'Problems in use, work order #' },
+                { label: 'Big Set keys & keys present and secure', extra: 'Problems in use, work order #' },
+                { label: 'First Aid kits available and stocked', extra: 'Note if used, work order #' },
+                { label: 'Desk Computer/Monitor functional', extra: 'Problems in use, work order #' },
+              ].map((row, idx) => (
+                <div key={row.label} className={`grid grid-cols-12 items-center gap-4 py-2 ${idx === 0 ? 'border-b' : 'border-y'} border-bd`}>
+                  <div className="col-span-3">
+                    <p className="text-sm font-medium text-font-base">{row.label}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                      <button
+                        onClick={() => setFormData((prev: any) => ({
+                          ...prev,
+                          securityEquipment: prev.securityEquipment.map((item: any, i: number) =>
+                            i === idx ? { ...item, status: 'ok' } : item
+                          ),
+                        }))}
+                        className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() => setFormData((prev: any) => ({
+                          ...prev,
+                          securityEquipment: prev.securityEquipment.map((item: any, i: number) =>
+                            i === idx ? { ...item, status: 'issue' } : item
+                          ),
+                        }))}
+                        className={`flex-1 py-1.5 ${formData.securityEquipment[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Issue
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <select
+                      value={formData.securityEquipment[idx]?.priority || 'Normal'}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          securityEquipment: prev.securityEquipment.map((item: any, i: number) =>
+                            i === idx ? { ...item, priority: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                  </div>
+                  <div className="col-span-5">
+                    <input
+                      type="text"
+                      placeholder={row.extra}
+                      value={formData.securityEquipment[idx]?.comments || ''}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          securityEquipment: prev.securityEquipment.map((item: any, i: number) =>
+                            i === idx ? { ...item, comments: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {/* Hardware Secure */}
+              <div className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                <div className="col-span-4">
+                  <p className="text-sm font-medium text-font-base">Hardware Secure (hooks secure)</p>
+                </div>
+                <div className="col-span-3">
+                  <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          hardwareSecure: { ...prev.hardwareSecure, value: true },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.hardwareSecure?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          hardwareSecure: { ...prev.hardwareSecure, value: false },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.hardwareSecure?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-5">
+                  <input
+                    type="text"
+                    placeholder="Problems in use, work order #"
+                    value={formData.hardwareSecure?.comments || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        hardwareSecure: { ...prev.hardwareSecure, comments: e.target.value },
+                      }))
+                    }
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Searches completed */}
+              <div className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                <div className="col-span-4">
+                  <p className="text-sm font-medium text-font-base">Searches completed</p>
+                </div>
+                <div className="col-span-3">
+                  <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          searchesCompleted: { ...prev.searchesCompleted, value: true },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.searchesCompleted?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          searchesCompleted: { ...prev.searchesCompleted, value: false },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.searchesCompleted?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-5 flex gap-2">
+                  <input
+                    type="time"
+                    value={formData.searchesCompleted?.startTime || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        searchesCompleted: { ...prev.searchesCompleted, startTime: e.target.value },
+                      }))
+                    }
+                    className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <input
+                    type="time"
+                    value={formData.searchesCompleted?.endTime || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        searchesCompleted: { ...prev.searchesCompleted, endTime: e.target.value },
+                      }))
+                    }
+                    className="px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Fire drills completed */}
+              <div className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                <div className="col-span-4">
+                  <p className="text-sm font-medium text-font-base">Fire drills completed</p>
+                </div>
+                <div className="col-span-3">
+                  <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          fireDrillsCompleted: { ...prev.fireDrillsCompleted, value: true },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.fireDrillsCompleted?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          fireDrillsCompleted: { ...prev.fireDrillsCompleted, value: false },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.fireDrillsCompleted?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-5">
+                  <input
+                    type="text"
+                    placeholder="Problems in use, work order #"
+                    value={formData.fireDrillsCompleted?.comments || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        fireDrillsCompleted: { ...prev.fireDrillsCompleted, comments: e.target.value },
+                      }))
+                    }
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Emergency lighting operational */}
+              <div className="grid grid-cols-12 items-center gap-4 py-2">
+                <div className="col-span-4">
+                  <p className="text-sm font-medium text-font-base">Emergency lighting operational</p>
+                </div>
+                <div className="col-span-3">
+                  <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          emergencyLighting: { ...prev.emergencyLighting, value: true },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.emergencyLighting?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          emergencyLighting: { ...prev.emergencyLighting, value: false },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.emergencyLighting?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-5">
+                  <input
+                    type="text"
+                    placeholder="Problems in use, work order #"
+                    value={formData.emergencyLighting?.comments || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        emergencyLighting: { ...prev.emergencyLighting, comments: e.target.value },
+                      }))
+                    }
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notifications */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-primary">Notifications</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-12 items-center gap-4 py-2">
+                <div className="col-span-4">
+                  <p className="text-sm font-medium text-font-base">Opposite Gender Announce their Presence</p>
+                </div>
+                <div className="col-span-3">
+                  <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          notifications: [{ ...prev.notifications[0], value: true }],
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.notifications[0]?.value === true ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          notifications: [{ ...prev.notifications[0], value: false }],
+                        }))
+                      }
+                      className={`flex-1 py-1.5 ${formData.notifications[0]?.value === false ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-3">
+                  <select
+                    value={formData.notifications[0]?.priority || 'Normal'}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        notifications: [{ ...prev.notifications[0], priority: e.target.value }],
+                      }))
+                    }
+                    className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Notes, concerns"
+                    value={formData.notifications[0]?.comments || ''}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        notifications: [{ ...prev.notifications[0], comments: e.target.value }],
+                      }))
+                    }
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Administrative Offices */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-primary">Administrative Offices</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {[ 
+                'Meeting Rooms locked',
+                'Administration doors locked and secure',
+              ].map((label, idx) => (
+                <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                  <div className="col-span-4">
+                    <p className="text-sm font-medium text-font-base">{label}</p>
+                  </div>
+                  <div className="col-span-3">
+                    <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            adminOffices: prev.adminOffices.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'ok' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            adminOffices: prev.adminOffices.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'issue' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.adminOffices[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Issue
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <select
+                      value={formData.adminOffices[idx]?.priority || 'Normal'}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          adminOffices: prev.adminOffices.map((item: any, i: number) =>
+                            i === idx ? { ...item, priority: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Problems in use, work order #"
+                      value={formData.adminOffices[idx]?.comments || ''}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          adminOffices: prev.adminOffices.map((item: any, i: number) =>
+                            i === idx ? { ...item, comments: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Facility Infrastructure */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-primary">Facility Infrastructure</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {[
+                'Back door locked and secure',
+                'Entrance and exit doors locked and secured',
+                'Smoke detectors functional',
+                'All windows secure',
+                'Laundry area clean and orderly',
+                'Fire extinguishers in place/charged',
+                'Fire alarm functional',
+              ].map((label, idx) => (
+                <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                  <div className="col-span-4">
+                    <p className="text-sm font-medium text-font-base">{label}</p>
+                  </div>
+                  <div className="col-span-3">
+                    <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'ok' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'ok' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'issue' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.facilityInfrastructure[idx]?.status === 'issue' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Issue
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <select
+                      value={formData.facilityInfrastructure[idx]?.priority || 'Normal'}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) =>
+                            i === idx ? { ...item, priority: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-2 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Problems in use, work order #"
+                      value={formData.facilityInfrastructure[idx]?.comments || ''}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          facilityInfrastructure: prev.facilityInfrastructure.map((item: any, i: number) =>
+                            i === idx ? { ...item, comments: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Staff Chores */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-primary">Staff Chores</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {[
+                'Workspace clean (common area, desk)',
+                'Staff bathroom cleaned and mopped',
+                'Dayroom cleaned and mopped',
+                'Laundry room cleaned and mopped',
+              ].map((label, idx) => (
+                <div key={label} className="grid grid-cols-12 items-center gap-4 py-2 border-y border-bd">
+                  <div className="col-span-5">
+                    <p className="text-sm font-medium text-font-base">{label}</p>
+                  </div>
+                  <div className="col-span-3">
+                    <div className="flex border border-bd rounded-md overflow-hidden text-sm">
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            staffChores: prev.staffChores.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'satisfactory' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.staffChores[idx]?.status === 'satisfactory' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Satisfactory
+                      </button>
+                      <button
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            staffChores: prev.staffChores.map((item: any, i: number) =>
+                              i === idx ? { ...item, status: 'unsatisfactory' } : item
+                            ),
+                          }))
+                        }
+                        className={`flex-1 py-1.5 ${formData.staffChores[idx]?.status === 'unsatisfactory' ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}
+                      >
+                        Unsatisfactory
+                      </button>
+                    </div>
+                  </div>
+                  <div className="col-span-4">
+                    <input
+                      type="text"
+                      placeholder="Notes"
+                      value={formData.staffChores[idx]?.comments || ''}
+                      onChange={(e) =>
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          staffChores: prev.staffChores.map((item: any, i: number) =>
+                            i === idx ? { ...item, comments: e.target.value } : item
+                          ),
+                        }))
+                      }
+                      className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Resident Room Searches */}
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-primary">Resident Room Searches</h3>
+              <button
+                onClick={addRoomSearchRow}
+                className="inline-flex items-center px-3 py-1.5 border border-primary text-primary text-sm rounded-md hover:bg-primary-lightest"
+              >
+                <i className="fa-solid fa-plus mr-1"></i>
+                Add Room
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-12 gap-4 items-end">
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium text-font-detail mb-1">Room Number</label>
+                  <input
+                    type="text"
+                    value={roomSearchRoom}
+                    onChange={(e) => setRoomSearchRoom(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g., 101"
+                  />
+                </div>
+                <div className="col-span-7">
+                  <label className="block text-sm font-medium text-font-detail mb-1">Search Comments</label>
+                  <input
+                    type="text"
+                    value={roomSearchComments}
+                    onChange={(e) => setRoomSearchComments(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-bd rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Notes about the search"
+                  />
+                </div>
+                <div className="col-span-2 flex justify-end">
+                  <button
+                    onClick={addRoomSearchRow}
+                    className="mt-5 inline-flex items-center px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary-light"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {Array.isArray(formData.roomSearches) && formData.roomSearches.length > 0 && (
+                <div className="mt-4 border border-bd rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-bg-subtle">
+                      <tr>
+                        <th className="p-2 text-left font-medium text-font-detail">Room</th>
+                        <th className="p-2 text-left font-medium text-font-detail">Comments</th>
+                        <th className="p-2 text-right font-medium text-font-detail">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.roomSearches.map((rs: any, idx: number) => (
+                        <tr key={`${rs.room}-${idx}`} className="border-t border-bd">
+                          <td className="p-2 text-font-base">{rs.room}</td>
+                          <td className="p-2 text-font-base">{rs.comments}</td>
+                          <td className="p-2 text-right">
+                            <button
+                              onClick={() =>
+                                setFormData((prev: any) => ({
+                                  ...prev,
+                                  roomSearches: prev.roomSearches.filter((_: any, i: number) => i !== idx),
+                                }))
+                              }
+                              className="text-error hover:text-error-dark text-xs"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 
