@@ -2,6 +2,7 @@ package app.ysp.controller;
 
 import app.ysp.entity.Program;
 import app.ysp.entity.ProgramAssignment;
+import app.ysp.domain.User;
 import app.ysp.entity.ProgramResident;
 import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.repo.ProgramRepository;
@@ -158,6 +159,26 @@ public class ProgramController {
             pa.setRoleType(item.roleType);
             pa.setUserEmail(item.userEmail);
             pa.setUserId(item.userId);
+
+            // Enrich staff registry fields from User when available
+            if (item.userId != null) {
+                users.findById(item.userId).ifPresent((User u) -> {
+                    pa.setFirstName(u.getFullName() != null ? u.getFullName().split(" ")[0] : null);
+                    // last name best-effort: take last token of fullName
+                    if (u.getFullName() != null && u.getFullName().contains(" ")) {
+                        String[] parts = u.getFullName().trim().split(" ");
+                        pa.setLastName(parts[parts.length - 1]);
+                    }
+                    pa.setEmployeeId(u.getEmployeeNumber());
+                    pa.setTitle(u.getJobTitle());
+                    pa.setStatus(Boolean.TRUE.equals(u.getEnabled()) ? "active" : "not_active");
+                });
+            }
+
+            String rt = item.roleType != null ? item.roleType.toUpperCase() : "";
+            if ("REGIONAL_ADMIN".equals(rt) || "PROGRAM_DIRECTOR".equals(rt) || "ASSISTANT_DIRECTOR".equals(rt)) {
+                pa.setCategory("Administration");
+            }
             toSave.add(pa);
         }
         assignments.saveAll(toSave);
