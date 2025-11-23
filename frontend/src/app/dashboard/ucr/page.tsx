@@ -1432,7 +1432,8 @@ export default function UCRPage() {
                           today.setHours(0, 0, 0, 0);
                           const reportDate = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
                           if (reportDate) reportDate.setHours(0, 0, 0, 0);
-                          const isEditable = reportDate ? reportDate.getTime() >= today.getTime() : false; // Current or future dates
+                          // Allow editing only on the current date
+                          const isEditable = reportDate ? reportDate.getTime() === today.getTime() : false;
                           const issues = getAllIssues(r);
                           const hasCritical = issues.some(i => i.condition.includes('Critical'));
                           const hasHigh = issues.some(i => i.condition.includes('High'));
