@@ -135,11 +135,23 @@ public class ProgramController {
         Optional<Program> opt = programs.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Program program = opt.get();
-        // Clear existing
+
+        // Load existing assignments so we can preserve non-admin staff
         List<ProgramAssignment> existing = assignments.findByProgram_Id(id);
+        List<ProgramAssignment> preservedStaff = new ArrayList<>();
+        for (ProgramAssignment pa : existing) {
+            String rt = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+            boolean isAdminRole = "REGIONAL_ADMIN".equals(rt) || "PROGRAM_DIRECTOR".equals(rt) || "ASSISTANT_DIRECTOR".equals(rt);
+            if (!isAdminRole) {
+                preservedStaff.add(pa);
+            }
+        }
+        // Clear all existing, we will re-insert preserved staff plus new admin assignments
         if (!existing.isEmpty()) assignments.deleteAll(existing);
-        // Insert new
+
+        // Build new list: preserved staff + incoming assignments
         List<ProgramAssignment> toSave = new ArrayList<>();
+        toSave.addAll(preservedStaff);
         for (AssignmentItem item : payload.assignments) {
             ProgramAssignment pa = new ProgramAssignment();
             pa.setProgram(program);
