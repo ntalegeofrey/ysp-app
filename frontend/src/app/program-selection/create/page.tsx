@@ -155,6 +155,7 @@ export default function CreateProgramPage() {
   const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
   const [adminSearch, setAdminSearch] = useState<string>('');
   const [adminRole, setAdminRole] = useState<string>('PROGRAM_DIRECTOR');
+  const [selectedAdminUser, setSelectedAdminUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,6 +202,7 @@ export default function CreateProgramPage() {
       }
     }
     setAdminSearch('');
+    setSelectedAdminUser(null);
   };
 
   const addStaff = () => setStaff((s) => [...s, { name: '', position: '', email: '', responsibilities: '' }]);
@@ -301,20 +303,6 @@ export default function CreateProgramPage() {
                   <h1 className="text-xl font-bold text-primary">{editingId ? 'Edit Program' : 'Create New Program'}</h1>
                   <p className="text-sm text-font-detail">Department of Youth Services</p>
                 </div>
-
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Region *</label>
-                <select
-                  className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  value={region}
-                  onChange={(e)=>setRegion(e.target.value)}
-                >
-                  <option value="">Select region</option>
-                  {regions.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -401,6 +389,21 @@ export default function CreateProgramPage() {
                   <option value="construction">Under Construction</option>
                   <option value="maintenance">Maintenance</option>
                   <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Region *</label>
+                <select
+                  required
+                  className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  value={region}
+                  onChange={(e)=>setRegion(e.target.value)}
+                >
+                  <option value="">Select region</option>
+                  {regions.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -504,35 +507,50 @@ export default function CreateProgramPage() {
                     <option value="ASSISTANT_DIRECTOR">Assistant Director</option>
                   </select>
                 </div>
-                <div className="md:col-span-2 relative">
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-font-base mb-2">Search staff by name or email</label>
-                  <input
-                    type="text"
-                    value={adminSearch}
-                    onChange={(e)=>setAdminSearch(e.target.value)}
-                    placeholder="Start typing to search..."
-                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
-                  {filteredAdminUsers.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-bd rounded-lg shadow max-h-60 overflow-auto">
-                      {filteredAdminUsers.map(u => (
-                        <button
-                          type="button"
-                          key={u.id}
-                          className="w-full text-left px-3 py-2 hover:bg-bg-subtle text-sm flex items-center justify-between"
-                          onClick={() => addAdministrator(u)}
-                        >
-                          <span className="flex flex-col">
-                            <span className="font-medium text-font-base">{u.fullName || u.email}</span>
-                            <span className="text-xs text-font-detail">{u.email}</span>
-                          </span>
-                          {u.jobTitle && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">{u.jobTitle}</span>
-                          )}
-                        </button>
-                      ))}
+                  <div className="flex gap-2 items-start">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={adminSearch}
+                        onChange={(e)=>setAdminSearch(e.target.value)}
+                        placeholder="Start typing to search..."
+                        className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      />
+                      {filteredAdminUsers.length > 0 && (
+                        <div className="absolute z-20 mt-1 w-full bg-white border border-bd rounded-lg shadow max-h-60 overflow-auto">
+                          {filteredAdminUsers.map(u => {
+                            const isSelected = selectedAdminUser && selectedAdminUser.id === u.id;
+                            return (
+                              <button
+                                type="button"
+                                key={u.id}
+                                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${isSelected ? 'bg-primary-lightest' : 'hover:bg-bg-subtle'}`}
+                                onClick={() => setSelectedAdminUser(u)}
+                              >
+                                <span className="flex flex-col">
+                                  <span className="font-medium text-font-base">{u.fullName || u.email}</span>
+                                  <span className="text-xs text-font-detail">{u.email}</span>
+                                </span>
+                                {u.jobTitle && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">{u.jobTitle}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium shadow-sm hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!selectedAdminUser}
+                      onClick={() => { if (selectedAdminUser) addAdministrator(selectedAdminUser); }}
+                    >
+                      <span className="mr-1">+ Add</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
