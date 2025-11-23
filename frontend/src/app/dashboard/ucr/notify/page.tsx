@@ -17,6 +17,7 @@ export default function UCRNotifyPage() {
   const [senderName, setSenderName] = useState<string>('');
   const [senderTitle, setSenderTitle] = useState<string>('');
   const [status, setStatus] = useState<{ tone: 'idle' | 'success' | 'error'; text: string }>({ tone: 'idle', text: '' });
+  const [supervisors, setSupervisors] = useState<Array<{ roleType: string; email: string }>>([]);
 
   useEffect(() => {
     try {
@@ -38,6 +39,31 @@ export default function UCRNotifyPage() {
     };
     run();
   }, []);
+
+  // Load Program Director and Assistant Director emails for this program
+  useEffect(() => {
+    const loadSupervisors = async () => {
+      if (!programId) return;
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const r = await fetch(`/api/programs/${programId}/assignments`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!r.ok) return;
+        const data = await r.json();
+        const list = Array.isArray(data) ? data : [];
+        const filtered = list
+          .filter((pa: any) => pa && pa.userEmail && pa.roleType &&
+            (String(pa.roleType).toUpperCase() === 'PROGRAM_DIRECTOR' || String(pa.roleType).toUpperCase() === 'ASSISTANT_DIRECTOR'))
+          .map((pa: any) => ({ roleType: String(pa.roleType).toUpperCase(), email: String(pa.userEmail) }));
+        setSupervisors(filtered);
+      } catch {
+        // ignore, we'll just show generic text
+      }
+    };
+    loadSupervisors();
+  }, [programId]);
 
   const reportId = search.get('reportId');
   const reportDate = search.get('date');
@@ -108,7 +134,14 @@ export default function UCRNotifyPage() {
         body: JSON.stringify(body),
       });
       if (!r.ok) {
-        setStatus({ tone: 'error', text: 'Failed to send notification.' });
+        let msg = 'Failed to send notification.';
+        try {
+          const err = await r.json();
+          if (err && typeof err.error === 'string' && err.error.trim() !== '') {
+            msg = err.error;
+          }
+        } catch {}
+        setStatus({ tone: 'error', text: msg });
         return;
       }
       setStatus({ tone: 'success', text: 'Supervisors notified.' });
@@ -166,8 +199,21 @@ export default function UCRNotifyPage() {
                 <i className="fa-solid fa-user-tie mr-2 text-primary"></i>
                 Notify Supervisor
               </label>
-              <div className="w-full px-3 py-2 border border-bd rounded-md bg-bg-subtle text-sm text-font-detail">
-                Program Director &amp; Assistant Program Director for this program will be notified automatically.
+              <div className="w-full px-3 py-2 border border-bd rounded-md bg-bg-subtle text-sm text-font-detail space-y-1">
+                {supervisors.length > 0 ? (
+                  <>
+                    <p>These supervisors will be notified automatically:</p>
+                    <ul className="list-disc list-inside text-xs text-font-detail">
+                      {supervisors.map((s, idx) => (
+                        <li key={idx}>
+                          {s.roleType === 'PROGRAM_DIRECTOR' ? 'Program Director' : 'Assistant Program Director'}: {s.email}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p>Program Director &amp; Assistant Program Director for this program will be notified automatically (once configured).</p>
+                )}
               </div>
             </div>
 
