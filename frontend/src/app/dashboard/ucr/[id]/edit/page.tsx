@@ -1074,13 +1074,13 @@ export default function EditUCRPage() {
           <div className="bg-white rounded-lg border border-bd">
             <div className="p-4 border-b border-bd bg-primary-lightest/50 rounded-t-lg flex items-center justify-between">
               <h3 className="text-lg font-semibold text-primary">Resident Room Searches</h3>
-              <button
+              {/* <button
                 onClick={addRoomSearchRow}
                 className="inline-flex items-center px-3 py-1.5 border border-primary text-primary text-sm rounded-md hover:bg-primary-lightest"
               >
                 <i className="fa-solid fa-plus mr-1"></i>
                 Add Room
-              </button>
+              </button> */}
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-12 gap-4 items-end">

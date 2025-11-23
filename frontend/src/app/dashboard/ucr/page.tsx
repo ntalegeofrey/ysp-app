@@ -1126,6 +1126,22 @@ export default function UCRPage() {
     }
   };
 
+  // Client-side filtering for archive table to make search & status feel responsive
+  const normalizedSearch = q.trim().toLowerCase();
+  const normalizedStatus = filterStatus && filterStatus !== 'All Status' ? filterStatus : '';
+  const filteredReports = ucrReports.filter((r: any) => {
+    // Build a combined text string for matching (date, shift, summary, staff, status)
+    const dateText = r.reportDate ? new Date(r.reportDate).toLocaleDateString() : '';
+    const shiftText = (r.shiftTime || r.shift || '') as string;
+    const summaryText = getIssueLabel(r);
+    const staffText = (r.staffName || staffNames[r.staffId] || '') as string;
+    const statusText = (r.reportStatus || '') as string;
+    const haystack = [dateText, shiftText, summaryText, staffText, statusText].join(' ').toLowerCase();
+    const textMatch = !normalizedSearch || haystack.includes(normalizedSearch);
+    const statusMatch = !normalizedStatus || statusText === normalizedStatus;
+    return textMatch && statusMatch;
+  });
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -1343,72 +1359,80 @@ export default function UCRPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ucrReports.map((r: any) => {
-                        // Compare dates without time component
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const reportDate = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
-                        if (reportDate) reportDate.setHours(0, 0, 0, 0);
-                        const isEditable = reportDate ? reportDate.getTime() >= today.getTime() : false; // Current or future dates
-                        const issues = getAllIssues(r);
-                        const hasCritical = issues.some(i => i.condition.includes('Critical'));
-                        const hasHigh = issues.some(i => i.condition.includes('High'));
-                        const hasMedium = issues.some(i => i.condition.includes('Medium'));
-                        const summary = issues.length > 0 ? `${issues.length} issue${issues.length > 1 ? 's' : ''} reported` : 'All items normal';
-                        return (
-                          <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
-                            <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
-                            <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
-                            <td className="p-3 text-sm text-font-base">{summary}</td>
-                            <td className="p-3 text-font-detail">{r.staffName || staffNames[r.staffId] || '-'}</td>
-                            <td className="p-3">
-                              <div className="flex flex-wrap gap-1">
-                                {issues.length === 0 ? (
-                                  <span className="text-xs px-2 py-1 rounded-full bg-success-lightest text-success font-medium">Normal</span>
-                                ) : (
-                                  <>
-                                    {hasCritical && <span className="text-xs px-2 py-1 rounded-full bg-error text-white font-medium">Critical</span>}
-                                    {hasHigh && <span className="text-xs px-2 py-1 rounded-full bg-warning text-white font-medium">High</span>}
-                                    {hasMedium && <span className="text-xs px-2 py-1 rounded-full bg-yellow-500 text-white font-medium">Medium</span>}
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => onView(r.id)} 
-                                  className="text-primary hover:bg-primary-lightest p-2 rounded transition-colors" 
-                                  title="View Report"
-                                >
-                                  <i className="fa-solid fa-eye"></i>
-                                </button>
-                                {isEditable && (
+                      {filteredReports.length > 0 ? (
+                        filteredReports.map((r: any) => {
+                          // Compare dates without time component
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const reportDate = r.reportDate ? new Date(r.reportDate + 'T00:00:00') : null;
+                          if (reportDate) reportDate.setHours(0, 0, 0, 0);
+                          const isEditable = reportDate ? reportDate.getTime() >= today.getTime() : false; // Current or future dates
+                          const issues = getAllIssues(r);
+                          const hasCritical = issues.some(i => i.condition.includes('Critical'));
+                          const hasHigh = issues.some(i => i.condition.includes('High'));
+                          const hasMedium = issues.some(i => i.condition.includes('Medium'));
+                          const summary = issues.length > 0 ? `${issues.length} issue${issues.length > 1 ? 's' : ''} reported` : 'All items normal';
+                          return (
+                            <tr key={String(r.id)} className="border-b border-bd hover:bg-primary-lightest/30">
+                              <td className="p-3 text-font-detail">{r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}</td>
+                              <td className="p-3 text-font-detail">{r.shiftTime || ''}</td>
+                              <td className="p-3 text-sm text-font-base">{summary}</td>
+                              <td className="p-3 text-font-detail">{r.staffName || staffNames[r.staffId] || '-'}</td>
+                              <td className="p-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {issues.length === 0 ? (
+                                    <span className="text-xs px-2 py-1 rounded-full bg-success-lightest text-success font-medium">Normal</span>
+                                  ) : (
+                                    <>
+                                      {hasCritical && <span className="text-xs px-2 py-1 rounded-full bg-error text-white font-medium">Critical</span>}
+                                      {hasHigh && <span className="text-xs px-2 py-1 rounded-full bg-warning text-white font-medium">High</span>}
+                                      {hasMedium && <span className="text-xs px-2 py-1 rounded-full bg-yellow-500 text-white font-medium">Medium</span>}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
                                   <button 
-                                    onClick={() => window.location.href = `/dashboard/ucr/${r.id}/edit`} 
-                                    className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
-                                    title="Edit Report"
+                                    onClick={() => onView(r.id)} 
+                                    className="text-primary hover:bg-primary-lightest p-2 rounded transition-colors" 
+                                    title="View Report"
                                   >
-                                    <i className="fa-solid fa-pen-to-square"></i>
+                                    <i className="fa-solid fa-eye"></i>
                                   </button>
-                                )}
-                                <button 
-                                  onClick={() => printReport(r)} 
-                                  className="text-gray-600 hover:bg-gray-100 p-2 rounded transition-colors" 
-                                  title="Print/Download Report"
-                                >
-                                  <i className="fa-solid fa-print"></i>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                                  {isEditable && (
+                                    <button 
+                                      onClick={() => window.location.href = `/dashboard/ucr/${r.id}/edit`} 
+                                      className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
+                                      title="Edit Report"
+                                    >
+                                      <i className="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                  )}
+                                  <button 
+                                    onClick={() => printReport(r)} 
+                                    className="text-gray-600 hover:bg-gray-100 p-2 rounded transition-colors" 
+                                    title="Print/Download Report"
+                                  >
+                                    <i className="fa-solid fa-print"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-sm text-font-detail">
+                            No UCR reports match your current search and filters.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
                 <div className="p-4 border-t border-bd flex justify-between items-center">
-                  <p className="text-sm text-font-detail">Showing {ucrReports.length} of {totalElements} reports</p>
+                  <p className="text-sm text-font-detail">Showing {filteredReports.length} of {totalElements} reports</p>
                   <div className="flex items-center gap-2">
                     <button disabled={pageIdx<=0} onClick={()=> setPageIdx(p=> Math.max(0, p-1))} className={`px-3 py-2 text-sm rounded ${pageIdx<=0? 'bg-gray-200 text-gray-500' : 'bg-white border border-bd hover:bg-primary-lightest'}`}>Prev</button>
                     <button disabled={(pageIdx+1)*pageSize >= totalElements} onClick={()=> setPageIdx(p=> p+1)} className={`px-3 py-2 text-sm rounded ${(pageIdx+1)*pageSize >= totalElements? 'bg-gray-200 text-gray-500' : 'bg-primary text-white hover:bg-primary-light'}`}>See More</button>
