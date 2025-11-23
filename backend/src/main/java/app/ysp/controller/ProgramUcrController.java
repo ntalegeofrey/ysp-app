@@ -315,11 +315,11 @@ public class ProgramUcrController {
             return ResponseEntity.notFound().build();
         }
 
-        // Allow edits only on the same calendar day as the report date
+        // Allow edits only for current and future dates (not past dates)
         LocalDate today = LocalDate.now();
-        if (r.getReportDate() != null && !r.getReportDate().isEqual(today)) {
+        if (r.getReportDate() != null && r.getReportDate().isBefore(today)) {
             Map<String, Object> err = new HashMap<>();
-            err.put("message", "UCR reports can only be edited on the day they are created.");
+            err.put("message", "UCR reports from past dates can no longer be edited.");
             return ResponseEntity.status(423).body(err);
         }
         if (body.containsKey("reportDate")) {
