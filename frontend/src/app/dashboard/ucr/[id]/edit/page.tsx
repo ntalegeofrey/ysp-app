@@ -24,6 +24,23 @@ export default function EditUCRPage() {
   const [staffName, setStaffName] = useState('');
   const [additionalComments, setAdditionalComments] = useState('');
   
+  // Room search states
+  const [roomSearchRoom, setRoomSearchRoom] = useState('');
+  const [roomSearchComments, setRoomSearchComments] = useState('');
+  
+  const addRoomSearchRow = () => {
+    if (!roomSearchRoom.trim()) {
+      addToast('Please enter a room number', 'error');
+      return;
+    }
+    setFormData((prev: any) => ({
+      ...prev,
+      roomSearches: [...(prev.roomSearches || []), { room: roomSearchRoom, comments: roomSearchComments }]
+    }));
+    setRoomSearchRoom('');
+    setRoomSearchComments('');
+  };
+  
   // Form data - same structure as main page
   const [formData, setFormData] = useState<any>({
     securityEquipment: [
