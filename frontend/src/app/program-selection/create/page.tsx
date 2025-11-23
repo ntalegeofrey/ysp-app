@@ -30,7 +30,8 @@ export default function CreateProgramPage() {
   const [regionalAdmins, setRegionalAdmins] = useState<Array<{ email: string; name?: string }>>([]);
   const [directorEmail, setDirectorEmail] = useState<string>('');
   const [assistantEmail, setAssistantEmail] = useState<string>('');
-  // Director name fields
+  // Regions and director name fields
+  const [regions, setRegions] = useState<Array<{ id: number; name: string }>>([]);
   const [region, setRegion] = useState<string>('');
   const [regionalAdminFirstName, setRegionalAdminFirstName] = useState<string>('');
   const [regionalAdminLastName, setRegionalAdminLastName] = useState<string>('');
@@ -85,6 +86,24 @@ export default function CreateProgramPage() {
     } catch {}
   }, []);
 
+  // Load regions for select
+  useEffect(() => {
+    let cancelled = false;
+    const loadRegions = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch('/api/regions', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled) {
+          setRegions((data || []).map((r: any) => ({ id: r.id, name: r.name })));
+        }
+      } catch {}
+    };
+    loadRegions();
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const loadForEdit = async () => {
@@ -130,6 +149,59 @@ export default function CreateProgramPage() {
     loadForEdit();
     return () => { cancelled = true; };
   }, [editingId]);
+
+  // Administrator selection (search existing staff)
+  type AdminUser = { id: number; email: string; fullName?: string; jobTitle?: string };
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+  const [adminSearch, setAdminSearch] = useState<string>('');
+  const [adminRole, setAdminRole] = useState<string>('PROGRAM_DIRECTOR');
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUsers = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch('/admin/users', { credentials: 'include', headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!cancelled) {
+          setAllUsers((data || []).map((u: any) => ({ id: u.id, email: u.email, fullName: u.fullName, jobTitle: u.jobTitle })));
+        }
+      } catch {}
+    };
+    loadUsers();
+    return () => { cancelled = true; };
+  }, []);
+
+  const filteredAdminUsers = adminSearch.trim()
+    ? allUsers.filter(u => {
+        const q = adminSearch.trim().toLowerCase();
+        return (u.email || '').toLowerCase().includes(q) || (u.fullName || '').toLowerCase().includes(q);
+      })
+    : [];
+
+  const addAdministrator = (user: AdminUser) => {
+    const roleType = adminRole;
+    if (!user.email) return;
+    if (roleType === 'REGIONAL_ADMIN') {
+      setRegionalAdmins(prev => prev.find(r => r.email.toLowerCase() === user.email.toLowerCase()) ? prev : [...prev, { email: user.email, name: user.fullName }]);
+    } else if (roleType === 'PROGRAM_DIRECTOR') {
+      setDirectorEmail(user.email);
+      setProgramDirectorFirstName(user.fullName ? user.fullName.split(' ')[0] : '');
+      if (user.fullName && user.fullName.includes(' ')) {
+        const parts = user.fullName.trim().split(' ');
+        setProgramDirectorLastName(parts[parts.length - 1]);
+      }
+    } else if (roleType === 'ASSISTANT_DIRECTOR') {
+      setAssistantEmail(user.email);
+      setAssistantDirectorFirstName(user.fullName ? user.fullName.split(' ')[0] : '');
+      if (user.fullName && user.fullName.includes(' ')) {
+        const parts = user.fullName.trim().split(' ');
+        setAssistantDirectorLastName(parts[parts.length - 1]);
+      }
+    }
+    setAdminSearch('');
+  };
 
   const addStaff = () => setStaff((s) => [...s, { name: '', position: '', email: '', responsibilities: '' }]);
   const removeStaff = (idx: number) => setStaff((s) => (s.length > 1 ? s.filter((_, i) => i !== idx) : s));
@@ -229,6 +301,20 @@ export default function CreateProgramPage() {
                   <h1 className="text-xl font-bold text-primary">{editingId ? 'Edit Program' : 'Create New Program'}</h1>
                   <p className="text-sm text-font-detail">Department of Youth Services</p>
                 </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">Region *</label>
+                <select
+                  className="w-full px-4 py-3 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  value={region}
+                  onChange={(e)=>setRegion(e.target.value)}
+                >
+                  <option value="">Select region</option>
+                  {regions.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -393,121 +479,150 @@ export default function CreateProgramPage() {
             </div>
           </div>
 
-          {/* Regional Administrator */}
-          <div id="regional-admin" className="form-section bg-white rounded-xl border border-bd p-8 shadow-sm">
-            <div className="flex items-center mb-6">
-              <div className="w-10 h-10 bg-highlight rounded-lg flex items-center justify-center mr-4">
-                <i className="fa-solid fa-user-tie text-white"></i>
+          {/* Administrators */}
+          <div id="administrators" className="form-section bg-white rounded-xl border border-bd p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center mr-4">
+                  <i className="fa-solid fa-user-shield text-white"></i>
+                </div>
+                <h2 className="text-2xl font-bold text-font-heading">Administrators</h2>
               </div>
-              <h2 className="text-2xl font-bold text-font-heading">Regional Administrator</h2>
             </div>
+
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-font-base mb-2">Administrator Email *</label>
-                  <input type="email" id="ra-email" placeholder="admin@example.gov" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Administrator Role</label>
+                  <select
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={adminRole}
+                    onChange={(e)=>setAdminRole(e.target.value)}
+                  >
+                    <option value="REGIONAL_ADMIN">Regional Director</option>
+                    <option value="PROGRAM_DIRECTOR">Program Director</option>
+                    <option value="ASSISTANT_DIRECTOR">Assistant Director</option>
+                  </select>
                 </div>
-                <div className="flex items-end">
-                  <button type="button" className="bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-lg" onClick={() => {
-                    const inp = (document.getElementById('ra-email') as HTMLInputElement | null);
-                    const email = inp?.value?.trim() || '';
-                    if (!email) return;
-                    setRegionalAdmins((prev) => prev.find(r => r.email.toLowerCase() === email.toLowerCase()) ? prev : [...prev, { email }]);
-                    if (inp) inp.value = '';
-                  }}>Add</button>
+                <div className="md:col-span-2 relative">
+                  <label className="block text-sm font-medium text-font-base mb-2">Search staff by name or email</label>
+                  <input
+                    type="text"
+                    value={adminSearch}
+                    onChange={(e)=>setAdminSearch(e.target.value)}
+                    placeholder="Start typing to search..."
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                  {filteredAdminUsers.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-bd rounded-lg shadow max-h-60 overflow-auto">
+                      {filteredAdminUsers.map(u => (
+                        <button
+                          type="button"
+                          key={u.id}
+                          className="w-full text-left px-3 py-2 hover:bg-bg-subtle text-sm flex items-center justify-between"
+                          onClick={() => addAdministrator(u)}
+                        >
+                          <span className="flex flex-col">
+                            <span className="font-medium text-font-base">{u.fullName || u.email}</span>
+                            <span className="text-xs text-font-detail">{u.email}</span>
+                          </span>
+                          {u.jobTitle && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">{u.jobTitle}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-              {regionalAdmins.length > 0 && (
+
+              <div className="border-t border-bd pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-font-base mb-3">Assigned Administrators</h4>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="text-left text-font-detail">
-                        <th className="py-2 pr-4">Email</th>
+                        <th className="py-2 pr-4">Name / Email</th>
                         <th className="py-2 pr-4">Role</th>
                         <th className="py-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {regionalAdmins.map((ra, idx) => (
-                        <tr key={idx} className="border-t border-bd">
-                          <td className="py-2 pr-4">{ra.email}</td>
-                          <td className="py-2 pr-4">Regional Administrator</td>
-                          <td className="py-2"><button type="button" className="text-error" onClick={() => setRegionalAdmins(prev => prev.filter((_, i) => i !== idx))}>Remove</button></td>
+                        <tr key={`ra-${idx}`} className="border-t border-bd">
+                          <td className="py-2 pr-4">
+                            <div className="flex flex-col">
+                              {ra.name && <span className="font-medium text-font-base">{ra.name}</span>}
+                              <span className="text-xs text-font-detail">{ra.email}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 pr-4">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">Regional Director</span>
+                          </td>
+                          <td className="py-2">
+                            <button
+                              type="button"
+                              className="text-error text-xs"
+                              onClick={() => setRegionalAdmins(prev => prev.filter((_, i) => i !== idx))}
+                            >Remove</button>
+                          </td>
                         </tr>
                       ))}
+                      {(directorEmail || assistantEmail) ? (
+                        <>
+                          {directorEmail && (
+                            <tr className="border-t border-bd">
+                              <td className="py-2 pr-4">
+                                <div className="flex flex-col">
+                                  {(programDirectorFirstName || programDirectorLastName) && (
+                                    <span className="font-medium text-font-base">{`${programDirectorFirstName} ${programDirectorLastName}`.trim()}</span>
+                                  )}
+                                  <span className="text-xs text-font-detail">{directorEmail}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 pr-4">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">Program Director</span>
+                              </td>
+                              <td className="py-2">
+                                <button
+                                  type="button"
+                                  className="text-error text-xs"
+                                  onClick={() => setDirectorEmail('')}
+                                >Remove</button>
+                              </td>
+                            </tr>
+                          )}
+                          {assistantEmail && (
+                            <tr className="border-t border-bd">
+                              <td className="py-2 pr-4">
+                                <div className="flex flex-col">
+                                  {(assistantDirectorFirstName || assistantDirectorLastName) && (
+                                    <span className="font-medium text-font-base">{`${assistantDirectorFirstName} ${assistantDirectorLastName}`.trim()}</span>
+                                  )}
+                                  <span className="text-xs text-font-detail">{assistantEmail}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 pr-4">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-bg-subtle text-xs text-font-detail">Assistant Director</span>
+                              </td>
+                              <td className="py-2">
+                                <button
+                                  type="button"
+                                  className="text-error text-xs"
+                                  onClick={() => setAssistantEmail('')}
+                                >Remove</button>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      ) : null}
+                      {regionalAdmins.length === 0 && !directorEmail && !assistantEmail && (
+                        <tr>
+                          <td className="py-3 text-sm text-font-detail" colSpan={3}>No administrators assigned yet. Use the search above to add them.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Program Staff */}
-          <div id="program-staff" className="form-section bg-white rounded-xl border border-bd p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center mr-4">
-                  <i className="fa-solid fa-users text-white"></i>
-                </div>
-                <h2 className="text-2xl font-bold text-font-heading">Program Staff</h2>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Region</label>
-                  <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., Western MA" value={region} onChange={(e)=>setRegion(e.target.value)} />
-                </div>
-              </div>
-              <div className="border-t border-bd pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-font-base mb-3">Regional Administrator</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">First Name</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={regionalAdminFirstName} onChange={(e)=>setRegionalAdminFirstName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Last Name</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={regionalAdminLastName} onChange={(e)=>setRegionalAdminLastName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Email</label>
-                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="email@example.gov" value={regionalAdmins[0]?.email || ''} onChange={(e)=>{const v = e.target.value; setRegionalAdmins(v ? [{email: v}] : []);}} />
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-bd pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-font-base mb-3">Program Director</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">First Name *</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={programDirectorFirstName} onChange={(e)=>setProgramDirectorFirstName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Last Name *</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={programDirectorLastName} onChange={(e)=>setProgramDirectorLastName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Email *</label>
-                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="director@example.gov" value={directorEmail} onChange={(e)=>setDirectorEmail(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-bd pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-font-base mb-3">Assistant Director</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">First Name</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="First name" value={assistantDirectorFirstName} onChange={(e)=>setAssistantDirectorFirstName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Last Name</label>
-                    <input type="text" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Last name" value={assistantDirectorLastName} onChange={(e)=>setAssistantDirectorLastName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Email</label>
-                    <input type="email" className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" placeholder="assistant@example.gov" value={assistantEmail} onChange={(e)=>setAssistantEmail(e.target.value)} />
-                  </div>
                 </div>
               </div>
             </div>
