@@ -246,6 +246,8 @@ export default function UCRPage() {
         return;
       }
       addToast('Issue marked as resolved.', 'success');
+      // Refresh all data including chart
+      console.log('Issue resolved, refreshing all data including chart');
       await Promise.all([loadOpenIssues(), loadStats(), loadChartData(), loadReports(true)]);
     } catch {
       addToast('Failed to resolve issue.', 'error');

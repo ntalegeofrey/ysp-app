@@ -46,7 +46,7 @@ export default function SessionSync() {
     const checkSession = async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const r = await originalFetch('/auth/me', {
+        const r = await originalFetch('/api/auth/me', {
           credentials: 'include',
           headers: {
             'Accept': 'application/json',
