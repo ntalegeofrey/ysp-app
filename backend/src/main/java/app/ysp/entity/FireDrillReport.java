@@ -55,7 +55,7 @@ public class FireDrillReport {
     @Column(name = "recommendations", columnDefinition = "text")
     private String recommendations;
 
-    @Column(name = "route_performance_json", columnDefinition = "jsonb")
+    @Column(name = "route_performance_json", columnDefinition = "TEXT")
     private String routePerformanceJson;
 
     @Column(name = "certification_complete")

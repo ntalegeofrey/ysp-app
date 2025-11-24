@@ -193,9 +193,8 @@ public class FirePlanController {
         report.setIssuesIdentified(Objects.toString(body.get("issuesIdentified"), null));
         report.setRecommendations(Objects.toString(body.get("recommendations"), null));
 
-        Object routePerformance = body.get("routePerformance");
-        if (routePerformance != null) {
-            try { report.setRoutePerformanceJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(routePerformance)); } catch (Exception ignored) {}
+        if (body.containsKey("routePerformance")) {
+            report.setRoutePerformanceJson(JsonUtil.serialize(body.get("routePerformance")));
         }
 
         if (body.containsKey("certificationComplete")) {
