@@ -369,8 +369,8 @@ export default function FirePlanPage() {
 
     setPlannedAssignments(updated);
 
-    // Persist to backend if there is an active plan
-    if (currentPlanId && programId) {
+    // Persist to backend (works even if no plan exists yet - backend will auto-create)
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -387,6 +387,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Assignment saved successfully', 'success');
         }
       } catch {
@@ -401,7 +405,7 @@ export default function FirePlanPage() {
     const next = plannedAssignments.filter((_, i) => i !== index);
     setPlannedAssignments(next);
 
-    if (currentPlanId && programId) {
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -418,6 +422,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Assignment removed successfully', 'success');
         } else {
           addToast('Failed to remove assignment', 'error');
@@ -447,7 +455,7 @@ export default function FirePlanPage() {
     ];
     setEvacuationRoutes(updated);
 
-    if (currentPlanId && programId) {
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -464,6 +472,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Route saved successfully', 'success');
         }
       } catch {
@@ -478,7 +490,7 @@ export default function FirePlanPage() {
     const next = evacuationRoutes.filter((_, i) => i !== index);
     setEvacuationRoutes(next);
 
-    if (currentPlanId && programId) {
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -495,6 +507,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Route removed successfully', 'success');
         }
       } catch {
@@ -524,7 +540,7 @@ export default function FirePlanPage() {
     ];
     setAssemblyPoints(updated);
 
-    if (currentPlanId && programId) {
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -541,6 +557,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Assembly point saved successfully', 'success');
         }
       } catch {
@@ -555,7 +575,7 @@ export default function FirePlanPage() {
     const next = assemblyPoints.filter((_, i) => i !== index);
     setAssemblyPoints(next);
 
-    if (currentPlanId && programId) {
+    if (programId) {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: HeadersInit = {
@@ -572,6 +592,10 @@ export default function FirePlanPage() {
           }),
         });
         if (response.ok) {
+          const data = await response.json();
+          if (data.id && !currentPlanId) {
+            setCurrentPlanId(Number(data.id));
+          }
           addToast('Assembly point removed successfully', 'success');
         }
       } catch {
