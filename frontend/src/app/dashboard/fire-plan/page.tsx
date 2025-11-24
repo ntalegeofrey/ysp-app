@@ -5,6 +5,16 @@ import { useState } from 'react';
 export default function FirePlanPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'report' | 'archive' | 'floor'>('current');
 
+  // Derived current date/time and shift label for header
+  const now = new Date();
+  const hours = now.getHours();
+  const shiftLabel =
+    hours >= 7 && hours < 15
+      ? 'Day (7:00 AM - 3:00 PM)'
+      : hours >= 15 && hours < 23
+      ? 'Evening (3:00 PM - 11:00 PM)'
+      : 'Night (11:00 PM - 7:00 AM)';
+
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
@@ -57,7 +67,10 @@ export default function FirePlanPage() {
                   </button>
                 </div>
               </div>
-              <div className="mt-3 text-sm text-font-detail">Generated: Oct 28, 2024 at 7:00 AM | Shift: Day (7:00 AM - 3:00 PM)</div>
+              <div className="mt-3 text-sm text-font-detail">
+                Generated: {now.toLocaleDateString()} at{' '}
+                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} | Shift: {shiftLabel}
+              </div>
             </div>
 
             <div className="p-6 space-y-6">
@@ -73,9 +86,9 @@ export default function FirePlanPage() {
                   <div className="text-sm text-font-detail">3 on Separation</div>
                 </div>
                 <div className="bg-error-lightest p-4 rounded-lg">
-                  <h4 className="font-semibold text-font-base mb-2">Special Assignments</h4>
+                  <h4 className="font-semibold text-font-base mb-2">Supervisors</h4>
                   <div className="text-2xl font-bold text-error">5</div>
-                  <div className="text-sm text-font-detail">3 Separations • 2 Medical</div>
+                  <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
                 </div>
               </div>
 
