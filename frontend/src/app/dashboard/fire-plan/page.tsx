@@ -21,11 +21,31 @@ export default function FirePlanPage() {
   type AssignmentLite = {
     roleType?: string;
     title?: string;
+    firstName?: string;
+    lastName?: string;
+    userEmail?: string;
   };
   const [assignments, setAssignments] = useState<AssignmentLite[]>([]);
 
-  type ResidentLite = { id: number | string };
+  type ResidentLite = {
+    id: number | string;
+    firstName?: string;
+    lastName?: string;
+  };
   const [residents, setResidents] = useState<ResidentLite[]>([]);
+
+  type PlannedAssignment = {
+    staffNames: string[];
+    assignmentType: string;
+    residentName: string;
+  };
+  const [plannedAssignments, setPlannedAssignments] = useState<PlannedAssignment[]>([]);
+
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [selectedAssignmentType, setSelectedAssignmentType] = useState<string>('Primary Route');
+  const [selectedResidentId, setSelectedResidentId] = useState<string | number | null>(null);
+
+  const [currentPlanId, setCurrentPlanId] = useState<number | null>(null);
 
   // Resolve selected program from localStorage (same pattern as Unit Registry)
   useEffect(() => {
@@ -41,7 +61,7 @@ export default function FirePlanPage() {
     }
   }, []);
 
-  // Load staff assignments and residents for the current program
+  // Load staff assignments, residents, and current fire plan for the current program
   useEffect(() => {
     if (!programId) return;
 
@@ -63,6 +83,9 @@ export default function FirePlanPage() {
           (data || []).map((a) => ({
             roleType: a.roleType,
             title: a.title,
+            firstName: a.firstName,
+            lastName: a.lastName,
+            userEmail: a.userEmail,
           }))
         );
       } catch {
@@ -78,7 +101,40 @@ export default function FirePlanPage() {
         });
         if (!res.ok) return;
         const data: Array<any> = await res.json();
-        setResidents((data || []).map((r) => ({ id: r.id })) as ResidentLite[]);
+        setResidents(
+          (data || []).map((r) => ({
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName,
+          })) as ResidentLite[]
+        );
+      } catch {
+        // Silent failure keeps UI stable
+      }
+    };
+
+    const loadPlan = async () => {
+      try {
+        const res = await fetch(`/api/programs/${programId}/fire-plan/current`, {
+          credentials: 'include',
+          headers: commonHeaders,
+        });
+        if (!res.ok) return;
+        const data: any = await res.json();
+        if (!data || data.id == null) return;
+
+        setCurrentPlanId(Number(data.id));
+
+        if (data.staffAssignmentsJson) {
+          try {
+            const parsed = JSON.parse(String(data.staffAssignmentsJson));
+            if (Array.isArray(parsed)) {
+              setPlannedAssignments(parsed as PlannedAssignment[]);
+            }
+          } catch {
+            // Ignore malformed JSON, keep defaults
+          }
+        }
       } catch {
         // Silent failure keeps UI stable
       }
@@ -86,6 +142,7 @@ export default function FirePlanPage() {
 
     loadAssignments();
     loadResidents();
+    loadPlan();
   }, [programId]);
 
   // Derived counts for summary cards
@@ -94,6 +151,18 @@ export default function FirePlanPage() {
     // Exclude director / regional roles from staff count
     return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR', 'REGIONAL_DIRECTOR'].includes(rt);
   }).length;
+
+  const selectableStaff = assignments.filter((a) => {
+    const rt = (a.roleType || '').toUpperCase();
+    return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR', 'REGIONAL_DIRECTOR'].includes(rt);
+  });
+
+  const getAssignmentBadgeClass = (assignmentType: string) => {
+    const t = assignmentType.toLowerCase();
+    if (t.includes('1:1') || t.includes('separation')) return 'bg-error text-white text-xs px-2 py-1 rounded';
+    if (t.includes('secondary')) return 'bg-primary-light text-white text-xs px-2 py-1 rounded';
+    return 'bg-primary text-white text-xs px-2 py-1 rounded';
+  };
 
   const totalResidents = residents.length;
 
@@ -116,6 +185,70 @@ export default function FirePlanPage() {
   const handleSaveReport = () => alert('Drill report saved.');
   const handleCancelReport = () => alert('Canceled.');
   const handleUpdateFloorPlan = () => alert('Upload floor plan coming soon.');
+
+  const handleToggleStaff = (id: string) => {
+    setSelectedStaffIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleAddAssignment = async () => {
+    if (!selectedStaffIds.length || selectedResidentId == null) {
+      alert('Select at least one staff member and one resident.');
+      return;
+    }
+
+    const chosenStaff = selectableStaff.filter((s) =>
+      selectedStaffIds.includes(String(s.userEmail || ''))
+    );
+    const staffNames = chosenStaff.map((s) => {
+      const first = (s.firstName || '').trim();
+      const last = (s.lastName || '').trim();
+      const name = [first, last].filter(Boolean).join(' ') || s.userEmail || 'Staff';
+      const title = s.title || '';
+      return title ? `${name} (${title})` : name;
+    });
+
+    const res = residents.find((r) => String(r.id) === String(selectedResidentId));
+    const resFirst = (res?.firstName || '').trim();
+    const resLast = (res?.lastName || '').trim();
+    const residentName = [resFirst, resLast].filter(Boolean).join(' ') || `Resident #${res?.id ?? ''}`;
+
+    const updated = [
+      ...plannedAssignments,
+      {
+        staffNames,
+        assignmentType: selectedAssignmentType,
+        residentName,
+      },
+    ];
+
+    setPlannedAssignments(updated);
+
+    // Persist to backend if there is an active plan
+    if (currentPlanId && programId) {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({
+            staffAssignments: updated,
+          }),
+        });
+      } catch {
+        // Keep UI state even if save fails; user can retry later
+      }
+    }
+
+    // Keep selections for convenience; do not clear completely so user can add similar routes quickly.
+  };
 
   return (
     <div className="space-y-6">
@@ -187,6 +320,84 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
+                  {/* Configuration controls (placeholder, non-destructive) */}
+                  <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-font-detail mb-1">Staff Member</label>
+                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                        {selectableStaff.map((s, idx) => {
+                          const id = String(s.userEmail || `staff-${idx}`);
+                          const first = (s.firstName || '').trim();
+                          const last = (s.lastName || '').trim();
+                          const name = [first, last].filter(Boolean).join(' ') || s.userEmail || 'Staff';
+                          const title = s.title || '';
+                          const label = title ? `${name} (${title})` : name;
+                          return (
+                            <label
+                              key={id}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-3 w-3 text-primary border-bd rounded"
+                                checked={selectedStaffIds.includes(id)}
+                                onChange={() => handleToggleStaff(id)}
+                              />
+                              <span className="truncate">{label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
+                      <select
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                        value={selectedAssignmentType}
+                        onChange={(e) => setSelectedAssignmentType(e.target.value)}
+                      >
+                        <option value="Primary Route">Primary Route</option>
+                        <option value="Secondary Route">Secondary Route</option>
+                        <option value="1:1 Separation">1:1 Separation</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
+                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                        {residents.map((r) => {
+                          const first = (r.firstName || '').trim();
+                          const last = (r.lastName || '').trim();
+                          const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
+                          return (
+                            <label
+                              key={r.id}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="radio"
+                                name="staff-assignment-resident"
+                                className="h-3 w-3 text-primary border-bd rounded-full"
+                                checked={String(selectedResidentId) === String(r.id)}
+                                onChange={() => setSelectedResidentId(r.id)}
+                              />
+                              <span className="truncate">{name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <span className="mt-1 block text-xs text-font-detail">Choose one resident for this assignment.</span>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={handleAddAssignment}
+                        className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                      >
+                        Add Assignment
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     <div className="border border-bd rounded-lg p-3">
                       <div className="flex justify-between items-center mb-2">
@@ -209,11 +420,52 @@ export default function FirePlanPage() {
                       </div>
                       <div className="text-sm text-font-detail">Assigned: Residents C1-C3 | Route: West Stairwell → Exit B</div>
                     </div>
+                    {plannedAssignments.map((a, idx) => (
+                      <div key={idx} className="border border-bd rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
+                          <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
+                        </div>
+                        <div className="text-sm text-font-detail">Assigned: Resident {a.residentName}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <div>
                   <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
+                  {/* Configuration controls (placeholder, non-destructive) */}
+                  <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-font-detail mb-1">Route</label>
+                      <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                        <option>Primary Route A</option>
+                        <option>Secondary Route B</option>
+                        <option>Separation Route C</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-font-detail mb-1">Units / Flow</label>
+                      <input
+                        type="text"
+                        placeholder="Describe route flow..."
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <select className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                        <option>Available</option>
+                        <option>Restricted</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => alert('Route configuration builder coming soon.')}
+                        className="bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light whitespace-nowrap"
+                      >
+                        Add Route
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     <div className="border border-bd rounded-lg p-3">
                       <div className="flex justify-between items-center mb-2">
@@ -242,6 +494,42 @@ export default function FirePlanPage() {
 
               <div>
                 <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
+                {/* Configuration controls (placeholder, non-destructive) */}
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-font-detail mb-1">Assembly Point</label>
+                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                      <option>Assembly Point 1</option>
+                      <option>Assembly Point 2</option>
+                      <option>Assembly Point 3</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-font-detail mb-1">Route Type</label>
+                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                      <option>Primary</option>
+                      <option>Secondary</option>
+                      <option>Separation</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-font-detail mb-1">Flow / Notes</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Units A & B to Point 1"
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => alert('Assembly point builder coming soon.')}
+                      className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                    >
+                      Add Assembly
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="border border-bd rounded-lg p-4 text-center">
                     <div className="w-12 h-12 bg-success rounded-full flex items-center justify-center mx-auto mb-3">
