@@ -86,6 +86,15 @@ export default function FirePlanPage() {
 
   const [currentPlanId, setCurrentPlanId] = useState<number | null>(null);
 
+  // Toast notifications
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
+  const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const addToast = (title: string, tone: 'info' | 'success' | 'error' = 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 3500);
+  };
+
   // Resolve selected program from localStorage (same pattern as Unit Registry)
   useEffect(() => {
     try {
@@ -271,11 +280,11 @@ export default function FirePlanPage() {
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  const handlePrint = () => alert('Print action coming soon.');
-  const handleExport = () => alert('Exporting archive...');
-  const handleSaveReport = () => alert('Drill report saved.');
-  const handleCancelReport = () => alert('Canceled.');
-  const handleUpdateFloorPlan = () => alert('Upload floor plan coming soon.');
+  const handlePrint = () => addToast('Print action coming soon.', 'info');
+  const handleExport = () => addToast('Exporting archive...', 'info');
+  const handleSaveReport = () => addToast('Drill report saved.', 'success');
+  const handleCancelReport = () => addToast('Canceled.', 'info');
+  const handleUpdateFloorPlan = () => addToast('Upload floor plan coming soon.', 'info');
 
   const handleToggleStaff = (id: string) => {
     setSelectedStaffIds((prev) =>
@@ -285,7 +294,7 @@ export default function FirePlanPage() {
 
   const handleAddAssignment = async () => {
     if (!selectedStaffIds.length || !selectedResidentIds.length) {
-      alert('Select at least one staff member and at least one resident.');
+      addToast('Select at least one staff member and at least one resident.', 'error');
       return;
     }
 
@@ -413,7 +422,7 @@ export default function FirePlanPage() {
 
   const handleAddRoute = async () => {
     if (!selectedRouteFlow.trim()) {
-      alert('Please describe the route flow.');
+      addToast('Please describe the route flow.', 'error');
       return;
     }
 
@@ -482,7 +491,7 @@ export default function FirePlanPage() {
 
   const handleAddAssembly = async () => {
     if (!selectedAssemblyNotes.trim()) {
-      alert('Please add flow/notes for the assembly point.');
+      addToast('Please add flow/notes for the assembly point.', 'error');
       return;
     }
 
@@ -1258,6 +1267,19 @@ export default function FirePlanPage() {
           </div>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
+            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+            <div className="flex-1 text-sm text-font-base">{t.title}</div>
+            <button onClick={() => removeToast(t.id)} className="text-font-detail hover:text-font-base">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
