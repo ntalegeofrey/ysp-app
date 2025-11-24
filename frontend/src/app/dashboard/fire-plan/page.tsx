@@ -312,6 +312,32 @@ export default function FirePlanPage() {
     // Keep selections for convenience; do not clear completely so user can add similar routes quickly.
   };
 
+  const handleRemoveAssignment = async (index: number) => {
+    const next = plannedAssignments.filter((_, i) => i !== index);
+    setPlannedAssignments(next);
+
+    if (currentPlanId && programId) {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({
+            staffAssignments: next,
+          }),
+        });
+      } catch {
+        // If save fails, UI will still reflect removal; user can refresh to reload from server
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -479,7 +505,17 @@ export default function FirePlanPage() {
                       <div key={idx} className="border border-bd rounded-lg p-3">
                         <div className="flex justify-between items-center mb-2">
                           <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
-                          <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAssignment(idx)}
+                              className="text-error hover:text-error-dark"
+                              title="Remove assignment"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                          </div>
                         </div>
                         <div className="text-sm text-font-detail">Assigned: Resident {a.residentName}</div>
                       </div>
