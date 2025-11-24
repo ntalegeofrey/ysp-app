@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function FirePlanPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'report' | 'archive' | 'floor'>('current');
@@ -14,6 +14,98 @@ export default function FirePlanPage() {
       : hours >= 15 && hours < 23
       ? 'Evening (3:00 PM - 11:00 PM)'
       : 'Night (11:00 PM - 7:00 AM)';
+
+  // Program-scoped data for summary counts
+  const [programId, setProgramId] = useState<string>('');
+
+  type AssignmentLite = {
+    roleType?: string;
+    title?: string;
+  };
+  const [assignments, setAssignments] = useState<AssignmentLite[]>([]);
+
+  type ResidentLite = { id: number | string };
+  const [residents, setResidents] = useState<ResidentLite[]>([]);
+
+  // Resolve selected program from localStorage (same pattern as Unit Registry)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { id?: number | string } | null;
+      if (parsed?.id != null) {
+        setProgramId(String(parsed.id));
+      }
+    } catch {
+      // Ignore JSON/LS errors, fall back to empty programId
+    }
+  }, []);
+
+  // Load staff assignments and residents for the current program
+  useEffect(() => {
+    if (!programId) return;
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const commonHeaders: HeadersInit = {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const loadAssignments = async () => {
+      try {
+        const res = await fetch(`/api/programs/${programId}/assignments`, {
+          credentials: 'include',
+          headers: commonHeaders,
+        });
+        if (!res.ok) return;
+        const data: Array<any> = await res.json();
+        setAssignments(
+          (data || []).map((a) => ({
+            roleType: a.roleType,
+            title: a.title,
+          }))
+        );
+      } catch {
+        // Silent failure keeps UI stable
+      }
+    };
+
+    const loadResidents = async () => {
+      try {
+        const res = await fetch(`/api/programs/${programId}/residents`, {
+          credentials: 'include',
+          headers: commonHeaders,
+        });
+        if (!res.ok) return;
+        const data: Array<any> = await res.json();
+        setResidents((data || []).map((r) => ({ id: r.id })) as ResidentLite[]);
+      } catch {
+        // Silent failure keeps UI stable
+      }
+    };
+
+    loadAssignments();
+    loadResidents();
+  }, [programId]);
+
+  // Derived counts for summary cards
+  const totalStaff = assignments.filter((a) => {
+    const rt = (a.roleType || '').toUpperCase();
+    // Exclude director / regional roles from staff count
+    return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR', 'REGIONAL_DIRECTOR'].includes(rt);
+  }).length;
+
+  const totalResidents = residents.length;
+
+  const supervisorsCount = assignments.filter((a) => {
+    const title = (a.title || '').toLowerCase();
+    if (!title) return false;
+    // Supervisor keywords: any supervisor title or JJYDS II variants
+    if (title.includes('supervisor')) return true;
+    if (title.includes('jjyds ii')) return true;
+    if (title.includes('jjyds 2')) return true;
+    return false;
+  }).length;
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -77,17 +169,17 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="bg-primary-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Total Staff</h4>
-                  <div className="text-2xl font-bold text-primary">12</div>
+                  <div className="text-2xl font-bold text-primary">{totalStaff}</div>
                   <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
                 </div>
                 <div className="bg-highlight-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Total Residents</h4>
-                  <div className="text-2xl font-bold text-warning">24</div>
+                  <div className="text-2xl font-bold text-warning">{totalResidents}</div>
                   <div className="text-sm text-font-detail">3 on Separation</div>
                 </div>
                 <div className="bg-error-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Supervisors</h4>
-                  <div className="text-2xl font-bold text-error">5</div>
+                  <div className="text-2xl font-bold text-error">{supervisorsCount}</div>
                   <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
                 </div>
               </div>
