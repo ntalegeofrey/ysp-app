@@ -632,15 +632,20 @@ export default function FirePlanPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="border border-bd rounded-lg p-4">
-                    <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
-                    {/* Configuration controls */}
-                    <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-                      <div className="flex flex-col justify-center h-full">
-                        <label className="block text-xs font-medium text-font-detail mb-1">Staff Member</label>
-                        <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+              <div className="space-y-6">
+                {/* Staff Assignments Section */}
+                <div className="border border-bd rounded-lg p-6 bg-white">
+                  <h4 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                    <i className="fa-solid fa-user-group text-primary mr-2"></i>
+                    Staff Assignments
+                  </h4>
+                  
+                  {/* Configuration Form */}
+                  <div className="mb-6 p-4 bg-bg-subtle rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Staff Members</label>
+                        <div className="w-full h-32 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-2 bg-white">
                           {selectableStaff.map((s, idx) => {
                             const id = String(s.userEmail || `staff-${idx}`);
                             const emailKey = (s.userEmail || '').toLowerCase();
@@ -664,20 +669,20 @@ export default function FirePlanPage() {
                               >
                                 <input
                                   type="checkbox"
-                                  className="h-3 w-3 text-primary border-bd rounded"
+                                  className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
                                   checked={selectedStaffIds.includes(id)}
                                   onChange={() => handleToggleStaff(id)}
                                 />
-                                <span className="truncate">{label}</span>
+                                <span className="truncate text-sm">{label}</span>
                               </label>
                             );
                           })}
                         </div>
-                        <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
+                        <span className="mt-2 block text-xs text-font-detail">Select one or more staff members</span>
                       </div>
-                      <div className="flex flex-col justify-center h-full">
-                        <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
-                        <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Residents</label>
+                        <div className="w-full h-32 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-2 bg-white">
                           {residents.map((r) => {
                             const first = (r.firstName || '').trim();
                             const last = (r.lastName || '').trim();
@@ -691,7 +696,7 @@ export default function FirePlanPage() {
                               >
                                 <input
                                   type="checkbox"
-                                  className="h-3 w-3 text-primary border-bd rounded"
+                                  className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
                                   checked={checked}
                                   onChange={() =>
                                     setSelectedResidentIds((prev) =>
@@ -701,17 +706,17 @@ export default function FirePlanPage() {
                                     )
                                   }
                                 />
-                                <span className="truncate">{name}</span>
+                                <span className="truncate text-sm">{name}</span>
                               </label>
                             );
                           })}
                         </div>
-                        <span className="mt-1 block text-xs text-font-detail">Choose one or more residents for this assignment.</span>
+                        <span className="mt-2 block text-xs text-font-detail">Select one or more residents</span>
                       </div>
-                      <div className="flex flex-col justify-center h-full">
-                        <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Assignment Type</label>
                         <select
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
                           value={selectedAssignmentType}
                           onChange={(e) => setSelectedAssignmentType(e.target.value)}
                         >
@@ -719,25 +724,30 @@ export default function FirePlanPage() {
                           <option value="Secondary Route">Secondary Route</option>
                           <option value="1:1 Separation">1:1 Separation</option>
                         </select>
+                        <span className="mt-2 block text-xs text-font-detail">Choose assignment type</span>
                       </div>
-                      <div className="flex items-center justify-center h-full">
+                      <div className="flex items-end">
                         <button
                           type="button"
                           onClick={handleAddAssignment}
-                          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                          className="w-full bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-light transition-colors shadow-sm"
                         >
+                          <i className="fa-solid fa-plus mr-2"></i>
                           Add Assignment
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {plannedAssignments.length === 0 && (
-                        <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                          No staff assignments added
-                        </div>
-                      )}
-                      {plannedAssignments.map((a, idx) => (
-                        <div key={idx} className="border border-bd rounded-lg p-3">
+                  
+                  {/* Assignments List */}
+                  <div className="space-y-3">
+                    {plannedAssignments.length === 0 && (
+                      <div className="border border-dashed border-bd rounded-lg p-6 text-center">
+                        <i className="fa-solid fa-clipboard-list text-font-detail text-3xl mb-2"></i>
+                        <p className="text-sm text-font-detail">No staff assignments added yet</p>
+                      </div>
+                    )}
+                    {plannedAssignments.map((a, idx) => (
+                      <div key={idx} className="border border-bd rounded-lg p-4 hover:shadow-sm transition-shadow">
                           <div className="flex justify-between items-center mb-2">
                             <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
                             <div className="flex items-center gap-2">
@@ -759,13 +769,18 @@ export default function FirePlanPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="border border-bd rounded-lg p-4">
-                    <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
-                    {/* Configuration controls */}
-                    <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Evacuation Routes Section */}
+                <div className="border border-bd rounded-lg p-6 bg-white">
+                  <h4 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                    <i className="fa-solid fa-route text-primary mr-2"></i>
+                    Evacuation Routes
+                  </h4>
+                  
+                  {/* Configuration Form */}
+                  <div className="mb-6 p-4 bg-bg-subtle rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-font-detail mb-1">Route</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Route Name</label>
                         <select
                           className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
                           value={selectedRouteName}
@@ -777,41 +792,49 @@ export default function FirePlanPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-font-detail mb-1">Units / Flow</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Route Flow Description</label>
                         <input
                           type="text"
-                          placeholder="Describe route flow..."
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          placeholder="e.g., Units A & B → Main Stairwell → Exit A"
+                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
                           value={selectedRouteFlow}
                           onChange={(e) => setSelectedRouteFlow(e.target.value)}
                         />
                       </div>
-                      <div className="flex items-end gap-2">
-                        <select
-                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                          value={selectedRouteStatus}
-                          onChange={(e) => setSelectedRouteStatus(e.target.value)}
-                        >
-                          <option>Available</option>
-                          <option>Restricted</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={handleAddRoute}
-                          className="bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light whitespace-nowrap"
-                        >
-                          Add Route
-                        </button>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Status</label>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
+                            value={selectedRouteStatus}
+                            onChange={(e) => setSelectedRouteStatus(e.target.value)}
+                          >
+                            <option>Available</option>
+                            <option>Restricted</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleAddRoute}
+                            className="bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-light transition-colors shadow-sm whitespace-nowrap"
+                          >
+                            <i className="fa-solid fa-plus mr-2"></i>
+                            Add
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {evacuationRoutes.length === 0 && (
-                        <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                          No evacuation routes added
-                        </div>
-                      )}
-                      {evacuationRoutes.map((route, idx) => (
-                        <div key={idx} className="border border-bd rounded-lg p-3">
+                  </div>
+                  
+                  {/* Routes List */}
+                  <div className="space-y-3">
+                    {evacuationRoutes.length === 0 && (
+                      <div className="border border-dashed border-bd rounded-lg p-6 text-center">
+                        <i className="fa-solid fa-route text-font-detail text-3xl mb-2"></i>
+                        <p className="text-sm text-font-detail">No evacuation routes configured</p>
+                      </div>
+                    )}
+                    {evacuationRoutes.map((route, idx) => (
+                      <div key={idx} className="border border-bd rounded-lg p-4 hover:shadow-sm transition-shadow">
                           <div className="flex justify-between items-center mb-2">
                             <span className="font-medium text-font-base">{route.routeName}</span>
                             <div className="flex items-center gap-2">
@@ -832,13 +855,18 @@ export default function FirePlanPage() {
                     </div>
                   </div>
 
-                  {/* Assembly Points & Safety Zones */}
-                  <div className="border border-bd rounded-lg p-4">
-                    <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
-                    {/* Configuration controls */}
-                    <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                {/* Assembly Points & Safety Zones Section */}
+                <div className="border border-bd rounded-lg p-6 bg-white">
+                  <h4 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                    <i className="fa-solid fa-location-dot text-primary mr-2"></i>
+                    Assembly Points & Safety Zones
+                  </h4>
+                  
+                  {/* Configuration Form */}
+                  <div className="mb-6 p-4 bg-bg-subtle rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-font-detail mb-1">Assembly Point</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Assembly Point</label>
                         <select
                           className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
                           value={selectedAssemblyPoint}
@@ -850,9 +878,9 @@ export default function FirePlanPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-font-detail mb-1">Route Type</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Route Type</label>
                         <select
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
                           value={selectedAssemblyRouteType}
                           onChange={(e) => setSelectedAssemblyRouteType(e.target.value)}
                         >
@@ -862,11 +890,11 @@ export default function FirePlanPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-font-detail mb-1">Flow / Notes</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Flow / Notes</label>
                         <input
                           type="text"
-                          placeholder="e.g. Units A & B to Point 1"
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          placeholder="e.g. Front Parking Lot, Units A & B"
+                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
                           value={selectedAssemblyNotes}
                           onChange={(e) => setSelectedAssemblyNotes(e.target.value)}
                         />
@@ -875,20 +903,25 @@ export default function FirePlanPage() {
                         <button
                           type="button"
                           onClick={handleAddAssembly}
-                          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                          className="w-full bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-light transition-colors shadow-sm"
                         >
-                          Add Assembly
+                          <i className="fa-solid fa-plus mr-2"></i>
+                          Add Point
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      {assemblyPoints.length === 0 && (
-                        <div className="col-span-3 border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                          No assembly points added
-                        </div>
-                      )}
-                      {assemblyPoints.map((point, idx) => (
-                        <div key={idx} className="border border-bd rounded-lg p-4 text-center relative">
+                  </div>
+                  
+                  {/* Assembly Points Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {assemblyPoints.length === 0 && (
+                      <div className="col-span-3 border border-dashed border-bd rounded-lg p-6 text-center">
+                        <i className="fa-solid fa-location-dot text-font-detail text-3xl mb-2"></i>
+                        <p className="text-sm text-font-detail">No assembly points configured</p>
+                      </div>
+                    )}
+                    {assemblyPoints.map((point, idx) => (
+                      <div key={idx} className="border border-bd rounded-lg p-5 text-center relative hover:shadow-md transition-shadow bg-white">
                           <button
                             type="button"
                             onClick={() => handleRemoveAssembly(idx)}
@@ -904,7 +937,6 @@ export default function FirePlanPage() {
                           <div className="text-sm text-font-detail">{point.routeType}<br/>{point.notes}</div>
                         </div>
                       ))}
-                    </div>
                   </div>
                 </div>
               </div>
