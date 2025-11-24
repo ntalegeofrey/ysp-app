@@ -1,5 +1,6 @@
 package app.ysp.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ public class FireDrillReport {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "program_id", nullable = false)
+    @JsonIgnoreProperties({"assignments", "residents", "incidents", "firePlans", "fireDrillReports", "hibernateLazyInitializer", "handler"})
     private Program program;
 
     @Column(name = "drill_date", nullable = false)
