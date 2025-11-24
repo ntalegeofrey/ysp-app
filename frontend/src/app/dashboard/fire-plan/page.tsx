@@ -1444,9 +1444,9 @@ export default function FirePlanPage() {
                   <div className="text-2xl font-bold text-warning">{totalResidents}</div>
                   <div className="text-sm text-font-detail">{plannedAssignments.reduce((count, a) => count + (a.residentIds?.length || 0), 0)} Assigned to Routes</div>
                 </div>
-                <div className="bg-success-lightest p-4 rounded-lg">
+                <div className="bg-error-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Evacuation Routes</h4>
-                  <div className="text-2xl font-bold text-success">{totalRoutes}</div>
+                  <div className="text-2xl font-bold text-error">{totalRoutes}</div>
                   <div className="text-sm text-font-detail">
                     {availableRoutes > 0 && `${availableRoutes} Available`}
                     {availableRoutes > 0 && blockedRoutes > 0 && ' • '}
