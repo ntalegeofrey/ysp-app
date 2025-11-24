@@ -642,7 +642,7 @@ export default function FirePlanPage() {
                   
                   {/* Configuration Form */}
                   <div className="mb-6 p-4 bg-bg-subtle rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Staff Members</label>
                         <div className="w-full h-32 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-2 bg-white">
@@ -716,7 +716,7 @@ export default function FirePlanPage() {
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Assignment Type</label>
                         <select
-                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white"
+                          className="w-full border border-bd rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary bg-white mb-3"
                           value={selectedAssignmentType}
                           onChange={(e) => setSelectedAssignmentType(e.target.value)}
                         >
@@ -724,9 +724,6 @@ export default function FirePlanPage() {
                           <option value="Secondary Route">Secondary Route</option>
                           <option value="1:1 Separation">1:1 Separation</option>
                         </select>
-                        <span className="mt-2 block text-xs text-font-detail">Choose assignment type</span>
-                      </div>
-                      <div className="flex items-end">
                         <button
                           type="button"
                           onClick={handleAddAssignment}
@@ -735,6 +732,7 @@ export default function FirePlanPage() {
                           <i className="fa-solid fa-plus mr-2"></i>
                           Add Assignment
                         </button>
+                        <span className="mt-2 block text-xs text-font-detail">Choose type and click to add</span>
                       </div>
                     </div>
                   
@@ -748,21 +746,30 @@ export default function FirePlanPage() {
                     )}
                     {plannedAssignments.map((a, idx) => (
                       <div key={idx} className="border border-bd rounded-lg p-4 hover:shadow-sm transition-shadow">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
-                            <div className="flex items-center gap-2">
-                              <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveAssignment(idx)}
-                                className="text-error hover:text-error-dark"
-                                title="Remove assignment"
-                              >
-                                <i className="fa-solid fa-trash"></i>
-                              </button>
+                          <div className="flex justify-between items-start gap-3 mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
+                                <span className="text-xs text-font-detail">• {a.residentName}</span>
+                              </div>
+                              <ul className="space-y-1">
+                                {a.staffNames.map((name, nameIdx) => (
+                                  <li key={nameIdx} className="text-sm text-font-base flex items-start">
+                                    <span className="text-font-detail mr-2">•</span>
+                                    <span>{name}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAssignment(idx)}
+                              className="text-error hover:text-error-dark flex-shrink-0"
+                              title="Remove assignment"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
                           </div>
-                          <div className="text-sm text-font-detail">Assigned: Resident {a.residentName}</div>
                         </div>
                       ))}
                     </div>
