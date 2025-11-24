@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { abbreviateTitle } from '../../utils/titleAbbrev';
 
 export default function FirePlanPage() {
@@ -35,6 +35,20 @@ export default function FirePlanPage() {
   };
   const [residents, setResidents] = useState<ResidentLite[]>([]);
 
+  // Global staff directory (same source as Unit Registry) so we can show full names and titles
+  type StaffLite = {
+    id: string;
+    fullName: string;
+    email: string;
+    jobTitle?: string;
+    employeeNumber?: string;
+  };
+  const [staffList, setStaffList] = useState<StaffLite[]>([]);
+  const staffByEmail = useMemo(
+    () => Object.fromEntries(staffList.map((s) => [s.email.toLowerCase(), s])),
+    [staffList]
+  );
+
   type PlannedAssignment = {
     staffNames: string[];
     assignmentType: string;
@@ -60,6 +74,40 @@ export default function FirePlanPage() {
     } catch {
       // Ignore JSON/LS errors, fall back to empty programId
     }
+  }, []);
+
+  // Load staff directory once (same pattern as Unit Registry)
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/users/search?q=', {
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const arr: Array<{
+          id: string | number;
+          fullName: string;
+          email: string;
+          jobTitle?: string;
+          employeeNumber?: string;
+        }> = await res.json();
+        const mapped: StaffLite[] = arr.map((u) => ({
+          id: typeof u.id === 'string' ? u.id : String(u.id),
+          fullName: u.fullName,
+          email: u.email,
+          jobTitle: u.jobTitle,
+          employeeNumber: u.employeeNumber,
+        }));
+        setStaffList(mapped);
+      } catch {
+        // Silent failure keeps UI stable
+      }
+    })();
   }, []);
 
   // Load staff assignments, residents, and current fire plan for the current program
@@ -201,13 +249,14 @@ export default function FirePlanPage() {
       return selectedStaffIds.includes(id);
     });
     const staffNames = chosenStaff.map((s) => {
-      const first = (s.firstName || '').trim();
-      const last = (s.lastName || '').trim();
-      const baseName = [first, last].filter(Boolean).join(' ');
+      const emailKey = (s.userEmail || '').toLowerCase();
+      const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+      const baseName = fromDirectory?.fullName?.trim() || '';
       const emailFallback = (s.userEmail || '').trim();
       const name = baseName || emailFallback || 'Staff';
 
-      const rawTitle = (s.title || '').trim();
+      const directoryTitle = fromDirectory?.jobTitle?.trim();
+      const rawTitle = directoryTitle || (s.title || '').trim();
       if (!rawTitle) return name;
 
       const abbr = abbreviateTitle(rawTitle);
@@ -333,13 +382,14 @@ export default function FirePlanPage() {
                       <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
                         {selectableStaff.map((s, idx) => {
                           const id = String(s.userEmail || `staff-${idx}`);
-                          const first = (s.firstName || '').trim();
-                          const last = (s.lastName || '').trim();
-                          const baseName = [first, last].filter(Boolean).join(' ');
+                          const emailKey = (s.userEmail || '').toLowerCase();
+                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                          const baseName = fromDirectory?.fullName?.trim() || '';
                           const emailFallback = (s.userEmail || '').trim();
                           const name = baseName || emailFallback || 'Staff';
 
-                          const rawTitle = (s.title || '').trim();
+                          const directoryTitle = fromDirectory?.jobTitle?.trim();
+                          const rawTitle = directoryTitle || (s.title || '').trim();
                           let label = name;
                           if (rawTitle) {
                             const abbr = abbreviateTitle(rawTitle);
@@ -413,27 +463,11 @@ export default function FirePlanPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">J. Smith (Lead)</span>
-                        <span className="bg-primary text-white text-xs px-2 py-1 rounded">Primary Route</span>
+                    {plannedAssignments.length === 0 && (
+                      <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
+                        No staff assignments added
                       </div>
-                      <div className="text-sm text-font-detail">Assigned: Residents A1-A4 | Route: Main Stairwell → Exit A</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">M. Johnson</span>
-                        <span className="bg-error text-white text-xs px-2 py-1 rounded">1:1 Separation</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Assigned: Resident B2 (Separation) | Route: East Stairwell → Exit C</div>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-font-base">K. Williams</span>
-                        <span className="bg-primary-light text-white text-xs px-2 py-1 rounded">Secondary Route</span>
-                      </div>
-                      <div className="text-sm text-font-detail">Assigned: Residents C1-C3 | Route: West Stairwell → Exit B</div>
-                    </div>
+                    )}
                     {plannedAssignments.map((a, idx) => (
                       <div key={idx} className="border border-bd rounded-lg p-3">
                         <div className="flex justify-between items-center mb-2">
