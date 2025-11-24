@@ -335,37 +335,16 @@ export default function FirePlanPage() {
       residentIds: selectedResidentIds,
     };
 
-    // Start from current assignments and enforce rules:
-    // 1) For each resident, only one assignment per type.
-    // 2) 1:1 Separation overrides Primary/Secondary for those residents.
-    let next = plannedAssignments;
-
-    const hasResidentOverlap = (assignment: PlannedAssignment, targetIds: string[]) => {
-      if (!assignment.residentIds || assignment.residentIds.length === 0) return false;
-      return assignment.residentIds.some((id) => targetIds.includes(id));
-    };
-
-    if (selectedAssignmentType === '1:1 Separation') {
-      // Remove all existing assignments (any type) that involve these residents,
-      // then add the new 1:1 Separation assignment.
-      next = next.filter((a) => !hasResidentOverlap(a, selectedResidentIds));
-    } else {
-      // Primary or Secondary: remove any existing assignment of the same type
-      // for these residents so the new configuration replaces it.
-      next = next.filter(
-        (a) =>
-          !(
-            a.assignmentType === selectedAssignmentType &&
-            hasResidentOverlap(a, selectedResidentIds)
-          )
-      );
-
-      // Also, if there is an existing 1:1 Separation for these residents, keep it.
-      // The rule "Separation overrides" is effectively enforced when user
-      // explicitly adds a Separation assignment.
-    }
-
-    const updated = [...next, newAssignment];
+    // Rule: Only ONE assignment per type (Primary Route, Secondary Route, 1:1 Separation)
+    // If creating a new assignment of the same type, it REPLACES the existing one
+    // Residents and staff can be in multiple different route types
+    const existingAssignment = plannedAssignments.find((a) => a.assignmentType === selectedAssignmentType);
+    const isUpdating = !!existingAssignment;
+    
+    const updated = [
+      ...plannedAssignments.filter((a) => a.assignmentType !== selectedAssignmentType),
+      newAssignment,
+    ];
 
     setPlannedAssignments(updated);
 
@@ -391,7 +370,12 @@ export default function FirePlanPage() {
           if (data.id && !currentPlanId) {
             setCurrentPlanId(Number(data.id));
           }
-          addToast('Assignment saved successfully', 'success');
+          addToast(
+            isUpdating 
+              ? `${selectedAssignmentType} updated successfully` 
+              : `${selectedAssignmentType} added successfully`, 
+            'success'
+          );
         }
       } catch {
         addToast('Failed to save assignment', 'error');
@@ -448,6 +432,9 @@ export default function FirePlanPage() {
       status: selectedRouteStatus,
     };
 
+    const existingRoute = evacuationRoutes.find((r) => r.routeName === selectedRouteName);
+    const isUpdating = !!existingRoute;
+    
     const updated = [
       // Ensure a single route per routeName – new configuration overwrites the old one
       ...evacuationRoutes.filter((r) => r.routeName !== selectedRouteName),
@@ -476,7 +463,12 @@ export default function FirePlanPage() {
           if (data.id && !currentPlanId) {
             setCurrentPlanId(Number(data.id));
           }
-          addToast('Route saved successfully', 'success');
+          addToast(
+            isUpdating 
+              ? `${selectedRouteName} updated successfully` 
+              : `${selectedRouteName} added successfully`, 
+            'success'
+          );
         }
       } catch {
         addToast('Failed to save route', 'error');
@@ -531,6 +523,11 @@ export default function FirePlanPage() {
       notes: selectedAssemblyNotes,
     };
 
+    const existingAssembly = assemblyPoints.find(
+      (p) => p.pointName === selectedAssemblyPoint && p.routeType === selectedAssemblyRouteType
+    );
+    const isUpdating = !!existingAssembly;
+    
     const updated = [
       // Ensure a single configuration per Assembly Point + Route Type
       ...assemblyPoints.filter(
@@ -561,7 +558,12 @@ export default function FirePlanPage() {
           if (data.id && !currentPlanId) {
             setCurrentPlanId(Number(data.id));
           }
-          addToast('Assembly point saved successfully', 'success');
+          addToast(
+            isUpdating 
+              ? `${selectedAssemblyPoint} (${selectedAssemblyRouteType}) updated successfully` 
+              : `${selectedAssemblyPoint} (${selectedAssemblyRouteType}) added successfully`, 
+            'success'
+          );
         }
       } catch {
         addToast('Failed to save assembly point', 'error');
