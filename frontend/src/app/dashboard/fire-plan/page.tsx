@@ -148,14 +148,11 @@ export default function FirePlanPage() {
   // Derived counts for summary cards
   const totalStaff = assignments.filter((a) => {
     const rt = (a.roleType || '').toUpperCase();
-    // Exclude director / regional roles from staff count
-    return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR', 'REGIONAL_DIRECTOR'].includes(rt);
+    // No exclusions: count all staff attached to the program
+    return true;
   }).length;
 
-  const selectableStaff = assignments.filter((a) => {
-    const rt = (a.roleType || '').toUpperCase();
-    return !['REGIONAL_ADMIN', 'PROGRAM_DIRECTOR', 'ASSISTANT_DIRECTOR', 'REGIONAL_DIRECTOR'].includes(rt);
-  });
+  const selectableStaff = assignments;
 
   const getAssignmentBadgeClass = (assignmentType: string) => {
     const t = assignmentType.toLowerCase();
