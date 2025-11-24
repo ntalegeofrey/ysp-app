@@ -277,15 +277,15 @@ export default function FirePlanPage() {
 
   const totalResidents = residents.length;
 
-  const supervisorsCount = assignments.filter((a) => {
-    const title = (a.title || '').toLowerCase();
-    if (!title) return false;
-    // Supervisor keywords: any supervisor title or JJYDS II variants
-    if (title.includes('supervisor')) return true;
-    if (title.includes('jjyds ii')) return true;
-    if (title.includes('jjyds 2')) return true;
-    return false;
-  }).length;
+  // Calculate evacuation route statistics
+  const totalRoutes = evacuationRoutes.length;
+  const availableRoutes = evacuationRoutes.filter(r => r.status?.toLowerCase() === 'available').length;
+  const blockedRoutes = evacuationRoutes.filter(r => r.status?.toLowerCase() === 'blocked').length;
+  
+  // Calculate staff assignment coverage
+  const assignedStaffCount = plannedAssignments.reduce((count, assignment) => {
+    return count + (assignment.staffNames?.length || 0);
+  }, 0);
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -1101,17 +1101,22 @@ export default function FirePlanPage() {
                 <div className="bg-primary-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Total Staff</h4>
                   <div className="text-2xl font-bold text-primary">{totalStaff}</div>
-                  <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
+                  <div className="text-sm text-font-detail">{assignedStaffCount} Assigned to Routes</div>
                 </div>
                 <div className="bg-highlight-lightest p-4 rounded-lg">
                   <h4 className="font-semibold text-font-base mb-2">Total Residents</h4>
                   <div className="text-2xl font-bold text-warning">{totalResidents}</div>
-                  <div className="text-sm text-font-detail">3 on Separation</div>
+                  <div className="text-sm text-font-detail">{plannedAssignments.reduce((count, a) => count + (a.residentIds?.length || 0), 0)} Assigned to Routes</div>
                 </div>
-                <div className="bg-error-lightest p-4 rounded-lg">
-                  <h4 className="font-semibold text-font-base mb-2">Supervisors</h4>
-                  <div className="text-2xl font-bold text-error">{supervisorsCount}</div>
-                  <div className="text-sm text-font-detail">8 Regular • 4 Overtime</div>
+                <div className="bg-success-lightest p-4 rounded-lg">
+                  <h4 className="font-semibold text-font-base mb-2">Evacuation Routes</h4>
+                  <div className="text-2xl font-bold text-success">{totalRoutes}</div>
+                  <div className="text-sm text-font-detail">
+                    {availableRoutes > 0 && `${availableRoutes} Available`}
+                    {availableRoutes > 0 && blockedRoutes > 0 && ' • '}
+                    {blockedRoutes > 0 && `${blockedRoutes} Blocked`}
+                    {totalRoutes === 0 && 'No routes configured'}
+                  </div>
                 </div>
               </div>
 

@@ -207,7 +207,7 @@ public ResponseEntity<?> getPlan() {
 
 ---
 
-## AI Instructions
+## Instructions
 
 When creating new features that need to store JSON data:
 
