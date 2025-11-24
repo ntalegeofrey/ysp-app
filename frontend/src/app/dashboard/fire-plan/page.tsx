@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { abbreviateTitle } from '../../utils/titleAbbrev';
 
 export default function FirePlanPage() {
-  const [activeTab, setActiveTab] = useState<'current' | 'report' | 'archive' | 'floor'>('current');
+  const [activeTab, setActiveTab] = useState<string>('current');
 
   // Derived current date/time and shift label for header
   const now = new Date();
@@ -411,8 +411,8 @@ export default function FirePlanPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-1 gap-3">
-                <div>
+              <div className="space-y-4">
+                <div className="border border-bd rounded-lg p-4">
                   <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
                   {/* Configuration controls (aligned neatly on one horizontal row) */}
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
@@ -536,7 +536,7 @@ export default function FirePlanPage() {
                   </div>
                 </div>
 
-                <div>
+                <div className="border border-bd rounded-lg p-4">
                   <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
                   {/* Configuration controls (placeholder, non-destructive) */}
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -594,10 +594,10 @@ export default function FirePlanPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-              {/* Assembly Points & Safety Zones< */}
-              <div>
-                <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
+
+                {/* Assembly Points & Safety Zones */}
+                <div className="border border-bd rounded-lg p-4">
+                  <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
                 {/* Configuration controls (placeholder, non-destructive) */}
                 <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
@@ -660,6 +660,7 @@ export default function FirePlanPage() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 
