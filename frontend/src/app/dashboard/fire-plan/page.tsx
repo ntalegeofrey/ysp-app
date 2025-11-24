@@ -634,120 +634,128 @@ export default function FirePlanPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <div className="lg:col-span-2 space-y-4">
-                        {selectableStaff.map((s, idx) => {
-                          const id = String(s.userEmail || `staff-${idx}`);
-                          const emailKey = (s.userEmail || '').toLowerCase();
-                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
-                          const baseName = fromDirectory?.fullName?.trim() || '';
-                          const emailFallback = (s.userEmail || '').trim();
-                          const name = baseName || emailFallback || 'Staff';
+                  <div className="border border-bd rounded-lg p-4">
+                    <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
+                    {/* Configuration controls */}
+                    <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                      <div className="flex flex-col justify-center h-full">
+                        <label className="block text-xs font-medium text-font-detail mb-1">Staff Member</label>
+                        <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                          {selectableStaff.map((s, idx) => {
+                            const id = String(s.userEmail || `staff-${idx}`);
+                            const emailKey = (s.userEmail || '').toLowerCase();
+                            const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                            const baseName = fromDirectory?.fullName?.trim() || '';
+                            const emailFallback = (s.userEmail || '').trim();
+                            const name = baseName || emailFallback || 'Staff';
 
-                          const directoryTitle = fromDirectory?.jobTitle?.trim();
-                          const rawTitle = directoryTitle || (s.title || '').trim();
-                          let label = name;
-                          if (rawTitle) {
-                            const abbr = abbreviateTitle(rawTitle);
-                            const titleDisplay = abbr || rawTitle;
-                            label = `${name} (${titleDisplay})`;
-                          }
-                          return (
-                            <label
-                              key={id}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-3 w-3 text-primary border-bd rounded"
-                                checked={selectedStaffIds.includes(id)}
-                                onChange={() => handleToggleStaff(id)}
-                              />
-                              <span className="truncate">{label}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                      <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
-                    </div>
-                    <div className="flex flex-col justify-center h-full">
-                      <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
-                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
-                        {residents.map((r) => {
-                          const first = (r.firstName || '').trim();
-                          const last = (r.lastName || '').trim();
-                          const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
-                          const rid = String(r.id);
-                          const checked = selectedResidentIds.includes(rid);
-                          return (
-                            <label
-                              key={r.id}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-3 w-3 text-primary border-bd rounded"
-                                checked={checked}
-                                onChange={() =>
-                                  setSelectedResidentIds((prev) =>
-                                    prev.includes(rid)
-                                      ? prev.filter((x) => x !== rid)
-                                      : [...prev, rid]
-                                  )
-                                }
-                              />
-                              <span className="truncate">{name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                      <span className="mt-1 block text-xs text-font-detail">Choose one or more residents for this assignment.</span>
-                    </div>
-                    <div className="flex flex-col justify-center h-full">
-                      <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
-                      <select
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
-                        value={selectedAssignmentType}
-                        onChange={(e) => setSelectedAssignmentType(e.target.value)}
-                      >
-                        <option value="Primary Route">Primary Route</option>
-                        <option value="Secondary Route">Secondary Route</option>
-                        <option value="1:1 Separation">1:1 Separation</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center justify-center h-full">
-                      <button
-                        type="button"
-                        onClick={handleAddAssignment}
-                        className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
-                      >
-                        Add Assignment
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {plannedAssignments.length === 0 && (
-                      <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                        No staff assignments added
-                      </div>
-                    )}
-                    {plannedAssignments.map((a, idx) => (
-                      <div key={idx} className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveAssignment(idx)}
-                              className="text-error hover:text-error-dark"
-                              title="Remove assignment"
-                            >
-                              <i className="fa-solid fa-trash"></i>
-                            </button>
-                          </div>
+                            const directoryTitle = fromDirectory?.jobTitle?.trim();
+                            const rawTitle = directoryTitle || (s.title || '').trim();
+                            let label = name;
+                            if (rawTitle) {
+                              const abbr = abbreviateTitle(rawTitle);
+                              const titleDisplay = abbr || rawTitle;
+                              label = `${name} (${titleDisplay})`;
+                            }
+                            return (
+                              <label
+                                key={id}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 text-primary border-bd rounded"
+                                  checked={selectedStaffIds.includes(id)}
+                                  onChange={() => handleToggleStaff(id)}
+                                />
+                                <span className="truncate">{label}</span>
+                              </label>
+                            );
+                          })}
                         </div>
-                        <div className="text-sm text-font-detail">Assigned: Resident {a.residentName}</div>
+                        <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
                       </div>
-                    ))}
+                      <div className="flex flex-col justify-center h-full">
+                        <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
+                        <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                          {residents.map((r) => {
+                            const first = (r.firstName || '').trim();
+                            const last = (r.lastName || '').trim();
+                            const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
+                            const rid = String(r.id);
+                            const checked = selectedResidentIds.includes(rid);
+                            return (
+                              <label
+                                key={r.id}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 text-primary border-bd rounded"
+                                  checked={checked}
+                                  onChange={() =>
+                                    setSelectedResidentIds((prev) =>
+                                      prev.includes(rid)
+                                        ? prev.filter((x) => x !== rid)
+                                        : [...prev, rid]
+                                    )
+                                  }
+                                />
+                                <span className="truncate">{name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <span className="mt-1 block text-xs text-font-detail">Choose one or more residents for this assignment.</span>
+                      </div>
+                      <div className="flex flex-col justify-center h-full">
+                        <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
+                        <select
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                          value={selectedAssignmentType}
+                          onChange={(e) => setSelectedAssignmentType(e.target.value)}
+                        >
+                          <option value="Primary Route">Primary Route</option>
+                          <option value="Secondary Route">Secondary Route</option>
+                          <option value="1:1 Separation">1:1 Separation</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center justify-center h-full">
+                        <button
+                          type="button"
+                          onClick={handleAddAssignment}
+                          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                        >
+                          Add Assignment
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {plannedAssignments.length === 0 && (
+                        <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
+                          No staff assignments added
+                        </div>
+                      )}
+                      {plannedAssignments.map((a, idx) => (
+                        <div key={idx} className="border border-bd rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium text-font-base">{a.staffNames.join(', ')}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={getAssignmentBadgeClass(a.assignmentType)}>{a.assignmentType}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAssignment(idx)}
+                                className="text-error hover:text-error-dark"
+                                title="Remove assignment"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-sm text-font-detail">Assigned: Resident {a.residentName}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
