@@ -86,6 +86,10 @@ export default function FirePlanPage() {
 
   const [currentPlanId, setCurrentPlanId] = useState<number | null>(null);
 
+  // Save state tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<'unsaved' | 'saving' | 'saved'>('unsaved');
+
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
   const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -231,6 +235,10 @@ export default function FirePlanPage() {
             // Ignore malformed JSON, keep defaults
           }
         }
+        
+        // Reset unsaved changes flag after loading from database
+        setHasUnsavedChanges(false);
+        setSaveStatus('unsaved');
       } catch {
         // Silent failure keeps UI stable
       }
@@ -285,6 +293,67 @@ export default function FirePlanPage() {
   const handleSaveReport = () => addToast('Drill report saved.', 'success');
   const handleCancelReport = () => addToast('Canceled.', 'info');
   const handleUpdateFloorPlan = () => addToast('Upload floor plan coming soon.', 'info');
+
+  const handleSaveFirePlan = async () => {
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+
+    setSaveStatus('saving');
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          staffAssignments: plannedAssignments,
+          routeConfig: { routes: evacuationRoutes, assemblyPoints },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.id && !currentPlanId) {
+          setCurrentPlanId(Number(data.id));
+        }
+        setSaveStatus('saved');
+        setHasUnsavedChanges(false);
+        addToast('Fire plan saved and marked as active', 'success');
+        
+        // Reset to unsaved after 2 seconds
+        setTimeout(() => {
+          setSaveStatus('unsaved');
+        }, 2000);
+      } else {
+        setSaveStatus('unsaved');
+        addToast('Failed to save fire plan', 'error');
+      }
+    } catch {
+      setSaveStatus('unsaved');
+      addToast('Failed to save fire plan', 'error');
+    }
+  };
+
+  const handleNewFirePlan = () => {
+    // Clear all data to reset to fresh state
+    setPlannedAssignments([]);
+    setEvacuationRoutes([]);
+    setAssemblyPoints([]);
+    setSelectedStaffIds([]);
+    setSelectedResidentIds([]);
+    setHasUnsavedChanges(false);
+    setSaveStatus('unsaved');
+    addToast('Fire plan reset. Add assignments to create new plan', 'info');
+  };
 
   const handleToggleStaff = (id: string) => {
     setSelectedStaffIds((prev) =>
@@ -347,6 +416,7 @@ export default function FirePlanPage() {
     ];
 
     setPlannedAssignments(updated);
+    setHasUnsavedChanges(true);
 
     // Persist to backend (works even if no plan exists yet - backend will auto-create)
     if (programId) {
@@ -388,6 +458,7 @@ export default function FirePlanPage() {
   const handleRemoveAssignment = async (index: number) => {
     const next = plannedAssignments.filter((_, i) => i !== index);
     setPlannedAssignments(next);
+    setHasUnsavedChanges(true);
 
     if (programId) {
       try {
@@ -441,6 +512,7 @@ export default function FirePlanPage() {
       newRoute,
     ];
     setEvacuationRoutes(updated);
+    setHasUnsavedChanges(true);
 
     if (programId) {
       try {
@@ -481,6 +553,7 @@ export default function FirePlanPage() {
   const handleRemoveRoute = async (index: number) => {
     const next = evacuationRoutes.filter((_, i) => i !== index);
     setEvacuationRoutes(next);
+    setHasUnsavedChanges(true);
 
     if (programId) {
       try {
@@ -536,6 +609,7 @@ export default function FirePlanPage() {
       newAssembly,
     ];
     setAssemblyPoints(updated);
+    setHasUnsavedChanges(true);
 
     if (programId) {
       try {
@@ -576,6 +650,7 @@ export default function FirePlanPage() {
   const handleRemoveAssembly = async (index: number) => {
     const next = assemblyPoints.filter((_, i) => i !== index);
     setAssemblyPoints(next);
+    setHasUnsavedChanges(true);
 
     if (programId) {
       try {
@@ -659,6 +734,41 @@ export default function FirePlanPage() {
                   <button onClick={handlePrint} className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
                     <i className="fa-solid fa-print mr-2"></i>
                     Print Plan
+                  </button>
+                  <button 
+                    onClick={handleSaveFirePlan}
+                    disabled={saveStatus === 'saving'}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                      saveStatus === 'saved' 
+                        ? 'bg-success text-white hover:bg-success' 
+                        : saveStatus === 'saving'
+                        ? 'bg-bd text-font-detail cursor-not-allowed'
+                        : 'bg-primary text-white hover:bg-primary-light'
+                    }`}
+                  >
+                    {saveStatus === 'saving' ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                        Saving...
+                      </>
+                    ) : saveStatus === 'saved' ? (
+                      <>
+                        <i className="fa-solid fa-check mr-2"></i>
+                        Saved
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-floppy-disk mr-2"></i>
+                        Save Fire Plan
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    onClick={handleNewFirePlan}
+                    className="bg-white text-primary border-2 border-primary px-4 py-2 rounded-lg hover:bg-primary hover:text-white font-medium text-sm transition-colors"
+                  >
+                    <i className="fa-solid fa-plus mr-2"></i>
+                    New Fire Plan
                   </button>
                 </div>
               </div>
