@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { logoUrl } from '../../utils/logo';
 import { abbreviateTitle } from '../../utils/titleAbbrev';
 
 export default function FirePlanPage() {
@@ -18,6 +19,7 @@ export default function FirePlanPage() {
 
   // Program-scoped data for summary counts
   const [programId, setProgramId] = useState<string>('');
+  const [programName, setProgramName] = useState<string>('');
 
   type AssignmentLite = {
     roleType?: string;
@@ -104,9 +106,10 @@ export default function FirePlanPage() {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { id?: number | string } | null;
+      const parsed = JSON.parse(raw) as { id?: number | string; name?: string } | null;
       if (parsed?.id != null) {
         setProgramId(String(parsed.id));
+        setProgramName(parsed.name || '');
       }
     } catch {
       // Ignore JSON/LS errors, fall back to empty programId
@@ -288,7 +291,299 @@ export default function FirePlanPage() {
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  const handlePrint = () => addToast('Print action coming soon.', 'info');
+  const handlePrint = () => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print fire plan', 'error');
+        return;
+      }
+
+      // Format date
+      const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+      // Build staff assignments HTML
+      let assignmentsHTML = '';
+      if (plannedAssignments.length > 0) {
+        const rows = plannedAssignments.map(a => `
+          <tr>
+            <td style="font-weight: bold;">${a.assignmentType}</td>
+            <td>${a.staffNames.join(', ')}</td>
+            <td>${a.residentName}</td>
+          </tr>
+        `).join('');
+        assignmentsHTML = `
+          <div class="section">
+            <h2 class="section-title">Staff Assignments</h2>
+            <table>
+              <tr>
+                <th style="width: 25%;">Assignment Type</th>
+                <th style="width: 40%;">Assigned Staff</th>
+                <th style="width: 35%;">Residents</th>
+              </tr>
+              ${rows}
+            </table>
+          </div>
+        `;
+      }
+
+      // Build evacuation routes HTML
+      let routesHTML = '';
+      if (evacuationRoutes.length > 0) {
+        const rows = evacuationRoutes.map(r => {
+          const statusBadge = r.status === 'Available' 
+            ? '<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px;">AVAILABLE</span>'
+            : '<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px;">RESTRICTED</span>';
+          return `
+            <tr>
+              <td style="font-weight: bold;">${r.routeName}</td>
+              <td>${r.flow}</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }).join('');
+        routesHTML = `
+          <div class="section">
+            <h2 class="section-title">Evacuation Routes</h2>
+            <table>
+              <tr>
+                <th style="width: 25%;">Route Name</th>
+                <th style="width: 55%;">Route Flow</th>
+                <th style="width: 20%;">Status</th>
+              </tr>
+              ${rows}
+            </table>
+          </div>
+        `;
+      }
+
+      // Build assembly points HTML
+      let assemblyHTML = '';
+      if (assemblyPoints.length > 0) {
+        const rows = assemblyPoints.map(p => `
+          <tr>
+            <td style="font-weight: bold;">${p.pointName}</td>
+            <td>${p.routeType}</td>
+            <td>${p.notes}</td>
+          </tr>
+        `).join('');
+        assemblyHTML = `
+          <div class="section">
+            <h2 class="section-title">Assembly Points & Safety Zones</h2>
+            <table>
+              <tr>
+                <th style="width: 25%;">Point Name</th>
+                <th style="width: 20%;">Route Type</th>
+                <th style="width: 55%;">Notes</th>
+              </tr>
+              ${rows}
+            </table>
+          </div>
+        `;
+      }
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Fire Plan - ${dateStr}</title>
+          <style>
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+              .page-break { page-break-before: always; }
+            }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 30px;
+              background: white;
+              color: #333;
+              font-size: 12px;
+            }
+            .header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 3px solid #dc2626;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .logo-section {
+              display: flex;
+              align-items: center;
+              gap: 15px;
+            }
+            .logo {
+              width: 70px;
+              height: 70px;
+              object-fit: contain;
+            }
+            .title-section h1 {
+              font-size: 22px;
+              color: #dc2626;
+              margin-bottom: 3px;
+            }
+            .title-section p {
+              font-size: 13px;
+              color: #666;
+            }
+            .report-info {
+              background: #fef2f2;
+              padding: 15px;
+              border-radius: 6px;
+              margin-bottom: 20px;
+              border-left: 4px solid #dc2626;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 12px;
+            }
+            .info-item {
+              display: flex;
+              gap: 8px;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #374151;
+              min-width: 100px;
+            }
+            .info-value {
+              color: #6b7280;
+            }
+            .section {
+              margin-bottom: 25px;
+              break-inside: avoid;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: bold;
+              color: #dc2626;
+              margin-bottom: 12px;
+              padding-bottom: 6px;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 10px;
+            }
+            th {
+              background: #f3f4f6;
+              padding: 8px;
+              text-align: left;
+              font-size: 11px;
+              border: 1px solid #e5e7eb;
+            }
+            td {
+              padding: 8px;
+              border: 1px solid #e5e7eb;
+              font-size: 11px;
+            }
+            .stats-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .stat-card {
+              background: #f9fafb;
+              padding: 12px;
+              border-radius: 6px;
+              border: 1px solid #e5e7eb;
+            }
+            .stat-label {
+              font-size: 10px;
+              color: #6b7280;
+              text-transform: uppercase;
+              margin-bottom: 4px;
+            }
+            .stat-value {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1f2937;
+            }
+            .footer {
+              margin-top: 30px;
+              padding-top: 15px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              color: #9ca3af;
+              font-size: 10px;
+            }
+            @page { margin: 15mm; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-section">
+              <img src="${logoUrl}" alt="DYS Logo" class="logo" onerror="this.style.display='none'"/>
+              <div class="title-section">
+                <h1>Fire Safety Plan</h1>
+                <p>Department of Youth Services</p>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${programName || 'Program'}</div>
+              <div style="font-size: 12px; color: #666; margin-top: 3px;">Generated: ${dateStr}</div>
+            </div>
+          </div>
+
+          <div class="report-info">
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Plan Date:</span>
+                <span class="info-value">${dateStr}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Time:</span>
+                <span class="info-value">${timeStr}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Shift:</span>
+                <span class="info-value">${shiftLabel}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Total Staff:</span>
+                <span class="info-value">${selectableStaff.length}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Total Residents:</span>
+                <span class="info-value">${residents.length}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status:</span>
+                <span class="info-value" style="color: #10b981; font-weight: bold;">Active Plan</span>
+              </div>
+            </div>
+          </div>
+
+          ${assignmentsHTML}
+          ${routesHTML}
+          ${assemblyHTML}
+
+          <div class="footer">
+            <p><strong>EMERGENCY CONTACT:</strong> Dial 911 for immediate assistance</p>
+            <p style="margin-top: 5px;">This fire safety plan should be reviewed regularly and updated as needed.</p>
+            <p style="margin-top: 5px;">Document generated on ${dateStr} at ${timeStr}</p>
+          </div>
+        </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+
+      addToast('Fire plan opened in new tab', 'success');
+    } catch (error) {
+      console.error('Print error:', error);
+      addToast('Failed to open print view', 'error');
+    }
+  };
   const handleExport = () => addToast('Exporting archive...', 'info');
   const handleSaveReport = () => addToast('Drill report saved.', 'success');
   const handleCancelReport = () => addToast('Canceled.', 'info');
@@ -405,8 +700,31 @@ export default function FirePlanPage() {
     };
 
     // Rule: Only ONE assignment per type (Primary Route, Secondary Route, 1:1 Separation)
-    // If creating a new assignment of the same type, it REPLACES the existing one
-    // Residents and staff can be in multiple different route types
+    // IMPORTANT: Each staff member and resident can only be in ONE route across the entire plan
+    // Check if any selected staff are already in other assignments
+    const staffNamesSet = new Set(staffNames.map(n => n.toLowerCase()));
+    const conflictingStaff = plannedAssignments
+      .filter(a => a.assignmentType !== selectedAssignmentType)
+      .filter(a => a.staffNames.some(name => staffNamesSet.has(name.toLowerCase())));
+    
+    // Check if any selected residents are already in other assignments
+    const residentIdsSet = new Set(selectedResidentIds);
+    const conflictingResidents = plannedAssignments
+      .filter(a => a.assignmentType !== selectedAssignmentType)
+      .filter(a => (a.residentIds || []).some(id => residentIdsSet.has(id)));
+    
+    if (conflictingStaff.length > 0 || conflictingResidents.length > 0) {
+      const conflicts: string[] = [];
+      if (conflictingStaff.length > 0) {
+        conflicts.push(`Staff already assigned to ${conflictingStaff.map(a => a.assignmentType).join(', ')}`);
+      }
+      if (conflictingResidents.length > 0) {
+        conflicts.push(`Residents already assigned to ${conflictingResidents.map(a => a.assignmentType).join(', ')}`);
+      }
+      addToast(`Cannot assign: ${conflicts.join('. ')}. Each person can only be in one route.`, 'error');
+      return;
+    }
+
     const existingAssignment = plannedAssignments.find((a) => a.assignmentType === selectedAssignmentType);
     const isUpdating = !!existingAssignment;
     
