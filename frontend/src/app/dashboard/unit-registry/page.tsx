@@ -90,6 +90,17 @@ export default function OnboardingPage() {
   type Assignment = { userEmail: string; roleType: string };
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const staffByEmail = useMemo(() => Object.fromEntries(staffList.map(s => [((s.email || '') as string).toLowerCase(), s])), [staffList]);
+
+  // Collapse any duplicate assignment rows by email so each staff appears once
+  const uniqueAssignments: Assignment[] = useMemo(() => {
+    const map: Record<string, Assignment> = {};
+    for (const a of assignments) {
+      const key = a.userEmail?.toLowerCase?.() || '';
+      if (!key) continue;
+      if (!map[key]) map[key] = a;
+    }
+    return Object.values(map);
+  }, [assignments]);
   const loadAssignments = async () => {
     if (!programId) return;
     try {
@@ -132,7 +143,7 @@ export default function OnboardingPage() {
   useEffect(() => { if (programId) loadResidents(); }, [programId]);
 
   const activeResidentsCount = residents.length;
-  const activeStaffCount = assignments.length;
+  const activeStaffCount = uniqueAssignments.length;
   const temporaryLocationCount = residents.filter(r => (r.temporaryLocation||'').trim() !== '').length;
 
   // Real-time residents refresh via SSE
@@ -406,7 +417,7 @@ export default function OnboardingPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-bd">
-                    {assignments.map((a, idx) => {
+                    {uniqueAssignments.map((a, idx) => {
                       const s = staffByEmail[a.userEmail?.toLowerCase?.() || ''];
                       return (
                         <tr key={`${a.userEmail}-${idx}`} className="bg-white hover:bg-gray-50">
@@ -437,7 +448,7 @@ export default function OnboardingPage() {
                         </tr>
                       );
                     })}
-                    {assignments.length === 0 && (
+                    {uniqueAssignments.length === 0 && (
                       <tr><td className="px-4 py-3 text-sm text-font-detail" colSpan={canAddStaff?4:3}>No staff assigned yet</td></tr>
                     )}
                   </tbody>

@@ -194,14 +194,21 @@ export default function FirePlanPage() {
     loadPlan();
   }, [programId]);
 
-  // Derived counts for summary cards
-  const totalStaff = assignments.filter((a) => {
-    const rt = (a.roleType || '').toUpperCase();
-    // No exclusions: count all staff attached to the program
-    return true;
-  }).length;
+  // Normalize assignments to unique staff per email so counts and lists don't duplicate people
+  const uniqueAssignments: AssignmentLite[] = useMemo(() => {
+    const map: Record<string, AssignmentLite> = {};
+    for (const a of assignments) {
+      const key = (a.userEmail || '').toLowerCase();
+      if (!key) continue;
+      if (!map[key]) map[key] = a;
+    }
+    return Object.values(map);
+  }, [assignments]);
 
-  const selectableStaff = assignments;
+  // Derived counts for summary cards
+  const totalStaff = uniqueAssignments.length;
+
+  const selectableStaff = uniqueAssignments;
 
   const getAssignmentBadgeClass = (assignmentType: string) => {
     const t = assignmentType.toLowerCase();
