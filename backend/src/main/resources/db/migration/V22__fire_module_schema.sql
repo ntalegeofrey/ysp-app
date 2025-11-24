@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS fire_plans (
     primary_route       VARCHAR(255),
     secondary_route     VARCHAR(255),
     status              VARCHAR(32),
-    staff_assignments_json JSONB,
-    resident_status_json   JSONB,
-    route_config_json      JSONB,
+    staff_assignments_json TEXT,
+    resident_status_json   TEXT,
+    route_config_json      TEXT,
     created_at          TIMESTAMP,
     updated_at          TIMESTAMP
 );
