@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { abbreviateTitle } from '../../utils/titleAbbrev';
 
 export default function FirePlanPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'report' | 'archive' | 'floor'>('current');
@@ -195,15 +196,23 @@ export default function FirePlanPage() {
       return;
     }
 
-    const chosenStaff = selectableStaff.filter((s) =>
-      selectedStaffIds.includes(String(s.userEmail || ''))
-    );
+    const chosenStaff = selectableStaff.filter((s, idx) => {
+      const id = String(s.userEmail || `staff-${idx}`);
+      return selectedStaffIds.includes(id);
+    });
     const staffNames = chosenStaff.map((s) => {
       const first = (s.firstName || '').trim();
       const last = (s.lastName || '').trim();
-      const name = [first, last].filter(Boolean).join(' ') || s.userEmail || 'Staff';
-      const title = s.title || '';
-      return title ? `${name} (${title})` : name;
+      const baseName = [first, last].filter(Boolean).join(' ');
+      const emailFallback = (s.userEmail || '').trim();
+      const name = baseName || emailFallback || 'Staff';
+
+      const rawTitle = (s.title || '').trim();
+      if (!rawTitle) return name;
+
+      const abbr = abbreviateTitle(rawTitle);
+      const titleDisplay = abbr || rawTitle;
+      return `${name} (${titleDisplay})`;
     });
 
     const res = residents.find((r) => String(r.id) === String(selectedResidentId));
@@ -314,7 +323,7 @@ export default function FirePlanPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-3">
                 <div>
                   <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
                   {/* Configuration controls (placeholder, non-destructive) */}
@@ -326,9 +335,17 @@ export default function FirePlanPage() {
                           const id = String(s.userEmail || `staff-${idx}`);
                           const first = (s.firstName || '').trim();
                           const last = (s.lastName || '').trim();
-                          const name = [first, last].filter(Boolean).join(' ') || s.userEmail || 'Staff';
-                          const title = s.title || '';
-                          const label = title ? `${name} (${title})` : name;
+                          const baseName = [first, last].filter(Boolean).join(' ');
+                          const emailFallback = (s.userEmail || '').trim();
+                          const name = baseName || emailFallback || 'Staff';
+
+                          const rawTitle = (s.title || '').trim();
+                          let label = name;
+                          if (rawTitle) {
+                            const abbr = abbreviateTitle(rawTitle);
+                            const titleDisplay = abbr || rawTitle;
+                            label = `${name} (${titleDisplay})`;
+                          }
                           return (
                             <label
                               key={id}
@@ -488,7 +505,7 @@ export default function FirePlanPage() {
                   </div>
                 </div>
               </div>
-
+              {/* Assembly Points & Safety Zones< */}
               <div>
                 <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
                 {/* Configuration controls (placeholder, non-destructive) */}
