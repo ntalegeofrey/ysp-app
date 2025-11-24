@@ -1145,18 +1145,30 @@ export default function FirePlanPage() {
                               const titleDisplay = abbr || rawTitle;
                               label = `${name} (${titleDisplay})`;
                             }
+                            
+                            // Check if this staff is already assigned to a different route
+                            const alreadyAssigned = plannedAssignments
+                              .filter(a => a.assignmentType !== selectedAssignmentType)
+                              .find(a => a.staffNames.some(n => n.toLowerCase() === label.toLowerCase()));
+                            
                             return (
                               <label
                                 key={id}
-                                className="flex items-center gap-2 cursor-pointer"
+                                className={`flex items-center gap-2 ${alreadyAssigned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                               >
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
                                   checked={selectedStaffIds.includes(id)}
                                   onChange={() => handleToggleStaff(id)}
+                                  disabled={!!alreadyAssigned}
                                 />
-                                <span className="truncate text-sm">{label}</span>
+                                <span className="truncate text-sm">
+                                  {label}
+                                  {alreadyAssigned && (
+                                    <span className="text-xs text-error ml-1">(in {alreadyAssigned.assignmentType})</span>
+                                  )}
+                                </span>
                               </label>
                             );
                           })}
@@ -1172,10 +1184,16 @@ export default function FirePlanPage() {
                             const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
                             const rid = String(r.id);
                             const checked = selectedResidentIds.includes(rid);
+                            
+                            // Check if this resident is already assigned to a different route
+                            const alreadyAssigned = plannedAssignments
+                              .filter(a => a.assignmentType !== selectedAssignmentType)
+                              .find(a => (a.residentIds || []).includes(rid));
+                            
                             return (
                               <label
                                 key={r.id}
-                                className="flex items-center gap-2 cursor-pointer"
+                                className={`flex items-center gap-2 ${alreadyAssigned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                               >
                                 <input
                                   type="checkbox"
@@ -1188,8 +1206,14 @@ export default function FirePlanPage() {
                                         : [...prev, rid]
                                     )
                                   }
+                                  disabled={!!alreadyAssigned}
                                 />
-                                <span className="truncate text-sm">{name}</span>
+                                <span className="truncate text-sm">
+                                  {name}
+                                  {alreadyAssigned && (
+                                    <span className="text-xs text-error ml-1">(in {alreadyAssigned.assignmentType})</span>
+                                  )}
+                                </span>
                               </label>
                             );
                           })}
