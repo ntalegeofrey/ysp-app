@@ -7,6 +7,7 @@ import app.ysp.repo.FirePlanRepository;
 import app.ysp.repo.FireDrillReportRepository;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.service.SseHub;
+import app.ysp.util.JsonUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -74,17 +75,17 @@ public class FirePlanController {
 
         Object staffAssignments = body.get("staffAssignments");
         if (staffAssignments != null) {
-            try { plan.setStaffAssignmentsJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(staffAssignments)); } catch (Exception ignored) {}
+            plan.setStaffAssignmentsJson(JsonUtil.serialize(staffAssignments));
         }
 
         Object residentStatus = body.get("residentStatus");
         if (residentStatus != null) {
-            try { plan.setResidentStatusJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(residentStatus)); } catch (Exception ignored) {}
+            plan.setResidentStatusJson(JsonUtil.serialize(residentStatus));
         }
 
         Object routeConfig = body.get("routeConfig");
         if (routeConfig != null) {
-            try { plan.setRouteConfigJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(routeConfig)); } catch (Exception ignored) {}
+            plan.setRouteConfigJson(JsonUtil.serialize(routeConfig));
         }
 
         FirePlan saved = firePlans.save(plan);
@@ -117,18 +118,15 @@ public class FirePlanController {
         if (body.containsKey("secondaryRoute")) plan.setSecondaryRoute(Objects.toString(body.get("secondaryRoute"), null));
 
         if (body.containsKey("staffAssignments")) {
-            Object staffAssignments = body.get("staffAssignments");
-            try { plan.setStaffAssignmentsJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(staffAssignments)); } catch (Exception ignored) {}
+            plan.setStaffAssignmentsJson(JsonUtil.serialize(body.get("staffAssignments")));
         }
 
         if (body.containsKey("residentStatus")) {
-            Object residentStatus = body.get("residentStatus");
-            try { plan.setResidentStatusJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(residentStatus)); } catch (Exception ignored) {}
+            plan.setResidentStatusJson(JsonUtil.serialize(body.get("residentStatus")));
         }
 
         if (body.containsKey("routeConfig")) {
-            Object routeConfig = body.get("routeConfig");
-            try { plan.setRouteConfigJson(com.fasterxml.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(routeConfig)); } catch (Exception ignored) {}
+            plan.setRouteConfigJson(JsonUtil.serialize(body.get("routeConfig")));
         }
 
         FirePlan saved = firePlans.save(plan);
