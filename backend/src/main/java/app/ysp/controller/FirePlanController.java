@@ -39,9 +39,12 @@ public class FirePlanController {
     public ResponseEntity<?> getCurrentPlan(@PathVariable("id") Long id) {
         Optional<FirePlan> opt = firePlans.findActivePlan(id);
         if (opt.isEmpty()) {
+            // Return empty structure so frontend can start fresh
             Map<String, Object> empty = new HashMap<>();
             empty.put("id", null);
             empty.put("status", "No Active Plan");
+            empty.put("staffAssignmentsJson", "[]");
+            empty.put("routeConfigJson", "{\"routes\":[],\"assemblyPoints\":[]}");
             return ResponseEntity.ok(empty);
         }
         return ResponseEntity.ok(opt.get());
@@ -93,9 +96,20 @@ public class FirePlanController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
     public ResponseEntity<?> updateCurrentPlan(@PathVariable("id") Long id, @RequestBody Map<String, Object> body) {
         Optional<FirePlan> opt = firePlans.findActivePlan(id);
-        if (opt.isEmpty()) return ResponseEntity.notFound().build();
-
-        FirePlan plan = opt.get();
+        
+        // Auto-create plan if it doesn't exist
+        FirePlan plan;
+        if (opt.isEmpty()) {
+            Optional<Program> progOpt = programs.findById(id);
+            if (progOpt.isEmpty()) return ResponseEntity.notFound().build();
+            
+            plan = new FirePlan();
+            plan.setProgram(progOpt.get());
+            plan.setGeneratedDate(LocalDate.now());
+            plan.setStatus("Active");
+        } else {
+            plan = opt.get();
+        }
         if (body.containsKey("totalStaff")) plan.setTotalStaff(Integer.parseInt(Objects.toString(body.get("totalStaff"), "0")));
         if (body.containsKey("totalResidents")) plan.setTotalResidents(Integer.parseInt(Objects.toString(body.get("totalResidents"), "0")));
         if (body.containsKey("specialAssignments")) plan.setSpecialAssignments(Integer.parseInt(Objects.toString(body.get("specialAssignments"), "0")));

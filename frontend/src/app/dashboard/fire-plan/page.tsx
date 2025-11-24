@@ -378,7 +378,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -386,8 +386,11 @@ export default function FirePlanPage() {
             staffAssignments: updated,
           }),
         });
+        if (response.ok) {
+          addToast('Assignment saved successfully', 'success');
+        }
       } catch {
-        // Keep UI state even if save fails; user can retry later
+        addToast('Failed to save assignment', 'error');
       }
     }
 
@@ -406,7 +409,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -414,8 +417,13 @@ export default function FirePlanPage() {
             staffAssignments: next,
           }),
         });
+        if (response.ok) {
+          addToast('Assignment removed successfully', 'success');
+        } else {
+          addToast('Failed to remove assignment', 'error');
+        }
       } catch {
-        // If save fails, UI will still reflect removal; user can refresh to reload from server
+        addToast('Failed to remove assignment', 'error');
       }
     }
   };
@@ -447,7 +455,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -455,8 +463,11 @@ export default function FirePlanPage() {
             routeConfig: { routes: updated, assemblyPoints },
           }),
         });
+        if (response.ok) {
+          addToast('Route saved successfully', 'success');
+        }
       } catch {
-        // Keep UI state even if save fails
+        addToast('Failed to save route', 'error');
       }
     }
 
@@ -475,7 +486,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -483,8 +494,11 @@ export default function FirePlanPage() {
             routeConfig: { routes: next, assemblyPoints },
           }),
         });
+        if (response.ok) {
+          addToast('Route removed successfully', 'success');
+        }
       } catch {
-        // Keep UI state even if save fails
+        addToast('Failed to remove route', 'error');
       }
     }
   };
@@ -518,7 +532,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -526,8 +540,11 @@ export default function FirePlanPage() {
             routeConfig: { routes: evacuationRoutes, assemblyPoints: updated },
           }),
         });
+        if (response.ok) {
+          addToast('Assembly point saved successfully', 'success');
+        }
       } catch {
-        // Keep UI state even if save fails
+        addToast('Failed to save assembly point', 'error');
       }
     }
 
@@ -546,7 +563,7 @@ export default function FirePlanPage() {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        await fetch(`/api/programs/${programId}/fire-plan/current`, {
+        const response = await fetch(`/api/programs/${programId}/fire-plan/current`, {
           method: 'PATCH',
           credentials: 'include',
           headers,
@@ -554,8 +571,11 @@ export default function FirePlanPage() {
             routeConfig: { routes: evacuationRoutes, assemblyPoints: next },
           }),
         });
+        if (response.ok) {
+          addToast('Assembly point removed successfully', 'success');
+        }
       } catch {
-        // Keep UI state even if save fails
+        addToast('Failed to remove assembly point', 'error');
       }
     }
   };
