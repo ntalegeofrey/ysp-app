@@ -58,7 +58,7 @@ export default function FirePlanPage() {
 
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [selectedAssignmentType, setSelectedAssignmentType] = useState<string>('Primary Route');
-  const [selectedResidentId, setSelectedResidentId] = useState<string | number | null>(null);
+  const [selectedResidentIds, setSelectedResidentIds] = useState<string[]>([]);
 
   const [currentPlanId, setCurrentPlanId] = useState<number | null>(null);
 
@@ -246,8 +246,8 @@ export default function FirePlanPage() {
   };
 
   const handleAddAssignment = async () => {
-    if (!selectedStaffIds.length || selectedResidentId == null) {
-      alert('Select at least one staff member and one resident.');
+    if (!selectedStaffIds.length || !selectedResidentIds.length) {
+      alert('Select at least one staff member and at least one resident.');
       return;
     }
 
@@ -271,10 +271,16 @@ export default function FirePlanPage() {
       return `${name} (${titleDisplay})`;
     });
 
-    const res = residents.find((r) => String(r.id) === String(selectedResidentId));
-    const resFirst = (res?.firstName || '').trim();
-    const resLast = (res?.lastName || '').trim();
-    const residentName = [resFirst, resLast].filter(Boolean).join(' ') || `Resident #${res?.id ?? ''}`;
+    const chosenResidents = residents.filter((r) =>
+      selectedResidentIds.includes(String(r.id))
+    );
+    const residentNamesArr = chosenResidents.map((r) => {
+      const first = (r.firstName || '').trim();
+      const last = (r.lastName || '').trim();
+      const full = [first, last].filter(Boolean).join(' ');
+      return full || `Resident #${r.id}`;
+    });
+    const residentName = residentNamesArr.join(', ');
 
     const updated = [
       ...plannedAssignments,
@@ -448,6 +454,39 @@ export default function FirePlanPage() {
                       <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
                     </div>
                     <div className="flex flex-col justify-center h-full">
+                      <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
+                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+                        {residents.map((r) => {
+                          const first = (r.firstName || '').trim();
+                          const last = (r.lastName || '').trim();
+                          const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
+                          const rid = String(r.id);
+                          const checked = selectedResidentIds.includes(rid);
+                          return (
+                            <label
+                              key={r.id}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-3 w-3 text-primary border-bd rounded"
+                                checked={checked}
+                                onChange={() =>
+                                  setSelectedResidentIds((prev) =>
+                                    prev.includes(rid)
+                                      ? prev.filter((x) => x !== rid)
+                                      : [...prev, rid]
+                                  )
+                                }
+                              />
+                              <span className="truncate">{name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <span className="mt-1 block text-xs text-font-detail">Choose one or more residents for this assignment.</span>
+                    </div>
+                    <div className="flex flex-col justify-center h-full">
                       <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
                       <select
                         className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
@@ -458,32 +497,6 @@ export default function FirePlanPage() {
                         <option value="Secondary Route">Secondary Route</option>
                         <option value="1:1 Separation">1:1 Separation</option>
                       </select>
-                    </div>
-                    <div className="flex flex-col justify-center h-full">
-                      <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
-                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
-                        {residents.map((r) => {
-                          const first = (r.firstName || '').trim();
-                          const last = (r.lastName || '').trim();
-                          const name = [first, last].filter(Boolean).join(' ') || `Resident #${r.id}`;
-                          return (
-                            <label
-                              key={r.id}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="radio"
-                                name="staff-assignment-resident"
-                                className="h-3 w-3 text-primary border-bd rounded-full"
-                                checked={String(selectedResidentId) === String(r.id)}
-                                onChange={() => setSelectedResidentId(r.id)}
-                              />
-                              <span className="truncate">{name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                      <span className="mt-1 block text-xs text-font-detail">Choose one resident for this assignment.</span>
                     </div>
                     <div className="flex items-center justify-center h-full">
                       <button
