@@ -199,10 +199,17 @@ export default function FirePlanPage() {
         credentials: 'include',
         headers: commonHeaders,
       });
-      if (!res.ok) return;
+      
+      if (!res.ok) {
+        console.error('Failed to load drill reports:', res.status, res.statusText);
+        return;
+      }
+      
       const data: any = await res.json();
+      console.log('Drill reports loaded:', data);
+      
       if (data.content && Array.isArray(data.content)) {
-        setDrillReports(data.content.map((item: any) => ({
+        const mapped = data.content.map((item: any) => ({
           id: item.id,
           drillDate: item.drillDate,
           drillTime: item.drillTime,
@@ -211,10 +218,14 @@ export default function FirePlanPage() {
           status: item.status || 'Successful',
           shift: item.shift,
           shiftSupervisor: item.shiftSupervisor
-        })));
+        }));
+        console.log('Mapped drill reports:', mapped);
+        setDrillReports(mapped);
+      } else {
+        console.warn('No drill reports content found in response');
       }
-    } catch {
-      // Silent failure keeps UI stable
+    } catch (error) {
+      console.error('Error loading drill reports:', error);
     }
   }, [programId]);
 
@@ -870,7 +881,11 @@ export default function FirePlanPage() {
       });
 
       if (response.ok) {
+        const savedReport = await response.json();
+        console.log('Drill report saved successfully:', savedReport);
+        
         addToast('Fire drill report saved successfully', 'success');
+        
         // Reset form
         setDrillReport({
           drillDate: '',
@@ -890,10 +905,17 @@ export default function FirePlanPage() {
           certificationComplete: false,
           signatureDatetime: ''
         });
+        
+        // Small delay to ensure backend transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Load updated drill reports and switch to archive tab
+        console.log('Loading drill reports after save...');
         await loadDrillReports();
         setActiveTab('archive');
       } else {
+        const errorText = await response.text();
+        console.error('Failed to save drill report:', response.status, errorText);
         addToast('Failed to save drill report', 'error');
       }
     } catch (error) {
