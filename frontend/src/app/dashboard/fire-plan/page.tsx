@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { logoUrl } from '../../utils/logo';
 import { abbreviateTitle } from '../../utils/titleAbbrev';
 
@@ -185,6 +185,39 @@ export default function FirePlanPage() {
     })();
   }, []);
 
+  // Reusable function to load drill reports
+  const loadDrillReports = useCallback(async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const commonHeaders: HeadersInit = {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/fire-plan/drills?page=0&size=100`, {
+        credentials: 'include',
+        headers: commonHeaders,
+      });
+      if (!res.ok) return;
+      const data: any = await res.json();
+      if (data.content && Array.isArray(data.content)) {
+        setDrillReports(data.content.map((item: any) => ({
+          id: item.id,
+          drillDate: item.drillDate,
+          drillTime: item.drillTime,
+          drillType: item.drillType,
+          totalEvacuationTime: item.totalEvacuationTime || 'N/A',
+          status: item.status || 'Successful',
+          shift: item.shift,
+          shiftSupervisor: item.shiftSupervisor
+        })));
+      }
+    } catch {
+      // Silent failure keeps UI stable
+    }
+  }, [programId]);
+
   // Load staff assignments, residents, and current fire plan for the current program
   useEffect(() => {
     if (!programId) return;
@@ -282,37 +315,11 @@ export default function FirePlanPage() {
       }
     };
 
-    const loadDrillReports = async () => {
-      if (!programId) return;
-      try {
-        const res = await fetch(`/api/programs/${programId}/fire-plan/drills?page=0&size=100`, {
-          credentials: 'include',
-          headers: commonHeaders,
-        });
-        if (!res.ok) return;
-        const data: any = await res.json();
-        if (data.content && Array.isArray(data.content)) {
-          setDrillReports(data.content.map((item: any) => ({
-            id: item.id,
-            drillDate: item.drillDate,
-            drillTime: item.drillTime,
-            drillType: item.drillType,
-            totalEvacuationTime: item.totalEvacuationTime || 'N/A',
-            status: item.status || 'Successful',
-            shift: item.shift,
-            shiftSupervisor: item.shiftSupervisor
-          })));
-        }
-      } catch {
-        // Silent failure keeps UI stable
-      }
-    };
-
     loadAssignments();
     loadResidents();
     loadPlan();
     loadDrillReports();
-  }, [programId]);
+  }, [programId, loadDrillReports]);
 
   // Normalize assignments to unique staff per email so counts and lists don't duplicate people
   const uniqueAssignments: AssignmentLite[] = useMemo(() => {
