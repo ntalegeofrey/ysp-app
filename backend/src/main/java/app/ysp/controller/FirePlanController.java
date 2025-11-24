@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/programs/{id}/fire-plan")
+@RequestMapping("/programs/{id}/fire-plan")
 public class FirePlanController {
 
     private final ProgramRepository programs;
