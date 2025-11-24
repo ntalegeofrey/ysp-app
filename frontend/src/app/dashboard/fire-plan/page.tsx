@@ -92,6 +92,41 @@ export default function FirePlanPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<'unsaved' | 'saving' | 'saved'>('unsaved');
 
+  // Drill Report Form State
+  const [drillReport, setDrillReport] = useState({
+    drillDate: '',
+    drillTime: '',
+    drillType: 'Scheduled Drill',
+    shift: 'Day Shift (7:00 AM - 3:00 PM)',
+    shiftSupervisor: '',
+    reportCompletedBy: '',
+    totalEvacuationTime: '',
+    weatherConditions: 'Clear',
+    totalStaffPresent: 0,
+    totalResidentsPresent: 0,
+    overallPerformance: '',
+    issuesIdentified: '',
+    recommendations: '',
+    routePerformance: [] as Array<{routeName: string; time: string; issues: string}>,
+    certificationComplete: false,
+    signatureDatetime: ''
+  });
+
+  // Drill Archive State
+  type DrillReportItem = {
+    id: number;
+    drillDate: string;
+    drillTime: string;
+    drillType: string;
+    totalEvacuationTime: string;
+    status: string;
+    shift: string;
+    shiftSupervisor: string;
+  };
+  const [drillReports, setDrillReports] = useState<DrillReportItem[]>([]);
+  const [drillSearchQuery, setDrillSearchQuery] = useState('');
+  const [drillTypeFilter, setDrillTypeFilter] = useState('All Types');
+
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
   const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -247,9 +282,36 @@ export default function FirePlanPage() {
       }
     };
 
+    const loadDrillReports = async () => {
+      if (!programId) return;
+      try {
+        const res = await fetch(`/api/programs/${programId}/fire-plan/drills?page=0&size=100`, {
+          credentials: 'include',
+          headers: commonHeaders,
+        });
+        if (!res.ok) return;
+        const data: any = await res.json();
+        if (data.content && Array.isArray(data.content)) {
+          setDrillReports(data.content.map((item: any) => ({
+            id: item.id,
+            drillDate: item.drillDate,
+            drillTime: item.drillTime,
+            drillType: item.drillType,
+            totalEvacuationTime: item.totalEvacuationTime || 'N/A',
+            status: item.status || 'Successful',
+            shift: item.shift,
+            shiftSupervisor: item.shiftSupervisor
+          })));
+        }
+      } catch {
+        // Silent failure keeps UI stable
+      }
+    };
+
     loadAssignments();
     loadResidents();
     loadPlan();
+    loadDrillReports();
   }, [programId]);
 
   // Normalize assignments to unique staff per email so counts and lists don't duplicate people
@@ -292,6 +354,12 @@ export default function FirePlanPage() {
   const tabBtnActive = 'border-primary text-primary';
 
   const handlePrint = () => {
+    // Print drill report if on report tab, otherwise print fire plan
+    if (activeTab === 'report') {
+      printDrillReport();
+      return;
+    }
+
     try {
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
@@ -584,9 +652,270 @@ export default function FirePlanPage() {
       addToast('Failed to open print view', 'error');
     }
   };
+
+  const printDrillReport = () => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print drill report', 'error');
+        return;
+      }
+
+      const dateStr = drillReport.drillDate ? new Date(drillReport.drillDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      const timeStr = drillReport.drillTime || 'N/A';
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fire Drill Report - ${programName || 'Program'}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #dc2626; padding-bottom: 20px; }
+    .logo { width: 120px; height: auto; margin-bottom: 15px; }
+    h1 { font-size: 28px; color: #dc2626; margin-bottom: 10px; }
+    .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
+    .section { margin-bottom: 25px; page-break-inside: avoid; }
+    .section-title { font-size: 18px; font-weight: bold; color: #dc2626; margin-bottom: 12px; border-bottom: 2px solid #fee; padding-bottom: 5px; }
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; }
+    .info-item { padding: 10px; background: #fef2f2; border-radius: 4px; }
+    .info-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+    .info-value { font-size: 14px; color: #1a1a1a; }
+    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #dc2626; margin-bottom: 15px; }
+    .text-label { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 600; }
+    .text-content { font-size: 14px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }
+    @media print { body { padding: 20px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" alt="Logo" class="logo" />
+    <h1>Fire Drill Report</h1>
+    <div class="subtitle">${programName || 'Program Name'}</div>
+    <div class="subtitle">Generated: ${new Date().toLocaleString()}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Basic Drill Information</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Drill Date</div>
+        <div class="info-value">${dateStr}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Drill Time</div>
+        <div class="info-value">${timeStr}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Drill Type</div>
+        <div class="info-value">${drillReport.drillType}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Shift & Staff Information</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Shift</div>
+        <div class="info-value">${drillReport.shift}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Shift Supervisor</div>
+        <div class="info-value">${drillReport.shiftSupervisor || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Report Completed By</div>
+        <div class="info-value">${drillReport.reportCompletedBy || 'N/A'}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Performance Metrics</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Total Evacuation Time</div>
+        <div class="info-value">${drillReport.totalEvacuationTime || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Weather Conditions</div>
+        <div class="info-value">${drillReport.weatherConditions}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Staff Present</div>
+        <div class="info-value">${drillReport.totalStaffPresent}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Residents Present</div>
+        <div class="info-value">${drillReport.totalResidentsPresent}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Drill Assessment</div>
+    <div class="text-block">
+      <div class="text-label">Overall Drill Performance</div>
+      <div class="text-content">${drillReport.overallPerformance || 'No performance notes provided.'}</div>
+    </div>
+    <div class="text-block">
+      <div class="text-label">Issues/Bottlenecks Identified</div>
+      <div class="text-content">${drillReport.issuesIdentified || 'No issues identified.'}</div>
+    </div>
+    <div class="text-block">
+      <div class="text-label">Recommendations for Improvement</div>
+      <div class="text-content">${drillReport.recommendations || 'No recommendations provided.'}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Certification</div>
+    <div class="info-item">
+      <div class="info-label">Certification Status</div>
+      <div class="info-value">${drillReport.certificationComplete ? 'Certified ✓' : 'Not Certified'}</div>
+    </div>
+    <div class="info-item" style="margin-top: 10px;">
+      <div class="info-label">Signature Date & Time</div>
+      <div class="info-value">${drillReport.signatureDatetime ? new Date(drillReport.signatureDatetime).toLocaleString() : 'N/A'}</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>This is an official fire drill report generated by the YSP Fire Safety Management System</p>
+    <p>Report generated on ${new Date().toLocaleString()}</p>
+  </div>
+</body>
+</html>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+
+      addToast('Drill report opened in new tab', 'success');
+    } catch (error) {
+      console.error('Print error:', error);
+      addToast('Failed to open print view', 'error');
+    }
+  };
+
   const handleExport = () => addToast('Exporting archive...', 'info');
-  const handleSaveReport = () => addToast('Drill report saved.', 'success');
-  const handleCancelReport = () => addToast('Canceled.', 'info');
+  
+  const handleSaveReport = async () => {
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+
+    // Validation
+    if (!drillReport.drillDate) {
+      addToast('Please enter drill date', 'error');
+      return;
+    }
+    if (!drillReport.drillTime) {
+      addToast('Please enter drill time', 'error');
+      return;
+    }
+    if (!drillReport.certificationComplete) {
+      addToast('Please certify the report before saving', 'error');
+      return;
+    }
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      const response = await fetch(`/api/programs/${programId}/fire-plan/drills`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          drillDate: drillReport.drillDate,
+          drillTime: drillReport.drillTime,
+          drillType: drillReport.drillType,
+          shift: drillReport.shift,
+          shiftSupervisor: drillReport.shiftSupervisor,
+          reportCompletedBy: drillReport.reportCompletedBy,
+          totalEvacuationTime: drillReport.totalEvacuationTime,
+          weatherConditions: drillReport.weatherConditions,
+          totalStaffPresent: drillReport.totalStaffPresent,
+          totalResidentsPresent: drillReport.totalResidentsPresent,
+          overallPerformance: drillReport.overallPerformance,
+          issuesIdentified: drillReport.issuesIdentified,
+          recommendations: drillReport.recommendations,
+          routePerformance: drillReport.routePerformance,
+          certificationComplete: drillReport.certificationComplete,
+          signatureDatetime: drillReport.signatureDatetime || new Date().toISOString(),
+          status: 'Successful'
+        }),
+      });
+
+      if (response.ok) {
+        addToast('Fire drill report saved successfully', 'success');
+        // Reset form
+        setDrillReport({
+          drillDate: '',
+          drillTime: '',
+          drillType: 'Scheduled Drill',
+          shift: 'Day Shift (7:00 AM - 3:00 PM)',
+          shiftSupervisor: '',
+          reportCompletedBy: '',
+          totalEvacuationTime: '',
+          weatherConditions: 'Clear',
+          totalStaffPresent: 0,
+          totalResidentsPresent: 0,
+          overallPerformance: '',
+          issuesIdentified: '',
+          recommendations: '',
+          routePerformance: [],
+          certificationComplete: false,
+          signatureDatetime: ''
+        });
+        // Load updated drill reports and switch to archive tab
+        await loadDrillReports();
+        setActiveTab('archive');
+      } else {
+        addToast('Failed to save drill report', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving drill report:', error);
+      addToast('Failed to save drill report', 'error');
+    }
+  };
+
+  const handleCancelReport = () => {
+    setDrillReport({
+      drillDate: '',
+      drillTime: '',
+      drillType: 'Scheduled Drill',
+      shift: 'Day Shift (7:00 AM - 3:00 PM)',
+      shiftSupervisor: '',
+      reportCompletedBy: '',
+      totalEvacuationTime: '',
+      weatherConditions: 'Clear',
+      totalStaffPresent: 0,
+      totalResidentsPresent: 0,
+      overallPerformance: '',
+      issuesIdentified: '',
+      recommendations: '',
+      routePerformance: [],
+      certificationComplete: false,
+      signatureDatetime: ''
+    });
+    addToast('Drill report cancelled', 'info');
+  };
   const handleUpdateFloorPlan = () => addToast('Upload floor plan coming soon.', 'info');
 
   const handleSaveFirePlan = async () => {
@@ -1486,15 +1815,15 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Drill Date</label>
-                  <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.drillDate} onChange={(e) => setDrillReport({...drillReport, drillDate: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Drill Time</label>
-                  <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.drillTime} onChange={(e) => setDrillReport({...drillReport, drillTime: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Drill Type</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.drillType} onChange={(e) => setDrillReport({...drillReport, drillType: e.target.value})}>
                     <option>Scheduled Drill</option>
                     <option>Unannounced Drill</option>
                     <option>Actual Emergency</option>
@@ -1508,7 +1837,7 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.shift} onChange={(e) => setDrillReport({...drillReport, shift: e.target.value})}>
                     <option>Day Shift (7:00 AM - 3:00 PM)</option>
                     <option>Evening Shift (3:00 PM - 11:00 PM)</option>
                     <option>Night Shift (11:00 PM - 7:00 AM)</option>
@@ -1516,20 +1845,11 @@ export default function FirePlanPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Shift Supervisor</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
-                    <option>John Smith - Shift Supervisor</option>
-                    <option>Mary Johnson - Assistant Supervisor</option>
-                    <option>Robert Brown - Senior JJYDS</option>
-                  </select>
+                  <input type="text" placeholder="Select or enter name" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.shiftSupervisor} onChange={(e) => setDrillReport({...drillReport, shiftSupervisor: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Report Completed By</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
-                    <option>John Smith - Shift Supervisor</option>
-                    <option>Mary Johnson - Assistant Supervisor</option>
-                    <option>Kevin Williams - JJYDS I</option>
-                    <option>Lisa Davis - Support Staff</option>
-                  </select>
+                  <input type="text" placeholder="Select or enter name" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.reportCompletedBy} onChange={(e) => setDrillReport({...drillReport, reportCompletedBy: e.target.value})} />
                 </div>
               </div>
             </div>
@@ -1539,11 +1859,11 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Total Evacuation Time</label>
-                  <input type="text" placeholder="e.g., 4 minutes 30 seconds" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <input type="text" placeholder="e.g., 4 minutes 30 seconds" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalEvacuationTime} onChange={(e) => setDrillReport({...drillReport, totalEvacuationTime: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Weather Conditions</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary">
+                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.weatherConditions} onChange={(e) => setDrillReport({...drillReport, weatherConditions: e.target.value})}>
                     <option>Clear</option>
                     <option>Rainy</option>
                     <option>Snowy</option>
@@ -1552,11 +1872,11 @@ export default function FirePlanPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Total Staff Present</label>
-                  <input type="number" placeholder="12" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <input type="number" placeholder="12" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalStaffPresent} onChange={(e) => setDrillReport({...drillReport, totalStaffPresent: parseInt(e.target.value) || 0})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Total Residents Present</label>
-                  <input type="number" placeholder="24" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <input type="number" placeholder="24" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalResidentsPresent} onChange={(e) => setDrillReport({...drillReport, totalResidentsPresent: parseInt(e.target.value) || 0})} />
                 </div>
               </div>
             </div>
@@ -1566,15 +1886,15 @@ export default function FirePlanPage() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Overall Drill Performance</label>
-                  <textarea rows={4} placeholder="Describe overall performance, staff response, resident compliance, coordination effectiveness..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <textarea rows={4} placeholder="Describe overall performance, staff response, resident compliance, coordination effectiveness..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.overallPerformance} onChange={(e) => setDrillReport({...drillReport, overallPerformance: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Issues/Bottlenecks Identified</label>
-                  <textarea rows={4} placeholder="Detail any delays, blocked routes, equipment issues, communication problems..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <textarea rows={4} placeholder="Detail any delays, blocked routes, equipment issues, communication problems..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.issuesIdentified} onChange={(e) => setDrillReport({...drillReport, issuesIdentified: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Recommendations for Improvement</label>
-                  <textarea rows={4} placeholder="Suggested improvements, training needs, equipment updates, procedure changes..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                  <textarea rows={4} placeholder="Suggested improvements, training needs, equipment updates, procedure changes..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.recommendations} onChange={(e) => setDrillReport({...drillReport, recommendations: e.target.value})} />
                 </div>
               </div>
             </div>
@@ -1605,7 +1925,7 @@ export default function FirePlanPage() {
               <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
                 <div className="space-y-4">
                   <label className="flex items-start gap-3 text-sm">
-                    <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                    <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" checked={drillReport.certificationComplete} onChange={(e) => setDrillReport({...drillReport, certificationComplete: e.target.checked})} />
                     <span>I certify that the information provided in this fire drill report is accurate and complete to the best of my knowledge.</span>
                   </label>
                   <label className="flex items-start gap-3 text-sm">
@@ -1626,7 +1946,7 @@ export default function FirePlanPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Date & Time</label>
-                        <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                        <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.signatureDatetime} onChange={(e) => setDrillReport({...drillReport, signatureDatetime: e.target.value})} />
                       </div>
                     </div>
                   </div>
@@ -1654,11 +1974,21 @@ export default function FirePlanPage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
-                <input type="text" placeholder="Search drills..." className="border border-bd rounded-lg px-3 py-2 text-sm w-64" />
-                <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                <input 
+                  type="text" 
+                  placeholder="Search drills..." 
+                  className="border border-bd rounded-lg px-3 py-2 text-sm w-64"
+                  value={drillSearchQuery}
+                  onChange={(e) => setDrillSearchQuery(e.target.value)}
+                />
+                <select 
+                  className="border border-bd rounded-lg px-3 py-2 text-sm"
+                  value={drillTypeFilter}
+                  onChange={(e) => setDrillTypeFilter(e.target.value)}
+                >
                   <option>All Types</option>
-                  <option>Scheduled</option>
-                  <option>Unannounced</option>
+                  <option>Scheduled Drill</option>
+                  <option>Unannounced Drill</option>
                   <option>Actual Emergency</option>
                 </select>
               </div>
@@ -1675,38 +2005,61 @@ export default function FirePlanPage() {
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Date</th>
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Time</th>
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Type</th>
+                    <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Shift</th>
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Duration</th>
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Status</th>
                     <th className="border border-bd p-3 text-left text-sm font-medium text-font-base">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="border border-bd p-3 text-sm">Oct 15, 2024</td>
-                    <td className="border border-bd p-3 text-sm">2:30 PM</td>
-                    <td className="border border-bd p-3 text-sm">Scheduled</td>
-                    <td className="border border-bd p-3 text-sm">4:30</td>
-                    <td className="border border-bd p-3 text-sm">
-                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Successful</span>
-                    </td>
-                    <td className="border border-bd p-3 text-sm">
-                      <button className="text-primary hover:underline mr-2">View</button>
-                      <button className="text-primary hover:underline">Print</button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border border-bd p-3 text-sm">Oct 1, 2024</td>
-                    <td className="border border-bd p-3 text-sm">10:15 AM</td>
-                    <td className="border border-bd p-3 text-sm">Unannounced</td>
-                    <td className="border border-bd p-3 text-sm">5:45</td>
-                    <td className="border border-bd p-3 text-sm">
-                      <span className="bg-warning text-white px-2 py-1 rounded text-xs">Issues Found</span>
-                    </td>
-                    <td className="border border-bd p-3 text-sm">
-                      <button className="text-primary hover:underline mr-2">View</button>
-                      <button className="text-primary hover:underline">Print</button>
-                    </td>
-                  </tr>
+                  {drillReports
+                    .filter(drill => {
+                      // Filter by type
+                      if (drillTypeFilter !== 'All Types' && drill.drillType !== drillTypeFilter) {
+                        return false;
+                      }
+                      // Filter by search query
+                      if (drillSearchQuery) {
+                        const query = drillSearchQuery.toLowerCase();
+                        return (
+                          drill.drillDate?.toLowerCase().includes(query) ||
+                          drill.drillType?.toLowerCase().includes(query) ||
+                          drill.shiftSupervisor?.toLowerCase().includes(query) ||
+                          drill.status?.toLowerCase().includes(query)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((drill) => {
+                      const dateFormatted = drill.drillDate ? new Date(drill.drillDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+                      const timeFormatted = drill.drillTime || 'N/A';
+                      const statusColor = drill.status === 'Successful' ? 'bg-success' : drill.status === 'Issues Found' ? 'bg-warning' : 'bg-error';
+                      
+                      return (
+                        <tr key={drill.id}>
+                          <td className="border border-bd p-3 text-sm">{dateFormatted}</td>
+                          <td className="border border-bd p-3 text-sm">{timeFormatted}</td>
+                          <td className="border border-bd p-3 text-sm">{drill.drillType}</td>
+                          <td className="border border-bd p-3 text-sm">{drill.shift || 'N/A'}</td>
+                          <td className="border border-bd p-3 text-sm">{drill.totalEvacuationTime}</td>
+                          <td className="border border-bd p-3 text-sm">
+                            <span className={`${statusColor} text-white px-2 py-1 rounded text-xs`}>{drill.status}</span>
+                          </td>
+                          <td className="border border-bd p-3 text-sm">
+                            <button className="text-primary hover:underline mr-2" onClick={() => addToast('View drill details coming soon', 'info')}>View</button>
+                            <button className="text-primary hover:underline" onClick={() => addToast('Print individual drill coming soon', 'info')}>Print</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {drillReports.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="border border-bd p-8 text-center text-sm text-font-detail">
+                        <i className="fa-solid fa-inbox text-3xl text-font-detail mb-3 block"></i>
+                        No drill reports found. Create your first drill report in the &quot;Drill Report&quot; tab.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
