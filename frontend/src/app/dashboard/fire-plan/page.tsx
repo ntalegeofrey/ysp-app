@@ -53,6 +53,8 @@ export default function FirePlanPage() {
     staffNames: string[];
     assignmentType: string;
     residentName: string;
+    // Optional list of resident IDs this assignment covers (newer data will include this)
+    residentIds?: string[];
   };
   const [plannedAssignments, setPlannedAssignments] = useState<PlannedAssignment[]>([]);
 
@@ -317,15 +319,44 @@ export default function FirePlanPage() {
       return full || `Resident #${r.id}`;
     });
     const residentName = residentNamesArr.join(', ');
+    const newAssignment: PlannedAssignment = {
+      staffNames,
+      assignmentType: selectedAssignmentType,
+      residentName,
+      residentIds: selectedResidentIds,
+    };
 
-    const updated = [
-      ...plannedAssignments,
-      {
-        staffNames,
-        assignmentType: selectedAssignmentType,
-        residentName,
-      },
-    ];
+    // Start from current assignments and enforce rules:
+    // 1) For each resident, only one assignment per type.
+    // 2) 1:1 Separation overrides Primary/Secondary for those residents.
+    let next = plannedAssignments;
+
+    const hasResidentOverlap = (assignment: PlannedAssignment, targetIds: string[]) => {
+      if (!assignment.residentIds || assignment.residentIds.length === 0) return false;
+      return assignment.residentIds.some((id) => targetIds.includes(id));
+    };
+
+    if (selectedAssignmentType === '1:1 Separation') {
+      // Remove all existing assignments (any type) that involve these residents,
+      // then add the new 1:1 Separation assignment.
+      next = next.filter((a) => !hasResidentOverlap(a, selectedResidentIds));
+    } else {
+      // Primary or Secondary: remove any existing assignment of the same type
+      // for these residents so the new configuration replaces it.
+      next = next.filter(
+        (a) =>
+          !(
+            a.assignmentType === selectedAssignmentType &&
+            hasResidentOverlap(a, selectedResidentIds)
+          )
+      );
+
+      // Also, if there is an existing 1:1 Separation for these residents, keep it.
+      // The rule "Separation overrides" is effectively enforced when user
+      // explicitly adds a Separation assignment.
+    }
+
+    const updated = [...next, newAssignment];
 
     setPlannedAssignments(updated);
 
@@ -392,7 +423,11 @@ export default function FirePlanPage() {
       status: selectedRouteStatus,
     };
 
-    const updated = [...evacuationRoutes, newRoute];
+    const updated = [
+      // Ensure a single route per routeName – new configuration overwrites the old one
+      ...evacuationRoutes.filter((r) => r.routeName !== selectedRouteName),
+      newRoute,
+    ];
     setEvacuationRoutes(updated);
 
     if (currentPlanId && programId) {
@@ -457,7 +492,13 @@ export default function FirePlanPage() {
       notes: selectedAssemblyNotes,
     };
 
-    const updated = [...assemblyPoints, newAssembly];
+    const updated = [
+      // Ensure a single configuration per Assembly Point + Route Type
+      ...assemblyPoints.filter(
+        (p) => !(p.pointName === selectedAssemblyPoint && p.routeType === selectedAssemblyRouteType)
+      ),
+      newAssembly,
+    ];
     setAssemblyPoints(updated);
 
     if (currentPlanId && programId) {
@@ -591,14 +632,8 @@ export default function FirePlanPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="border border-bd rounded-lg p-4">
-                  <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
-                  {/* Configuration controls (aligned neatly on one horizontal row) */}
-                  <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-                    <div className="flex flex-col justify-center h-full">
-                      <label className="block text-xs font-medium text-font-detail mb-1">Staff Member</label>
-                      <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2 space-y-4">
                         {selectableStaff.map((s, idx) => {
                           const id = String(s.userEmail || `staff-${idx}`);
                           const emailKey = (s.userEmail || '').toLowerCase();
@@ -716,155 +751,157 @@ export default function FirePlanPage() {
                   </div>
                 </div>
 
-                <div className="border border-bd rounded-lg p-4">
-                  <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
-                  {/* Configuration controls */}
-                  <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-font-detail mb-1">Route</label>
-                      <select
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedRouteName}
-                        onChange={(e) => setSelectedRouteName(e.target.value)}
-                      >
-                        <option>Primary Route A</option>
-                        <option>Secondary Route B</option>
-                        <option>Separation Route C</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-font-detail mb-1">Units / Flow</label>
-                      <input
-                        type="text"
-                        placeholder="Describe route flow..."
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedRouteFlow}
-                        onChange={(e) => setSelectedRouteFlow(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <select
-                        className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedRouteStatus}
-                        onChange={(e) => setSelectedRouteStatus(e.target.value)}
-                      >
-                        <option>Available</option>
-                        <option>Restricted</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAddRoute}
-                        className="bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light whitespace-nowrap"
-                      >
-                        Add Route
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {evacuationRoutes.length === 0 && (
-                      <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                        No evacuation routes added
+                <div className="space-y-4">
+                  <div className="border border-bd rounded-lg p-4">
+                    <h4 className="font-semibold text-font-base mb-4">Evacuation Routes</h4>
+                    {/* Configuration controls */}
+                    <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-font-detail mb-1">Route</label>
+                        <select
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedRouteName}
+                          onChange={(e) => setSelectedRouteName(e.target.value)}
+                        >
+                          <option>Primary Route A</option>
+                          <option>Secondary Route B</option>
+                          <option>Separation Route C</option>
+                        </select>
                       </div>
-                    )}
-                    {evacuationRoutes.map((route, idx) => (
-                      <div key={idx} className="border border-bd rounded-lg p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-font-base">{route.routeName}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={getRouteBadgeClass(route.status)}>{route.status}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRoute(idx)}
-                              className="text-error hover:text-error-dark"
-                              title="Remove route"
-                            >
-                              <i className="fa-solid fa-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-sm text-font-detail">{route.flow}</div>
+                      <div>
+                        <label className="block text-xs font-medium text-font-detail mb-1">Units / Flow</label>
+                        <input
+                          type="text"
+                          placeholder="Describe route flow..."
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedRouteFlow}
+                          onChange={(e) => setSelectedRouteFlow(e.target.value)}
+                        />
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Assembly Points & Safety Zones */}
-                <div className="border border-bd rounded-lg p-4">
-                  <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
-                  {/* Configuration controls */}
-                  <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-font-detail mb-1">Assembly Point</label>
-                      <select
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedAssemblyPoint}
-                        onChange={(e) => setSelectedAssemblyPoint(e.target.value)}
-                      >
-                        <option>Assembly Point 1</option>
-                        <option>Assembly Point 2</option>
-                        <option>Assembly Point 3</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-font-detail mb-1">Route Type</label>
-                      <select
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedAssemblyRouteType}
-                        onChange={(e) => setSelectedAssemblyRouteType(e.target.value)}
-                      >
-                        <option>Primary</option>
-                        <option>Secondary</option>
-                        <option>Separation</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-font-detail mb-1">Flow / Notes</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Units A & B to Point 1"
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                        value={selectedAssemblyNotes}
-                        onChange={(e) => setSelectedAssemblyNotes(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={handleAddAssembly}
-                        className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
-                      >
-                        Add Assembly
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {assemblyPoints.length === 0 && (
-                      <div className="col-span-3 border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
-                        No assembly points added
-                      </div>
-                    )}
-                    {assemblyPoints.map((point, idx) => (
-                      <div key={idx} className="border border-bd rounded-lg p-4 text-center relative">
+                      <div className="flex items-end gap-2">
+                        <select
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedRouteStatus}
+                          onChange={(e) => setSelectedRouteStatus(e.target.value)}
+                        >
+                          <option>Available</option>
+                          <option>Restricted</option>
+                        </select>
                         <button
                           type="button"
-                          onClick={() => handleRemoveAssembly(idx)}
-                          className="absolute top-2 right-2 text-error hover:text-error-dark"
-                          title="Remove assembly point"
+                          onClick={handleAddRoute}
+                          className="bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light whitespace-nowrap"
                         >
-                          <i className="fa-solid fa-trash"></i>
+                          Add Route
                         </button>
-                        <div className={`w-12 h-12 ${getAssemblyBadgeClass(point.routeType)} rounded-full flex items-center justify-center mx-auto mb-3`}>
-                          <i className={`fa-solid fa-${idx + 1} text-white`}></i>
-                        </div>
-                        <h5 className="font-medium text-font-base mb-2">{point.pointName}</h5>
-                        <div className="text-sm text-font-detail">{point.routeType}<br/>{point.notes}</div>
                       </div>
-                    ))}
+                    </div>
+                    <div className="space-y-3">
+                      {evacuationRoutes.length === 0 && (
+                        <div className="border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
+                          No evacuation routes added
+                        </div>
+                      )}
+                      {evacuationRoutes.map((route, idx) => (
+                        <div key={idx} className="border border-bd rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium text-font-base">{route.routeName}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={getRouteBadgeClass(route.status)}>{route.status}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRoute(idx)}
+                                className="text-error hover:text-error-dark"
+                                title="Remove route"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-sm text-font-detail">{route.flow}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Assembly Points & Safety Zones */}
+                  <div className="border border-bd rounded-lg p-4">
+                    <h4 className="font-semibold text-font-base mb-4">Assembly Points & Safety Zones</h4>
+                    {/* Configuration controls */}
+                    <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-font-detail mb-1">Assembly Point</label>
+                        <select
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedAssemblyPoint}
+                          onChange={(e) => setSelectedAssemblyPoint(e.target.value)}
+                        >
+                          <option>Assembly Point 1</option>
+                          <option>Assembly Point 2</option>
+                          <option>Assembly Point 3</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-font-detail mb-1">Route Type</label>
+                        <select
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedAssemblyRouteType}
+                          onChange={(e) => setSelectedAssemblyRouteType(e.target.value)}
+                        >
+                          <option>Primary</option>
+                          <option>Secondary</option>
+                          <option>Separation</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-font-detail mb-1">Flow / Notes</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Units A & B to Point 1"
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                          value={selectedAssemblyNotes}
+                          onChange={(e) => setSelectedAssemblyNotes(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={handleAddAssembly}
+                          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-light"
+                        >
+                          Add Assembly
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      {assemblyPoints.length === 0 && (
+                        <div className="col-span-3 border border-dashed border-bd rounded-lg p-4 text-sm text-font-detail text-center">
+                          No assembly points added
+                        </div>
+                      )}
+                      {assemblyPoints.map((point, idx) => (
+                        <div key={idx} className="border border-bd rounded-lg p-4 text-center relative">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAssembly(idx)}
+                            className="absolute top-2 right-2 text-error hover:text-error-dark"
+                            title="Remove assembly point"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                          <div className={`w-12 h-12 ${getAssemblyBadgeClass(point.routeType)} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                            <i className={`fa-solid fa-${idx + 1} text-white`}></i>
+                          </div>
+                          <h5 className="font-medium text-font-base mb-2">{point.pointName}</h5>
+                          <div className="text-sm text-font-detail">{point.routeType}<br/>{point.notes}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </div>
             </div>
           </div>
-        </div>
         </div>
       )}
 
