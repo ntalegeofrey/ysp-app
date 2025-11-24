@@ -382,9 +382,9 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-1 gap-3">
                 <div>
                   <h4 className="font-semibold text-font-base mb-4">Staff Assignments</h4>
-                  {/* Configuration controls (placeholder, non-destructive) */}
-                  <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div>
+                  {/* Configuration controls (aligned neatly on one horizontal row) */}
+                  <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                    <div className="flex flex-col justify-center h-full">
                       <label className="block text-xs font-medium text-font-detail mb-1">Staff Member</label>
                       <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
                         {selectableStaff.map((s, idx) => {
@@ -421,10 +421,10 @@ export default function FirePlanPage() {
                       </div>
                       <span className="mt-1 block text-xs text-font-detail">Check one or more staff for this route.</span>
                     </div>
-                    <div>
+                    <div className="flex flex-col justify-center h-full">
                       <label className="block text-xs font-medium text-font-detail mb-1">Assignment Type</label>
                       <select
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
                         value={selectedAssignmentType}
                         onChange={(e) => setSelectedAssignmentType(e.target.value)}
                       >
@@ -433,7 +433,7 @@ export default function FirePlanPage() {
                         <option value="1:1 Separation">1:1 Separation</option>
                       </select>
                     </div>
-                    <div>
+                    <div className="flex flex-col justify-center h-full">
                       <label className="block text-xs font-medium text-font-detail mb-1">Residents</label>
                       <div className="w-full h-24 border border-bd rounded-lg px-3 py-2 text-sm overflow-y-auto space-y-1">
                         {residents.map((r) => {
@@ -459,7 +459,7 @@ export default function FirePlanPage() {
                       </div>
                       <span className="mt-1 block text-xs text-font-detail">Choose one resident for this assignment.</span>
                     </div>
-                    <div className="flex items-end">
+                    <div className="flex items-center justify-center h-full">
                       <button
                         type="button"
                         onClick={handleAddAssignment}
