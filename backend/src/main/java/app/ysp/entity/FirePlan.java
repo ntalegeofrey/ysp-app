@@ -39,13 +39,13 @@ public class FirePlan {
     @Column(name = "status")
     private String status; // Active, Archived
 
-    @Column(name = "staff_assignments_json", columnDefinition = "jsonb")
+    @Column(name = "staff_assignments_json", columnDefinition = "TEXT")
     private String staffAssignmentsJson;
 
-    @Column(name = "resident_status_json", columnDefinition = "jsonb")
+    @Column(name = "resident_status_json", columnDefinition = "TEXT")
     private String residentStatusJson;
 
-    @Column(name = "route_config_json", columnDefinition = "jsonb")
+    @Column(name = "route_config_json", columnDefinition = "TEXT")
     private String routeConfigJson;
 
     @Column(name = "created_at")
