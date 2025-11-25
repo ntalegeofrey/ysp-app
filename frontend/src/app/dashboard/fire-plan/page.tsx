@@ -253,6 +253,37 @@ export default function FirePlanPage() {
     }
   }, [programId, pageSize]);
 
+  // Load floor plan details
+  const loadFloorPlanDetails = useCallback(async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const response = await fetch(`/api/programs/${programId}/fire-plan/floor-plan`, {
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFloorPlanImageUrl(data.imageUrl || '');
+        setFloorPlanDetails({
+          lastUpdated: data.lastUpdated || '',
+          scale: data.scale || '1:100',
+          totalExits: data.totalExits || 6,
+          assemblyPoints: data.assemblyPoints || 3,
+          primaryRouteColor: data.primaryRouteColor || '#dc2626',
+          secondaryRouteColor: data.secondaryRouteColor || '#f59e0b',
+          assemblyPointColor: data.assemblyPointColor || '#16a34a'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading floor plan details:', error);
+    }
+  }, [programId]);
+
   // Load staff assignments, residents, and current fire plan for the current program
   useEffect(() => {
     if (!programId) return;
@@ -354,7 +385,8 @@ export default function FirePlanPage() {
     loadResidents();
     loadPlan();
     loadDrillReports();
-  }, [programId, loadDrillReports]);
+    loadFloorPlanDetails();
+  }, [programId, loadDrillReports, loadFloorPlanDetails]);
 
   // Normalize assignments to unique staff per email so counts and lists don't duplicate people
   const uniqueAssignments: AssignmentLite[] = useMemo(() => {
@@ -960,7 +992,11 @@ export default function FirePlanPage() {
     <div class="info-grid">
       <div class="info-item">
         <div class="info-label">Total Evacuation Time</div>
-        <div class="info-value">${fullReport.totalEvacuationTime || 'Not recorded'}</div>
+        <div class="info-value">${fullReport.totalEvacuationTime || 'Not recorded'} ${fullReport.totalEvacuationTime ? 'minutes' : ''}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Evacuation Time Threshold</div>
+        <div class="info-value">${fullReport.evacuationTimeThreshold || 'Not set'} ${fullReport.evacuationTimeThreshold ? 'minutes' : ''}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Weather Conditions</div>
@@ -975,6 +1011,23 @@ export default function FirePlanPage() {
         <div class="info-value">${fullReport.totalResidentsPresent || 0}</div>
       </div>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Resident Accountability</div>
+    <div class="info-grid">
+      <div class="info-item" style="grid-column: span 3; background: ${fullReport.allResidentsAccountedFor ? '#dcfce7' : '#fee2e2'}; border-left-color: ${fullReport.allResidentsAccountedFor ? '#16a34a' : '#dc2626'};">
+        <div class="info-label">All Residents Accounted For</div>
+        <div class="info-value" style="font-weight: bold; color: ${fullReport.allResidentsAccountedFor ? '#16a34a' : '#dc2626'};">
+          ${fullReport.allResidentsAccountedFor ? '✓ YES - All residents accounted for' : '✗ NO - Not all residents accounted for'}
+        </div>
+      </div>
+    </div>
+    ${!fullReport.allResidentsAccountedFor && fullReport.unaccountedResidentsComment ? `
+    <div class="text-block" style="background: #fee2e2; border-left-color: #dc2626; margin-top: 15px;">
+      <div class="info-label" style="margin-bottom: 8px; color: #dc2626;">Unaccounted Residents - Details</div>
+      <div class="text-content">${fullReport.unaccountedResidentsComment}</div>
+    </div>` : ''}
   </div>
 
   <div class="section">
@@ -1012,10 +1065,15 @@ export default function FirePlanPage() {
 
   <div class="section">
     <div class="section-title">Report Status</div>
-    <div class="info-item">
-      <div class="info-label">Status</div>
-      <div class="info-value" style="color: ${fullReport.status === 'Successful' ? '#16a34a' : '#dc2626'}; font-weight: bold;">${fullReport.status || 'Not specified'}</div>
+    <div class="info-item" style="background: ${fullReport.status === 'Successful' ? '#dcfce7' : '#fee2e2'}; border-left-color: ${fullReport.status === 'Successful' ? '#16a34a' : '#dc2626'};">
+      <div class="info-label">Drill Status</div>
+      <div class="info-value" style="color: ${fullReport.status === 'Successful' ? '#16a34a' : '#dc2626'}; font-weight: bold; font-size: 16px;">${fullReport.status || 'Not specified'}</div>
     </div>
+    ${fullReport.statusReason ? `
+    <div class="text-block" style="background: #fee2e2; border-left-color: #dc2626; margin-top: 15px;">
+      <div class="info-label" style="margin-bottom: 8px; color: #dc2626;">Status Reason</div>
+      <div class="text-content">${fullReport.statusReason}</div>
+    </div>` : ''}
   </div>
 
   <div class="footer">
@@ -2233,11 +2291,11 @@ export default function FirePlanPage() {
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Total Evacuation Time (minutes)</label>
-                  <input type="number" step="0.5" placeholder="e.g., 4.5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalEvacuationTime} onChange={(e) => setDrillReport({...drillReport, totalEvacuationTime: e.target.value})} />
+                  <input type="number" step="0.5" min="0" placeholder="e.g., 4.5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalEvacuationTime} onChange={(e) => setDrillReport({...drillReport, totalEvacuationTime: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Time Threshold (minutes)</label>
-                  <input type="number" step="0.5" placeholder="5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.evacuationTimeThreshold} onChange={(e) => setDrillReport({...drillReport, evacuationTimeThreshold: parseFloat(e.target.value) || 5})} />
+                  <input type="number" step="0.5" min="0" placeholder="5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.evacuationTimeThreshold} onChange={(e) => setDrillReport({...drillReport, evacuationTimeThreshold: parseFloat(e.target.value) || 5})} />
                   <p className="text-xs text-font-detail mt-1">Max acceptable evacuation time</p>
                 </div>
                 <div>

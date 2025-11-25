@@ -48,6 +48,28 @@ public class FirePlan {
     @Column(name = "route_config_json", columnDefinition = "TEXT")
     private String routeConfigJson;
 
+    // Floor Plan fields
+    @Column(name = "floor_plan_image_url", columnDefinition = "TEXT")
+    private String floorPlanImageUrl;
+
+    @Column(name = "floor_plan_scale")
+    private String floorPlanScale;
+
+    @Column(name = "floor_plan_total_exits")
+    private Integer floorPlanTotalExits;
+
+    @Column(name = "floor_plan_assembly_points")
+    private Integer floorPlanAssemblyPoints;
+
+    @Column(name = "floor_plan_primary_route_color")
+    private String floorPlanPrimaryRouteColor;
+
+    @Column(name = "floor_plan_secondary_route_color")
+    private String floorPlanSecondaryRouteColor;
+
+    @Column(name = "floor_plan_assembly_point_color")
+    private String floorPlanAssemblyPointColor;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -110,4 +132,26 @@ public class FirePlan {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    // Floor Plan getters and setters
+    public String getFloorPlanImageUrl() { return floorPlanImageUrl; }
+    public void setFloorPlanImageUrl(String floorPlanImageUrl) { this.floorPlanImageUrl = floorPlanImageUrl; }
+
+    public String getFloorPlanScale() { return floorPlanScale; }
+    public void setFloorPlanScale(String floorPlanScale) { this.floorPlanScale = floorPlanScale; }
+
+    public Integer getFloorPlanTotalExits() { return floorPlanTotalExits; }
+    public void setFloorPlanTotalExits(Integer floorPlanTotalExits) { this.floorPlanTotalExits = floorPlanTotalExits; }
+
+    public Integer getFloorPlanAssemblyPoints() { return floorPlanAssemblyPoints; }
+    public void setFloorPlanAssemblyPoints(Integer floorPlanAssemblyPoints) { this.floorPlanAssemblyPoints = floorPlanAssemblyPoints; }
+
+    public String getFloorPlanPrimaryRouteColor() { return floorPlanPrimaryRouteColor; }
+    public void setFloorPlanPrimaryRouteColor(String floorPlanPrimaryRouteColor) { this.floorPlanPrimaryRouteColor = floorPlanPrimaryRouteColor; }
+
+    public String getFloorPlanSecondaryRouteColor() { return floorPlanSecondaryRouteColor; }
+    public void setFloorPlanSecondaryRouteColor(String floorPlanSecondaryRouteColor) { this.floorPlanSecondaryRouteColor = floorPlanSecondaryRouteColor; }
+
+    public String getFloorPlanAssemblyPointColor() { return floorPlanAssemblyPointColor; }
+    public void setFloorPlanAssemblyPointColor(String floorPlanAssemblyPointColor) { this.floorPlanAssemblyPointColor = floorPlanAssemblyPointColor; }
 }
