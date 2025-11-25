@@ -21,6 +21,27 @@ export function generateShiftLogReportHTML(data: any): string {
 
   const staffAssignments = data.staffAssignments || [];
   const equipmentCounts = data.equipmentCounts || {};
+  
+  // Helper to format equipment label (convert camelCase to readable text)
+  const formatEquipmentLabel = (key: string) => {
+    const labelMap: { [key: string]: string } = {
+      'bigsRoomKeys': "BIG's Room Keys",
+      'dutyBelts': 'Duty Belts',
+      'staffKeys': 'Staff Keys',
+      'flashlights': 'Flashlights',
+      'jHooks': 'J-Hooks',
+      'pencils': 'Pencils',
+      'mealCount': 'Meal Count',
+      'recreationEquipment': 'Recreation Equipment'
+    };
+    return labelMap[key] || key.replace(/([A-Z])/g, ' $1').trim();
+  };
+  
+  // Generate signature from name (cursive-like style)
+  const generateSignature = (name: string) => {
+    if (!name) return '';
+    return name;
+  };
 
   return `
 <!DOCTYPE html>
@@ -355,8 +376,8 @@ export function generateShiftLogReportHTML(data: any): string {
       <div class="equipment-grid">
         ${Object.entries(equipmentCounts).map(([key, value]) => `
           <div class="equipment-item">
-            <div class="equipment-label">${key.replace(/([A-Z])/g, ' $1').trim()}</div>
-            <div class="equipment-value">${value}</div>
+            <div class="equipment-label">${formatEquipmentLabel(key)}</div>
+            <div class="equipment-value">${value || 0}</div>
           </div>
         `).join('')}
       </div>
@@ -432,7 +453,9 @@ export function generateShiftLogReportHTML(data: any): string {
       
       <div style="margin-top: 20px;">
         <div style="font-size: 9pt; color: #64748b; margin-bottom: 5px;">Signature:</div>
-        <div class="signature-line"></div>
+        <div class="signature-line" style="font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 24pt; padding: 5px 10px; color: #1e40af;">
+          ${generateSignature(data.reportCompletedBy)}
+        </div>
       </div>
     </div>
   </div>

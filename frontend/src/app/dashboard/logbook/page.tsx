@@ -351,6 +351,13 @@ export default function LogbookPage() {
   
   // Generate and print PDF
   const handlePrintShiftLog = (log: any) => {
+    console.log('Printing shift log with data:', log);
+    console.log('Equipment counts:', log.equipmentCounts);
+    console.log('Certifications:', {
+      certificationComplete: log.certificationComplete,
+      certEquipmentVerified: log.certEquipmentVerified,
+      certShiftEventsAccurate: log.certShiftEventsAccurate
+    });
     const htmlContent = generateShiftLogReportHTML(log);
     const printWindow = window.open('', '', 'height=800,width=800');
     if (printWindow) {
@@ -365,6 +372,13 @@ export default function LogbookPage() {
   
   // View shift log details (opens in new tab for viewing)
   const handleViewShiftLog = (log: any) => {
+    console.log('Viewing shift log with data:', log);
+    console.log('Equipment counts:', log.equipmentCounts);
+    console.log('Certifications:', {
+      certificationComplete: log.certificationComplete,
+      certEquipmentVerified: log.certEquipmentVerified,
+      certShiftEventsAccurate: log.certShiftEventsAccurate
+    });
     const htmlContent = generateShiftLogReportHTML(log);
     const viewWindow = window.open('', '_blank');
     if (viewWindow) {
