@@ -463,6 +463,14 @@ export default function LogbookPage() {
         setShift('Day (7:00 AM - 3:00 PM)');
         setUnitSupervisor('');
         setAddedStaff([]);
+        setEquipmentCounts({
+          bigsRoomKeys: 12,
+          dutyBelts: 8,
+          staffKeys: 8,
+          flashlights: 6,
+          jHooks: 8,
+          pencils: 15
+        });
         setResidentComments('');
         setIncidentsEvents('');
         setOverallStatus('Routine');
@@ -524,11 +532,20 @@ export default function LogbookPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Date</label>
-                        <input type="date" defaultValue="2024-10-28" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input 
+                          type="date" 
+                          value={shiftDate}
+                          onChange={(e) => setShiftDate(e.target.value)}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
-                        <select defaultValue="Night (11:00 PM - 7:00 AM)" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                        <select 
+                          value={shift}
+                          onChange={(e) => setShift(e.target.value)}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
                           <option>Day (7:00 AM - 3:00 PM)</option>
                           <option>Evening (3:00 PM - 11:00 PM)</option>
                           <option>Night (11:00 PM - 7:00 AM)</option>
@@ -710,22 +727,78 @@ export default function LogbookPage() {
                 </div>
                 <div>
                   <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { label: 'BIGs (Room Keys)', val: 12, ok: true },
-                      { label: 'Duty Belts', val: 8, ok: true },
-                      { label: 'Staff Keys', val: 8, ok: true },
-                      { label: 'Flashlights', val: 6, ok: false },
-                      { label: 'J-Hooks', val: 8, ok: true },
-                      { label: 'Pencils', val: 15, ok: true },
-                    ].map((i) => (
-                      <div key={i.label}>
-                        <label className="block text-sm font-medium text-font-base mb-2">{i.label}</label>
-                        <div className="flex items-center space-x-2">
-                          <input type="number" defaultValue={i.val} className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                          <span className={`${i.ok ? 'bg-success' : 'bg-warning'} text-white px-2 py-1 rounded text-xs`}>{i.ok ? '✓' : '!'}</span>
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">BIGs (Room Keys)</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.bigsRoomKeys}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, bigsRoomKeys: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-success text-white px-2 py-1 rounded text-xs">✓</span>
                       </div>
-                    ))}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Duty Belts</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.dutyBelts}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, dutyBelts: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-success text-white px-2 py-1 rounded text-xs">✓</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Staff Keys</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.staffKeys}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, staffKeys: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-success text-white px-2 py-1 rounded text-xs">✓</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Flashlights</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.flashlights}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, flashlights: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-warning text-white px-2 py-1 rounded text-xs">!</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">J-Hooks</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.jHooks}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, jHooks: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-success text-white px-2 py-1 rounded text-xs">✓</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Pencils</label>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          value={equipmentCounts.pencils}
+                          onChange={(e) => setEquipmentCounts({...equipmentCounts, pencils: parseInt(e.target.value) || 0})}
+                          className="flex-1 border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
+                        <span className="bg-success text-white px-2 py-1 rounded text-xs">✓</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
