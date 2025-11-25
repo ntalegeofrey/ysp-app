@@ -24,10 +24,10 @@ public class FireDrillReport {
     @Column(name = "drill_time")
     private LocalTime drillTime;
 
-    @Column(name = "drill_type")
+    @Column(name = "drill_type", columnDefinition = "VARCHAR(64)")
     private String drillType; // Scheduled, Unannounced, Actual Emergency
 
-    @Column(name = "shift")
+    @Column(name = "shift", columnDefinition = "VARCHAR(64)")
     private String shift;
 
     @Column(name = "shift_supervisor")
@@ -69,7 +69,7 @@ public class FireDrillReport {
     @Column(name = "signature_datetime")
     private LocalDateTime signatureDatetime;
 
-    @Column(name = "status")
+    @Column(name = "status", columnDefinition = "VARCHAR(64)")
     private String status; // Successful, Issues Found, Failed
 
     @Column(name = "created_at")
