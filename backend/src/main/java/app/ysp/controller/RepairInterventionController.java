@@ -2,6 +2,7 @@ package app.ysp.controller;
 
 import app.ysp.dto.RepairInterventionRequest;
 import app.ysp.dto.RepairInterventionResponse;
+import app.ysp.dto.RepairReviewRequest;
 import app.ysp.entity.ProgramAssignment;
 import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.service.RepairInterventionService;
@@ -69,10 +70,11 @@ public class RepairInterventionController {
     public ResponseEntity<?> approvePD(
             @PathVariable Long programId,
             @PathVariable Long id,
+            @RequestBody RepairReviewRequest request,
             Authentication auth) {
         try {
             String userEmail = auth.getName();
-            RepairInterventionResponse response = repairService.approvePD(id, userEmail);
+            RepairInterventionResponse response = repairService.approvePD(id, request, userEmail);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -84,10 +86,11 @@ public class RepairInterventionController {
     public ResponseEntity<?> approveClinical(
             @PathVariable Long programId,
             @PathVariable Long id,
+            @RequestBody RepairReviewRequest request,
             Authentication auth) {
         try {
             String userEmail = auth.getName();
-            RepairInterventionResponse response = repairService.approveClinical(id, userEmail);
+            RepairInterventionResponse response = repairService.approveClinical(id, request, userEmail);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
