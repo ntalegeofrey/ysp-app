@@ -130,6 +130,19 @@ export default function FirePlanPage() {
   const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
 
+  // Floor Plan state
+  const [floorPlanImageUrl, setFloorPlanImageUrl] = useState('');
+  const [showFloorPlanModal, setShowFloorPlanModal] = useState(false);
+  const [floorPlanDetails, setFloorPlanDetails] = useState({
+    lastUpdated: '',
+    scale: '1:100',
+    totalExits: 6,
+    assemblyPoints: 3,
+    primaryRouteColor: '#dc2626',
+    secondaryRouteColor: '#f59e0b',
+    assemblyPointColor: '#16a34a'
+  });
+
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
   const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
@@ -378,9 +391,14 @@ export default function FirePlanPage() {
   const tabBtnActive = 'border-primary text-primary';
 
   const handlePrint = () => {
-    // Print drill report if on report tab, otherwise print fire plan
+    // Print drill report if on report tab, floor plan if on floor tab, otherwise print fire plan
     if (activeTab === 'report') {
       printDrillReport();
+      return;
+    }
+    
+    if (activeTab === 'floor') {
+      printFloorPlan();
       return;
     }
 
@@ -1020,6 +1038,107 @@ export default function FirePlanPage() {
   };
 
   const handleExport = () => addToast('Exporting archive...', 'info');
+
+  // Floor Plan Functions
+  const handleUpdateFloorPlan = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        addToast('Image size must be less than 5MB', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('programId', String(programId));
+
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const response = await fetch('/api/floor-plans/upload', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setFloorPlanImageUrl(data.imageUrl);
+          setFloorPlanDetails(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+          addToast('Floor plan uploaded successfully', 'success');
+        } else {
+          addToast('Failed to upload floor plan', 'error');
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        addToast('Failed to upload floor plan', 'error');
+      }
+    };
+    input.click();
+  };
+
+  const printFloorPlan = () => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print floor plan', 'error');
+        return;
+      }
+
+      const imageUrl = floorPlanImageUrl || 'https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png';
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Floor Plan - ${programName || 'Program'}</title><style>* { margin: 0; padding: 0; box-sizing: border-box; }body { font-family: Arial, sans-serif; padding: 20px; background: white; }.header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #2563eb; padding-bottom: 15px; }.logo { width: 100px; height: auto; margin-bottom: 10px; }h1 { font-size: 24px; color: #2563eb; margin-bottom: 8px; }.subtitle { font-size: 14px; color: #666; }.floor-plan-image { width: 100%; max-height: 600px; object-fit: contain; margin: 20px 0; border: 2px solid #2563eb; }.legend-section { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; }.legend { padding: 15px; background: #eff6ff; border-left: 4px solid #2563eb; }.legend-title { font-size: 16px; font-weight: bold; color: #2563eb; margin-bottom: 10px; }.legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; }.color-box { width: 20px; height: 20px; border-radius: 3px; margin-right: 10px; }.details { padding: 15px; background: #f9fafb; border-left: 4px solid #2563eb; }.details p { margin-bottom: 6px; font-size: 14px; }.footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }@media print { body { padding: 10px; } }</style></head><body><div class="header"><img src="${logoUrl}" alt="Logo" class="logo" /><h1>Facility Floor Plan & Exit Routes</h1><div class="subtitle">${programName || 'Program Name'}</div></div><img src="${imageUrl}" alt="Floor Plan" class="floor-plan-image" /><div class="legend-section"><div class="legend"><div class="legend-title">Exit Route Legend</div><div class="legend-item"><div class="color-box" style="background-color: ${floorPlanDetails.primaryRouteColor};"></div><span>Primary Exit Routes</span></div><div class="legend-item"><div class="color-box" style="background-color: ${floorPlanDetails.secondaryRouteColor};"></div><span>Secondary Exit Routes</span></div><div class="legend-item"><div class="color-box" style="background-color: ${floorPlanDetails.assemblyPointColor};"></div><span>Assembly Points</span></div></div><div class="details"><div class="legend-title">Plan Details</div><p><strong>Last Updated:</strong> ${floorPlanDetails.lastUpdated ? new Date(floorPlanDetails.lastUpdated).toLocaleDateString() : 'Not updated'}</p><p><strong>Scale:</strong> ${floorPlanDetails.scale}</p><p><strong>Total Exits:</strong> ${floorPlanDetails.totalExits} exits available</p><p><strong>Assembly Points:</strong> ${floorPlanDetails.assemblyPoints} designated areas</p></div></div><div class="footer"><p><strong>Department of Youth Services - Fire Safety Floor Plan</strong></p><p>Printed on ${new Date().toLocaleString()}</p></div></body></html>`;
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+
+      addToast('Floor plan opened for printing', 'success');
+    } catch (error) {
+      console.error('Print error:', error);
+      addToast('Failed to print floor plan', 'error');
+    }
+  };
+
+  const saveFloorPlanDetails = async () => {
+    if (!programId) return;
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const response = await fetch(`/api/programs/${programId}/fire-plan/floor-plan`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          imageUrl: floorPlanImageUrl,
+          ...floorPlanDetails
+        }),
+      });
+
+      if (response.ok) {
+        addToast('Floor plan details saved successfully', 'success');
+        setShowFloorPlanModal(false);
+      } else {
+        addToast('Failed to save floor plan details', 'error');
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      addToast('Failed to save floor plan details', 'error');
+    }
+  };
   
   const handleSaveReport = async () => {
     if (!programId) {
@@ -1139,7 +1258,6 @@ export default function FirePlanPage() {
     });
     addToast('Drill report cancelled', 'info');
   };
-  const handleUpdateFloorPlan = () => addToast('Upload floor plan coming soon.', 'info');
 
   const handleSaveFirePlan = async () => {
     if (!programId) {
@@ -2340,22 +2458,35 @@ export default function FirePlanPage() {
           </div>
           <div className="p-6">
             <div className="bg-gray-100 rounded-lg p-8 text-center">
-              <img className="w-full h-auto max-h-96 object-contain rounded-lg shadow-md" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png" alt="facility floor plan with fire exit routes, emergency exits marked in red, assembly points marked with green circles, stairwells and corridors clearly labeled, professional architectural style" />
+              <img 
+                className="w-full h-auto max-h-96 object-contain rounded-lg shadow-md" 
+                src={floorPlanImageUrl || "https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png"} 
+                alt="facility floor plan with fire exit routes" 
+              />
             </div>
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold text-font-base mb-3">Exit Route Legend</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-font-base">Exit Route Legend</h4>
+                  <button 
+                    onClick={() => setShowFloorPlanModal(true)}
+                    className="text-primary hover:text-primary-light transition-colors"
+                    title="Edit floor plan settings"
+                  >
+                    <i className="fa-solid fa-pen-to-square text-lg"></i>
+                  </button>
+                </div>
                 <div className="space-y-2">
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-error rounded mr-3"></div>
+                    <div className="w-4 h-4 rounded mr-3" style={{ backgroundColor: floorPlanDetails.primaryRouteColor }}></div>
                     <span className="text-sm text-font-base">Primary Exit Routes</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-warning rounded mr-3"></div>
+                    <div className="w-4 h-4 rounded mr-3" style={{ backgroundColor: floorPlanDetails.secondaryRouteColor }}></div>
                     <span className="text-sm text-font-base">Secondary Exit Routes</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-4 h-4 bg-success rounded mr-3"></div>
+                    <div className="w-4 h-4 rounded mr-3" style={{ backgroundColor: floorPlanDetails.assemblyPointColor }}></div>
                     <span className="text-sm text-font-base">Assembly Points</span>
                   </div>
                 </div>
@@ -2363,10 +2494,10 @@ export default function FirePlanPage() {
               <div>
                 <h4 className="font-semibold text-font-base mb-3">Plan Details</h4>
                 <div className="text-sm text-font-detail space-y-1">
-                  <p><strong>Last Updated:</strong> October 1, 2024</p>
-                  <p><strong>Scale:</strong> 1:100</p>
-                  <p><strong>Total Exits:</strong> 6 exits available</p>
-                  <p><strong>Assembly Points:</strong> 3 designated areas</p>
+                  <p><strong>Last Updated:</strong> {floorPlanDetails.lastUpdated ? new Date(floorPlanDetails.lastUpdated).toLocaleDateString() : 'Not updated'}</p>
+                  <p><strong>Scale:</strong> {floorPlanDetails.scale}</p>
+                  <p><strong>Total Exits:</strong> {floorPlanDetails.totalExits} exits available</p>
+                  <p><strong>Assembly Points:</strong> {floorPlanDetails.assemblyPoints} designated areas</p>
                 </div>
               </div>
             </div>
@@ -2386,6 +2517,102 @@ export default function FirePlanPage() {
           </div>
         ))}
       </div>
+
+      {/* Floor Plan Edit Modal */}
+      {showFloorPlanModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-bd flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-font-base">Edit Floor Plan Settings</h3>
+              <button onClick={() => setShowFloorPlanModal(false)} className="text-font-detail hover:text-font-base">
+                <i className="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <h4 className="font-semibold text-font-base mb-4">Route Colors</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Primary Route Color</label>
+                    <input 
+                      type="color" 
+                      value={floorPlanDetails.primaryRouteColor}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, primaryRouteColor: e.target.value})}
+                      className="w-full h-10 rounded border border-bd cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Secondary Route Color</label>
+                    <input 
+                      type="color" 
+                      value={floorPlanDetails.secondaryRouteColor}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, secondaryRouteColor: e.target.value})}
+                      className="w-full h-10 rounded border border-bd cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Assembly Point Color</label>
+                    <input 
+                      type="color" 
+                      value={floorPlanDetails.assemblyPointColor}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, assemblyPointColor: e.target.value})}
+                      className="w-full h-10 rounded border border-bd cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-font-base mb-4">Plan Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Scale</label>
+                    <input 
+                      type="text" 
+                      value={floorPlanDetails.scale}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, scale: e.target.value})}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                      placeholder="e.g., 1:100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Total Exits</label>
+                    <input 
+                      type="number" 
+                      value={floorPlanDetails.totalExits}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, totalExits: parseInt(e.target.value) || 0})}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Assembly Points</label>
+                    <input 
+                      type="number" 
+                      value={floorPlanDetails.assemblyPoints}
+                      onChange={(e) => setFloorPlanDetails({...floorPlanDetails, assemblyPoints: parseInt(e.target.value) || 0})}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-bd flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setShowFloorPlanModal(false)}
+                className="px-4 py-2 border border-bd rounded-lg text-sm hover:bg-bg-subtle"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveFloorPlanDetails}
+                className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-light"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
