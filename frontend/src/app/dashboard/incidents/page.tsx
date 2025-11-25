@@ -420,38 +420,47 @@ export default function IncidentsPage() {
       let html = '';
       
       if (isIncident) {
+        const logoUrl = 'https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png';
         html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>Incident Report - ${data.id}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
-    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #333; padding-bottom: 20px; }
-    .header h1 { font-size: 24px; margin-bottom: 5px; }
-    .header p { color: #666; }
-    .section { margin-bottom: 25px; }
-    .section-title { font-size: 16px; font-weight: bold; background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-left: 4px solid #333; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-    .info-item { padding: 10px; border: 1px solid #ddd; }
-    .info-label { font-weight: bold; font-size: 12px; color: #666; margin-bottom: 5px; }
-    .info-value { font-size: 14px; color: #333; }
+    body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #1e40af; padding-bottom: 20px; }
+    .logo { width: 120px; height: auto; margin-bottom: 15px; }
+    .commonwealth { font-size: 14px; color: #1e40af; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
+    h1 { font-size: 28px; color: #1e40af; margin-bottom: 10px; }
+    .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
+    .section { margin-bottom: 25px; page-break-inside: avoid; }
+    .section-title { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 12px; border-bottom: 2px solid #dbeafe; padding-bottom: 5px; }
+    .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px; }
+    .info-item { padding: 10px; background: #eff6ff; border-radius: 4px; }
+    .info-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+    .info-value { font-size: 14px; color: #1a1a1a; }
     .full-width { grid-column: 1 / -1; }
-    .priority-critical { background: #fee; color: #c00; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
-    .priority-high { background: #fff3cd; color: #856404; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
-    .priority-medium { background: #d1ecf1; color: #0c5460; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
-    .priority-low { background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
-    .signature-box { border: 2px solid #333; padding: 20px; margin-top: 30px; }
-    @media print { body { padding: 20px; } }
+    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #1e40af; margin-bottom: 15px; }
+    .text-label { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 600; }
+    .text-content { font-size: 14px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; }
+    .priority-critical { background: #fee2e2; color: #991b1b; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-high { background: #fef3c7; color: #92400e; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-medium { background: #dbeafe; color: #1e40af; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-low { background: #d1fae5; color: #065f46; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .signature-box { border: 2px solid #1e40af; padding: 20px; margin-top: 30px; background: #f0f9ff; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }
+    @media print { body { padding: 20px; } .no-print { display: none; } }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>INCIDENT REPORT</h1>
-    <p>Report ID: ${data.id} | ${data.programName}</p>
-    <p>Generated: ${new Date().toLocaleString()}</p>
+    <img src="${logoUrl}" alt="DYS Logo" class="logo" />
+    <div class="commonwealth">COMMONWEALTH OF MASSACHUSETTS</div>
+    <h1>Incident Report</h1>
+    <div class="subtitle">${data.programName || 'Program Name'}</div>
+    <div class="subtitle">Report ID: ${data.id} | Generated: ${new Date().toLocaleString()}</div>
   </div>
   
   <div class="section">
@@ -552,37 +561,47 @@ export default function IncidentsPage() {
 </html>`;
       } else {
         // Shakedown report
+        const logoUrl = 'https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png';
         html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>Shakedown Report - ${data.id}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
-    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #333; padding-bottom: 20px; }
-    .header h1 { font-size: 24px; margin-bottom: 5px; }
-    .header p { color: #666; }
-    .section { margin-bottom: 25px; }
-    .section-title { font-size: 16px; font-weight: bold; background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-left: 4px solid #333; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-    .info-item { padding: 10px; border: 1px solid #ddd; }
-    .info-label { font-weight: bold; font-size: 12px; color: #666; margin-bottom: 5px; }
-    .info-value { font-size: 14px; color: #333; }
+    body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #1e40af; padding-bottom: 20px; }
+    .logo { width: 120px; height: auto; margin-bottom: 15px; }
+    .commonwealth { font-size: 14px; color: #1e40af; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
+    h1 { font-size: 28px; color: #1e40af; margin-bottom: 10px; }
+    .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
+    .section { margin-bottom: 25px; page-break-inside: avoid; }
+    .section-title { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 12px; border-bottom: 2px solid #dbeafe; padding-bottom: 5px; }
+    .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px; }
+    .info-item { padding: 10px; background: #eff6ff; border-radius: 4px; }
+    .info-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+    .info-value { font-size: 14px; color: #1a1a1a; }
     .full-width { grid-column: 1 / -1; }
     table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-    table th, table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    table th { background: #f5f5f5; font-weight: bold; }
-    .signature-box { border: 2px solid #333; padding: 20px; margin-top: 30px; }
-    @media print { body { padding: 20px; } }
+    table th, table td { border: 1px solid #dbeafe; padding: 8px; text-align: left; font-size: 13px; }
+    table th { background: #eff6ff; font-weight: bold; color: #1e40af; }
+    table tr:nth-child(even) { background: #f9fafb; }
+    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #1e40af; margin-bottom: 15px; }
+    .text-label { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 600; }
+    .text-content { font-size: 14px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; }
+    .signature-box { border: 2px solid #1e40af; padding: 20px; margin-top: 30px; background: #f0f9ff; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }
+    @media print { body { padding: 20px; } .no-print { display: none; } }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>SHAKEDOWN REPORT</h1>
-    <p>Report ID: ${data.id} | ${data.programName}</p>
-    <p>Generated: ${new Date().toLocaleString()}</p>
+    <img src="${logoUrl}" alt="DYS Logo" class="logo" />
+    <div class="commonwealth">COMMONWEALTH OF MASSACHUSETTS</div>
+    <h1>Shakedown Report</h1>
+    <div class="subtitle">${data.programName || 'Program Name'}</div>
+    <div class="subtitle">Report ID: ${data.id} | Generated: ${new Date().toLocaleString()}</div>
   </div>
   
   <div class="section">
@@ -736,20 +755,8 @@ export default function IncidentsPage() {
     }
   };
   
-  // Demo archive rows (replace with data source later)
-  const allRowsArchive = archiveReports.length > 0 ? archiveReports : [
-    { dt: 'Oct 28, 2024', time: '2:30 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Youth on Youth Assault - Recreation Room', priority: 'Critical', pcls: 'bg-error text-white', staff: 'J. Smith' },
-    { dt: 'Oct 28, 2024', time: '1:15 PM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'Routine Unit Search - No contraband found', priority: 'Low', pcls: 'bg-success text-white', staff: 'M. Johnson' },
-    { dt: 'Oct 27, 2024', time: '11:45 AM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Contraband Found - Room A2', priority: 'High', pcls: 'bg-warning text-white', staff: 'K. Williams' },
-    { dt: 'Oct 26, 2024', time: '9:30 AM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'Routine Unit Search - No contraband found', priority: 'Low', pcls: 'bg-success text-white', staff: 'L. Davis' },
-    { dt: 'Oct 25, 2024', time: '10:15 AM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Youth on Staff Assault - Unit A', priority: 'Critical', pcls: 'bg-error text-white', staff: 'R. Brown' },
-    { dt: 'Oct 24, 2024', time: '4:05 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Damage to Property - Unit B', priority: 'High', pcls: 'bg-warning text-white', staff: 'D. Clark' },
-    { dt: 'Oct 23, 2024', time: '7:50 PM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'Random Search - Minor contraband', priority: 'Medium', pcls: 'bg-warning text-white', staff: 'S. Green' },
-    { dt: 'Oct 22, 2024', time: '3:35 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Room Confinement - Unit C', priority: 'Low', pcls: 'bg-success text-white', staff: 'K. Lee' },
-    { dt: 'Oct 21, 2024', time: '9:10 AM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Medication Error - Medical Unit', priority: 'Critical', pcls: 'bg-error text-white', staff: 'A. Parker' },
-    { dt: 'Oct 20, 2024', time: '11:55 AM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'School Area Search - No issues', priority: 'Low', pcls: 'bg-success text-white', staff: 'B. Foster' },
-    { dt: 'Oct 19, 2024', time: '6:40 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Fire Alarm - False alarm', priority: 'Medium', pcls: 'bg-warning text-white', staff: 'M. Turner' },
-  ];
+  // Use only database data - no hardcoded rows
+  const allRowsArchive = archiveReports;
   
   // Apply filters to archive
   const filteredArchive = allRowsArchive.filter(row => {
