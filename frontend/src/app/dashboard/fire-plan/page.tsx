@@ -1111,8 +1111,9 @@ export default function FirePlanPage() {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (file.size > 5 * 1024 * 1024) {
-        addToast('Image size must be less than 5MB', 'error');
+      if (file.size > 10 * 1024 * 1024) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        addToast(`Image size is too large (${fileSizeMB}MB). Please upload a file smaller than 10MB.`, 'error');
         return;
       }
 
@@ -1136,6 +1137,9 @@ export default function FirePlanPage() {
           setFloorPlanImageUrl(data.imageUrl);
           setFloorPlanDetails(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
           addToast('Floor plan uploaded successfully', 'success');
+        } else if (response.status === 413) {
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          addToast(`File is too large (${fileSizeMB}MB). Server limit exceeded. Please upload a smaller image.`, 'error');
         } else {
           addToast('Failed to upload floor plan', 'error');
         }

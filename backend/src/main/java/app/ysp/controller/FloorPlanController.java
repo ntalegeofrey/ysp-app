@@ -54,9 +54,9 @@ public class FloorPlanController {
             return ResponseEntity.badRequest().body(Map.of("error", "File must be an image"));
         }
 
-        // Validate file size (5MB max)
-        if (file.getSize() > 5 * 1024 * 1024) {
-            return ResponseEntity.badRequest().body(Map.of("error", "File size must be less than 5MB"));
+        // Validate file size (10MB max)
+        if (file.getSize() > 10 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("error", "File size must be less than 10MB"));
         }
 
         try {
