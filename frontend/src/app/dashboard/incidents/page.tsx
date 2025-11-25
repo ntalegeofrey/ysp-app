@@ -125,6 +125,17 @@ export default function IncidentsPage() {
   const [programStaff, setProgramStaff] = useState<ProgramAssignment[]>([]);
   const [residentsList, setResidentsList] = useState<Array<{id: number; firstName: string; lastName: string}>>([]);
   
+  // Get unique program staff by email to avoid duplicates
+  const uniqueProgramStaff = useMemo(() => {
+    const map: Record<string, ProgramAssignment> = {};
+    for (const staff of programStaff) {
+      const key = (staff.userEmail || '').toLowerCase();
+      if (!key) continue;
+      if (!map[key]) map[key] = staff;
+    }
+    return Object.values(map);
+  }, [programStaff]);
+  
   // Create lookup by email for staff details
   const staffByEmail = useMemo(
     () => Object.fromEntries(staffDirectory.map((s) => [s.email.toLowerCase(), s])),
@@ -139,6 +150,10 @@ export default function IncidentsPage() {
   const [selectedResidents, setSelectedResidents] = useState<number[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   const [selectedWitnesses, setSelectedWitnesses] = useState<number[]>([]);
+  const [selectedPrimaryRestraintStaff, setSelectedPrimaryRestraintStaff] = useState<string>('');
+  
+  // Shakedown staff selections
+  const [selectedAnnouncementStaff, setSelectedAnnouncementStaff] = useState<string>('');
   
   // Shakedown add-other area state
   const commonAreas = ['Dining Hall','Recreation Room','Common Area','Laundry Room'];
@@ -371,7 +386,7 @@ export default function IncidentsPage() {
       // Convert selected staff to comma-separated names with titles
       const staffInvolved = selectedStaff
         .map(id => {
-          const staff = programStaff.find((s, idx) => String(s.userEmail || `staff-${idx}`) === id);
+          const staff = uniqueProgramStaff.find((s, idx) => String(s.userEmail || `staff-${idx}`) === id);
           if (!staff) return null;
           
           const emailKey = (staff.userEmail || '').toLowerCase();
@@ -407,6 +422,7 @@ export default function IncidentsPage() {
         residentsInvolved,
         staffInvolved,
         residentWitnesses,
+        primaryStaffRestraint: selectedPrimaryRestraintStaff || '',
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
@@ -457,6 +473,7 @@ export default function IncidentsPage() {
         setSelectedResidents([]);
         setSelectedStaff([]);
         setSelectedWitnesses([]);
+        setSelectedPrimaryRestraintStaff('');
         // Reload archive data
         loadArchiveData();
       } else {
@@ -514,6 +531,7 @@ export default function IncidentsPage() {
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: shakedownReport.signatureDatetime || new Date().toISOString(),
+        announcementStaff: selectedAnnouncementStaff || '',
         commonAreaSearches: JSON.stringify(commonSearches),
         schoolAreaSearches: JSON.stringify(schoolSearches),
         residentRoomSearches: JSON.stringify(addedRoomRows),
@@ -557,6 +575,7 @@ export default function IncidentsPage() {
         setCommonAddedRows([]);
         setSchoolAddedRows([]);
         setAddedRoomRows([]);
+        setSelectedAnnouncementStaff('');
         // Reload archive data
         loadArchiveData();
       } else {
@@ -803,11 +822,11 @@ export default function IncidentsPage() {
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Involved</label>
                     <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
-                      {programStaff.length === 0 ? (
+                      {uniqueProgramStaff.length === 0 ? (
                         <p className="text-sm text-font-detail italic">No staff assigned to program</p>
                       ) : (
                         <div className="space-y-2">
-                          {programStaff.map((s, idx) => {
+                          {uniqueProgramStaff.map((s, idx) => {
                             const id = String(s.userEmail || `staff-${idx}`);
                             const emailKey = (s.userEmail || '').toLowerCase();
                             const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
@@ -882,36 +901,42 @@ export default function IncidentsPage() {
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Primary Staff Applying Restraint</label>
                     <select 
-                      value={incidentReport.primaryStaffRestraint} 
-                      onChange={(e) => setIncidentReport({...incidentReport, primaryStaffRestraint: e.target.value})} 
+                      value={selectedPrimaryRestraintStaff} 
+                      onChange={(e) => setSelectedPrimaryRestraintStaff(e.target.value)} 
                       className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="">Select Staff...</option>
-                      {programStaff.map((s, idx) => {
-                        const id = String(s.userEmail || `staff-${idx}`);
-                        const emailKey = (s.userEmail || '').toLowerCase();
-                        const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
-                        const baseName = fromDirectory?.fullName?.trim() || '';
-                        const emailFallback = (s.userEmail || '').trim();
-                        const name = baseName || emailFallback || 'Staff';
+                      {uniqueProgramStaff
+                        .filter((s, idx) => {
+                          const id = String(s.userEmail || `staff-${idx}`);
+                          // Exclude staff already selected in "Staff Involved"
+                          return !selectedStaff.includes(id);
+                        })
+                        .map((s, idx) => {
+                          const id = String(s.userEmail || `staff-${idx}`);
+                          const emailKey = (s.userEmail || '').toLowerCase();
+                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                          const baseName = fromDirectory?.fullName?.trim() || '';
+                          const emailFallback = (s.userEmail || '').trim();
+                          const name = baseName || emailFallback || 'Staff';
 
-                        const directoryTitle = fromDirectory?.jobTitle?.trim();
-                        const rawTitle = directoryTitle || (s.title || '').trim();
-                        let label = name;
-                        if (rawTitle) {
-                          const abbr = abbreviateTitle(rawTitle);
-                          const titleDisplay = abbr || rawTitle;
-                          label = `${name} (${titleDisplay})`;
-                        }
-                        
-                        return (
-                          <option key={id} value={label}>
-                            {label}
-                          </option>
-                        );
-                      })}
+                          const directoryTitle = fromDirectory?.jobTitle?.trim();
+                          const rawTitle = directoryTitle || (s.title || '').trim();
+                          let label = name;
+                          if (rawTitle) {
+                            const abbr = abbreviateTitle(rawTitle);
+                            const titleDisplay = abbr || rawTitle;
+                            label = `${name} (${titleDisplay})`;
+                          }
+                          
+                          return (
+                            <option key={id} value={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
                     </select>
-                    <p className="text-xs text-font-detail mt-1">Select primary staff member</p>
+                    <p className="text-xs text-font-detail mt-1">Select primary staff (excludes staff already involved)</p>
                   </div>
                 </div>
 
@@ -1373,12 +1398,12 @@ export default function IncidentsPage() {
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Staff Member Making Announcement</label>
                       <select 
-                        value={shakedownReport.announcementStaff} 
-                        onChange={(e) => setShakedownReport({...shakedownReport, announcementStaff: e.target.value})} 
+                        value={selectedAnnouncementStaff} 
+                        onChange={(e) => setSelectedAnnouncementStaff(e.target.value)} 
                         className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                       >
                         <option value="">Select Staff...</option>
-                        {programStaff.map((s, idx) => {
+                        {uniqueProgramStaff.map((s, idx) => {
                           const id = String(s.userEmail || `staff-${idx}`);
                           const emailKey = (s.userEmail || '').toLowerCase();
                           const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
@@ -1402,6 +1427,7 @@ export default function IncidentsPage() {
                           );
                         })}
                       </select>
+                      <p className="text-xs text-font-detail mt-1">Select from program staff (no duplicates)</p>
                     </div>
                   </div>
                   <div className="mt-4">
