@@ -1,12 +1,48 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function RepairsPage() {
   const router = useRouter();
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [detailsModal, setDetailsModal] = useState<any>(null);
+  const [repairs, setRepairs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [programId, setProgramId] = useState<number | null>(null);
+
+  // Fetch repairs from API
+  useEffect(() => {
+    const loadRepairs = async () => {
+      try {
+        // Get selected program
+        const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+        if (!programData) return;
+        
+        const program = JSON.parse(programData);
+        setProgramId(program.id);
+
+        // Fetch repairs
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) return;
+
+        const response = await fetch(`/api/programs/${program.id}/repairs/interventions`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setRepairs(data);
+        }
+      } catch (error) {
+        console.error('Error loading repairs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRepairs();
+  }, []);
   
   const repairDetails = {
     0: {
@@ -75,7 +111,7 @@ export default function RepairsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-font-detail text-sm">Active Repairs</p>
-              <p className="text-2xl font-bold text-error">8</p>
+              <p className="text-2xl font-bold text-error">{loading ? '-' : repairs.length}</p>
             </div>
             <div className="bg-error bg-opacity-10 p-3 rounded-lg">
               <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
