@@ -5,24 +5,15 @@ import { useRouter } from 'next/navigation';
 import { logoUrl } from '@/app/utils/logo';
 import { abbreviateTitle } from '@/app/utils/titleAbbrev';
 import { generateIncidentReportHTML, generateShakedownReportHTML } from '../pdfReports';
-
-interface ToastMessage {
-  id: number;
-  title: string;
-  tone: 'success' | 'error' | 'info' | 'warning';
-}
+import ToastContainer from '@/app/components/Toast';
+import { useToast } from '@/app/hooks/useToast';
 
 export default function IncidentsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'incident-report' | 'shakedown-report' | 'incident-archive'>('incident-report');
   
-  // Toast notifications
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const addToast = (title: string, tone: 'success' | 'error' | 'info' | 'warning') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, title, tone }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
-  };
+  // Toast notifications using reusable hook
+  const { toasts, addToast, removeToast } = useToast();
   
   // Get logged-in user information and program ID
   const [currentUser, setCurrentUser] = useState({ fullName: '', email: '' });
@@ -1683,21 +1674,7 @@ export default function IncidentsPage() {
       </main>
       
       {/* Toast Notifications */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`px-4 py-3 rounded-lg shadow-lg text-white animate-slide-in-right ${
-              toast.tone === 'success' ? 'bg-green-500' :
-              toast.tone === 'error' ? 'bg-red-500' :
-              toast.tone === 'warning' ? 'bg-yellow-500' :
-              'bg-blue-500'
-            }`}
-          >
-            {toast.title}
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
