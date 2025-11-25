@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { logoUrl } from '@/app/utils/logo';
 
 interface ToastMessage {
   id: number;
@@ -102,6 +103,15 @@ export default function IncidentsPage() {
     dateRange: 'Last 30 Days',
     priority: 'All Priorities'
   });
+  
+  // Staff and Residents lists for dropdowns
+  const [staffList, setStaffList] = useState<Array<{id: string; fullName: string; email: string}>>([]);
+  const [residentsList, setResidentsList] = useState<Array<{id: number; firstName: string; lastName: string}>>([]);
+  
+  // "Other" text fields for custom entries
+  const [areaOtherText, setAreaOtherText] = useState('');
+  const [natureOtherText, setNatureOtherText] = useState('');
+  
   // Shakedown add-other area state
   const commonAreas = ['Dining Hall','Recreation Room','Common Area','Laundry Room'];
   const [commonAddArea, setCommonAddArea] = useState<string>(commonAreas[0]);
@@ -138,6 +148,53 @@ export default function IncidentsPage() {
     setRoomAddStaff('');
     setRoomAddComments('');
   };
+  
+  // Load staff list
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/users/search?q=', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setStaffList(data.map((u: any) => ({
+          id: String(u.id),
+          fullName: u.fullName,
+          email: u.email
+        })));
+      } catch (error) {
+        console.error('Error loading staff:', error);
+      }
+    })();
+  }, []);
+  
+  // Load residents list
+  useEffect(() => {
+    if (!programId) return;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/residents`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setResidentsList(data);
+      } catch (error) {
+        console.error('Error loading residents:', error);
+      }
+    })();
+  }, [programId]);
   
   // Load archive data from backend
   const loadArchiveData = async () => {
@@ -246,6 +303,8 @@ export default function IncidentsPage() {
       
       const payload = {
         ...incidentReport,
+        areaOfIncident: incidentReport.areaOfIncident === 'Other' ? areaOtherText : incidentReport.areaOfIncident,
+        natureOfIncident: incidentReport.natureOfIncident === 'Other' ? natureOtherText : incidentReport.natureOfIncident,
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
@@ -291,6 +350,8 @@ export default function IncidentsPage() {
           certificationComplete: false,
           signatureDatetime: ''
         });
+        setAreaOtherText('');
+        setNatureOtherText('');
         // Reload archive data
         loadArchiveData();
       } else {
@@ -561,7 +622,6 @@ export default function IncidentsPage() {
 </html>`;
       } else {
         // Shakedown report
-        const logoUrl = 'https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png';
         html = `
 <!DOCTYPE html>
 <html>
@@ -856,6 +916,7 @@ export default function IncidentsPage() {
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Area of Incident</label>
                     <select value={incidentReport.areaOfIncident} onChange={(e) => setIncidentReport({...incidentReport, areaOfIncident: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="">Select Area...</option>
                       <option>Common Area</option>
                       <option>Dining Hall</option>
                       <option>Recreation Room</option>
@@ -872,10 +933,20 @@ export default function IncidentsPage() {
                       <option>Outdoor Area</option>
                       <option>Other</option>
                     </select>
+                    {incidentReport.areaOfIncident === 'Other' && (
+                      <input 
+                        type="text" 
+                        value={areaOtherText} 
+                        onChange={(e) => setAreaOtherText(e.target.value)} 
+                        placeholder="Please specify area..." 
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary mt-2" 
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Nature of Incident</label>
                     <select value={incidentReport.natureOfIncident} onChange={(e) => setIncidentReport({...incidentReport, natureOfIncident: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="">Select Nature...</option>
                       <option>Restraint</option>
                       <option>Youth on Youth Assault</option>
                       <option>Youth on Staff Assault</option>
@@ -899,13 +970,37 @@ export default function IncidentsPage() {
                       <option>Maintenance/Mechanical issue</option>
                       <option>Other</option>
                     </select>
+                    {incidentReport.natureOfIncident === 'Other' && (
+                      <input 
+                        type="text" 
+                        value={natureOtherText} 
+                        onChange={(e) => setNatureOtherText(e.target.value)} 
+                        placeholder="Please specify nature of incident..." 
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary mt-2" 
+                      />
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Residents Involved</label>
-                    <textarea value={incidentReport.residentsInvolved} onChange={(e) => setIncidentReport({...incidentReport, residentsInvolved: e.target.value})} placeholder="List resident names or IDs involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <select 
+                      multiple 
+                      value={incidentReport.residentsInvolved.split(',').filter(r => r.trim())} 
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                        setIncidentReport({...incidentReport, residentsInvolved: selected.join(', ')});
+                      }}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      {residentsList.map((resident) => (
+                        <option key={resident.id} value={`${resident.firstName} ${resident.lastName}`}>
+                          {resident.firstName} {resident.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-font-detail mt-1">Hold Ctrl/Cmd to select multiple residents</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Involved</label>
@@ -1372,16 +1467,37 @@ export default function IncidentsPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Time of Announcement</label>
-                      <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                      <input 
+                        type="time" 
+                        value={shakedownReport.announcementTime} 
+                        onChange={(e) => setShakedownReport({...shakedownReport, announcementTime: e.target.value})} 
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Staff Member Making Announcement</label>
-                      <input type="text" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                      <select 
+                        value={shakedownReport.announcementStaff} 
+                        onChange={(e) => setShakedownReport({...shakedownReport, announcementStaff: e.target.value})} 
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
+                        <option value="">Select Staff...</option>
+                        {staffList.map((staff) => (
+                          <option key={staff.id} value={staff.fullName}>
+                            {staff.fullName}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-font-base mb-2">Areas Announced</label>
-                    <textarea placeholder="List areas where opposite gender announcement was made" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <textarea 
+                      value={shakedownReport.announcementAreas} 
+                      onChange={(e) => setShakedownReport({...shakedownReport, announcementAreas: e.target.value})} 
+                      placeholder="List areas where opposite gender announcement was made" 
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"
+                    ></textarea>
                   </div>
                 </div>
 
