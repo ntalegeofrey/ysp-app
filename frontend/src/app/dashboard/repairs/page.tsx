@@ -44,54 +44,6 @@ export default function RepairsPage() {
     loadRepairs();
   }, []);
   
-  const repairDetails = {
-    0: {
-      resident: 'Marcus Johnson',
-      id: '2847',
-      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg',
-      repairType: 'R3',
-      violation: 'Major Violation - Fighting',
-      date: '2025-11-22',
-      assignedBy: 'John Smith',
-      duration: '7 days',
-      startedDays: '3 days ago',
-      interventions: ['DBT packet', 'Clinical Reflection', 'Character Essay'],
-      comments: 'Physical altercation in common area during recreation time. Escalated quickly despite staff intervention. Resident has shown remorse and is engaging well with interventions.',
-      status: 'Active',
-      pointsSuspended: true
-    },
-    1: {
-      resident: 'David Chen',
-      id: '2851',
-      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg',
-      repairType: 'R2',
-      violation: 'Moderate Violation - Disrespect to Staff',
-      date: '2025-11-24',
-      assignedBy: 'Sarah Williams',
-      duration: '3 days',
-      startedDays: '1 day ago',
-      interventions: ['Clean classrooms', 'Wipe down dining area'],
-      comments: 'Verbally disrespectful during room inspection. Used inappropriate language. Resident has been cooperative with cleaning tasks.',
-      status: 'Active',
-      pointsSuspended: true
-    },
-    2: {
-      resident: 'Alex Rodriguez',
-      id: '2849',
-      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg',
-      repairType: 'R1',
-      violation: 'Minor Violation - Late to Count',
-      date: '2025-11-25',
-      assignedBy: 'Mike Johnson',
-      duration: '1 day',
-      startedDays: 'Today',
-      interventions: ['Written apology', 'Update Distress Tolerance'],
-      comments: 'Missed morning count due to oversleeping. Apologized immediately and completed repair tasks promptly.',
-      status: 'Active',
-      pointsSuspended: true
-    }
-  };
-  
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
@@ -149,54 +101,44 @@ export default function RepairsPage() {
             <h3 className="text-lg font-semibold text-font-base">Active Behavioral Repairs</h3>
           </div>
           <div className="p-6 space-y-4">
-            <div className="bg-error-lightest border border-error rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-medium text-error">R3 - Major Violation</h4>
-                  <p className="text-sm text-font-detail mt-1">Marcus Johnson - ID: 2847</p>
-                  <p className="text-sm text-font-detail">Started: 3 days ago | Duration: 7 days</p>
-                  <p className="text-xs text-error mt-2">Point accrual suspended</p>
-                </div>
-                <button 
-                  onClick={() => setDetailsModal(repairDetails[0])}
-                  className="bg-error text-white px-3 py-1 rounded text-sm hover:bg-error/90 transition-colors"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-            <div className="bg-highlight-lightest border border-highlight rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-medium text-highlight">R2 - Moderate Violation</h4>
-                  <p className="text-sm text-font-detail mt-1">David Chen - ID: 2851</p>
-                  <p className="text-sm text-font-detail">Started: 1 day ago | Duration: 3 days</p>
-                  <p className="text-xs text-highlight mt-2">Point accrual suspended</p>
-                </div>
-                <button 
-                  onClick={() => setDetailsModal(repairDetails[1])}
-                  className="bg-highlight text-white px-3 py-1 rounded text-sm hover:bg-highlight/90 transition-colors"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-            <div className="bg-primary-lightest border border-primary rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-medium text-primary">R1 - Minor Violation</h4>
-                  <p className="text-sm text-font-detail mt-1">Alex Rodriguez - ID: 2849</p>
-                  <p className="text-sm text-font-detail">Started: Today | Duration: 1 day</p>
-                  <p className="text-xs text-primary mt-2">Point accrual suspended</p>
-                </div>
-                <button 
-                  onClick={() => setDetailsModal(repairDetails[2])}
-                  className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary/90 transition-colors"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
+            {loading ? (
+              <div className="text-center text-font-detail py-8">Loading repairs...</div>
+            ) : repairs.length === 0 ? (
+              <div className="text-center text-font-detail py-8">No active repairs found</div>
+            ) : (
+              repairs.map((repair: any) => {
+                const levelColors = {
+                  'Repair 1': { bg: 'bg-primary-lightest', border: 'border-primary', text: 'text-primary', button: 'bg-primary' },
+                  'Repair 2': { bg: 'bg-highlight-lightest', border: 'border-highlight', text: 'text-highlight', button: 'bg-highlight' },
+                  'Repair 3': { bg: 'bg-error-lightest', border: 'border-error', text: 'text-error', button: 'bg-error' }
+                };
+                const colors = levelColors[repair.repairLevel as keyof typeof levelColors] || levelColors['Repair 1'];
+                
+                return (
+                  <div key={repair.id} className={`${colors.bg} border ${colors.border} rounded-lg p-4`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className={`font-medium ${colors.text}`}>{repair.repairLevel} - {repair.infractionBehavior}</h4>
+                        <p className="text-sm text-font-detail mt-1">{repair.residentName} - ID: {repair.residentNumber}</p>
+                        <p className="text-sm text-font-detail">
+                          Date: {new Date(repair.infractionDate).toLocaleDateString()} | 
+                          Status: {repair.status}
+                        </p>
+                        {repair.pointsSuspended && (
+                          <p className={`text-xs ${colors.text} mt-2`}>Point accrual suspended</p>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => setDetailsModal(repair)}
+                        className={`${colors.button} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors`}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -417,16 +359,9 @@ export default function RepairsPage() {
             {/* Modal Header */}
             <div className="bg-primary p-6 text-white sticky top-0">
               <div className="flex justify-between items-start">
-                <div className="flex items-center gap-4">
-                  <img 
-                    src={detailsModal.avatar} 
-                    alt={detailsModal.resident} 
-                    className="w-16 h-16 rounded-full border-2 border-white"
-                  />
-                  <div>
-                    <h2 className="text-2xl font-bold">{detailsModal.resident}</h2>
-                    <p className="text-primary-lightest">ID: {detailsModal.id}</p>
-                  </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{detailsModal.residentName}</h2>
+                  <p className="text-primary-lightest">ID: {detailsModal.residentNumber}</p>
                 </div>
                 <button 
                   onClick={() => setDetailsModal(null)}
@@ -442,11 +377,11 @@ export default function RepairsPage() {
               {/* Repair Type Badge */}
               <div className="flex justify-center">
                 <span className={`
-                  ${detailsModal.repairType === 'R3' ? 'bg-error' : 
-                    detailsModal.repairType === 'R2' ? 'bg-highlight' : 'bg-primary'}
+                  ${detailsModal.repairLevel === 'Repair 3' ? 'bg-error' : 
+                    detailsModal.repairLevel === 'Repair 2' ? 'bg-highlight' : 'bg-primary'}
                   text-white px-6 py-2 rounded-full text-lg font-bold
                 `}>
-                  {detailsModal.repairType} - {detailsModal.violation}
+                  {detailsModal.repairLevel} - {detailsModal.infractionBehavior}
                 </span>
               </div>
 
@@ -455,7 +390,7 @@ export default function RepairsPage() {
                 <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
                   <p className="text-sm text-font-detail mb-1">Date Assigned</p>
                   <p className="font-semibold text-font-base">
-                    {new Date(detailsModal.date).toLocaleDateString('en-US', { 
+                    {new Date(detailsModal.infractionDate).toLocaleDateString('en-US', { 
                       month: 'long', 
                       day: 'numeric', 
                       year: 'numeric' 
@@ -464,17 +399,18 @@ export default function RepairsPage() {
                 </div>
                 <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
                   <p className="text-sm text-font-detail mb-1">Assigned By</p>
-                  <p className="font-semibold text-font-base">{detailsModal.assignedBy}</p>
+                  <p className="font-semibold text-font-base">{detailsModal.assigningStaffName}</p>
                 </div>
                 <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
-                  <p className="text-sm text-font-detail mb-1">Duration</p>
-                  <p className="font-semibold text-font-base">{detailsModal.duration}</p>
+                  <p className="text-sm text-font-detail mb-1">Shift</p>
+                  <p className="font-semibold text-font-base">{detailsModal.infractionShift || 'N/A'}</p>
                 </div>
                 <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
                   <p className="text-sm text-font-detail mb-1">Status</p>
                   <p className="font-semibold text-font-base flex items-center gap-2">
                     <span className={`
-                      ${detailsModal.status === 'Active' ? 'bg-error' : 'bg-success'}
+                      ${detailsModal.status === 'pending_review' ? 'bg-warning' : 
+                        detailsModal.status === 'approved' ? 'bg-success' : 'bg-error'}
                       w-2 h-2 rounded-full
                     `}></span>
                     {detailsModal.status}
@@ -494,33 +430,44 @@ export default function RepairsPage() {
               )}
 
               {/* Interventions */}
-              <div>
-                <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
-                  <i className="fa-solid fa-clipboard-list text-primary"></i>
-                  Assigned Interventions
-                </h3>
-                <div className="grid grid-cols-1 gap-2">
-                  {detailsModal.interventions.map((intervention: string, index: number) => (
-                    <div key={index} className="bg-primary-lightest border-l-4 border-primary p-3 rounded">
-                      <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-check-circle text-primary"></i>
-                        <span className="text-sm font-medium text-font-base">{intervention}</span>
-                      </div>
-                    </div>
-                  ))}
+              {detailsModal.interventionsJson && (
+                <div>
+                  <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
+                    <i className="fa-solid fa-clipboard-list text-primary"></i>
+                    Assigned Interventions
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(() => {
+                      try {
+                        const interventions = JSON.parse(detailsModal.interventionsJson);
+                        return Array.isArray(interventions) ? interventions.map((intervention: string, index: number) => (
+                          <div key={index} className="bg-primary-lightest border-l-4 border-primary p-3 rounded">
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-check-circle text-primary"></i>
+                              <span className="text-sm font-medium text-font-base">{intervention}</span>
+                            </div>
+                          </div>
+                        )) : null;
+                      } catch {
+                        return <p className="text-sm text-font-detail">No interventions specified</p>;
+                      }
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Comments */}
-              <div>
-                <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
-                  <i className="fa-solid fa-comment text-primary"></i>
-                  Staff Comments
-                </h3>
-                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
-                  <p className="text-sm text-font-base leading-relaxed">{detailsModal.comments}</p>
+              {detailsModal.comments && (
+                <div>
+                  <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
+                    <i className="fa-solid fa-comment text-primary"></i>
+                    Staff Comments
+                  </h3>
+                  <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                    <p className="text-sm text-font-base leading-relaxed">{detailsModal.comments}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}
