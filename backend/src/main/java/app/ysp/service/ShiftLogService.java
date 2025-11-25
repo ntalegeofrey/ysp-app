@@ -312,7 +312,11 @@ public class ShiftLogService {
         info.setFileName(attachment.getFileName());
         info.setFileType(attachment.getFileType());
         info.setFileSize(attachment.getFileSize());
-        info.setFileUrl(attachment.getFileUrl());
+        
+        // Generate pre-signed URL for secure access to private bucket files
+        String presignedUrl = storageService.generatePresignedUrl(attachment.getFileUrl());
+        info.setFileUrl(presignedUrl);
+        
         info.setUploadedAt(attachment.getUploadedAt());
         return info;
     }
