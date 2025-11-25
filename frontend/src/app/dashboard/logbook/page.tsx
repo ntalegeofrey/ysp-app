@@ -1101,22 +1101,13 @@ export default function LogbookPage() {
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => handleViewShiftLog(log)}
-                                className="text-primary hover:text-primary-light transition-colors"
-                                title="View Report"
-                              >
-                                <i className="fa-solid fa-eye"></i>
-                              </button>
-                              <button 
-                                onClick={() => handlePrintShiftLog(log)}
-                                className="text-primary hover:text-primary-light transition-colors"
-                                title="Print/Download PDF"
-                              >
-                                <i className="fa-solid fa-print"></i>
-                              </button>
-                            </div>
+                            <button 
+                              onClick={() => handlePrintShiftLog(log)}
+                              className="text-primary hover:text-primary-light transition-colors"
+                              title="Print/Download PDF"
+                            >
+                              <i className="fa-solid fa-print"></i>
+                            </button>
                           </td>
                         </tr>
                       );

@@ -17,8 +17,10 @@ export default function AssignRepairPage() {
       try {
         // Get logged-in user
         const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        let userEmail = '';
         if (userData) {
           const user = JSON.parse(userData);
+          userEmail = user.email || '';
           setCurrentUser({
             firstName: user.firstName || '',
             lastName: user.lastName || '',
@@ -53,7 +55,6 @@ export default function AssignRepairPage() {
               setUserAssignments(assignments);
               
               // Check if user is Program Director or Clinical
-              const userEmail = JSON.parse(userData).email;
               const userAssignment = assignments.find((a: any) => 
                 a.userEmail?.toLowerCase() === userEmail?.toLowerCase()
               );
