@@ -402,19 +402,6 @@ export default function LogbookPage() {
     }
   };
   
-  // Handle file selection
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...newFiles]);
-    }
-  };
-  
-  // Remove file from selection
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  
   // Handle form submission
   const handleSubmitShiftLog = async () => {
     // Validation
