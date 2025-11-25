@@ -2,13 +2,14 @@ package app.ysp.service;
 
 import app.ysp.dto.RepairInterventionRequest;
 import app.ysp.dto.RepairInterventionResponse;
+import app.ysp.dto.RepairReviewRequest;
 import app.ysp.entity.Program;
 import app.ysp.entity.ProgramResident;
 import app.ysp.entity.RepairIntervention;
 import app.ysp.domain.User;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.ProgramResidentRepository;
-import app.ysp.repo.RepairInterventionRepository;
+import app.ysp.repository.RepairInterventionRepository;
 import app.ysp.repo.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +39,8 @@ public class RepairInterventionService {
     }
 
     public List<RepairInterventionResponse> getAllRepairInterventions(Long programId) {
-        return repairRepo.findByProgram_IdOrderByCreatedAtDesc(programId)
+        return repairRepo.findByProgram_IdOrderByInfractionDateDescCreatedAtDesc(programId, org.springframework.data.domain.Pageable.unpaged())
+                .getContent()
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -73,6 +75,10 @@ public class RepairInterventionService {
         repair.setInterventionsJson(request.getInterventionsJson());
         repair.setComments(request.getComments());
         repair.setReviewDate(request.getReviewDate());
+        repair.setRepairDurationDays(request.getRepairDurationDays());
+        repair.setRepairStartDate(request.getRepairStartDate());
+        repair.setRepairEndDate(request.getRepairEndDate());
+        repair.setPointsSuspended(request.getPointsSuspended() != null ? request.getPointsSuspended() : true);
         
         // Set assigning staff info
         repair.setAssigningStaffId(assigningStaff.getId());
@@ -90,7 +96,7 @@ public class RepairInterventionService {
     }
 
     @Transactional
-    public RepairInterventionResponse approvePD(Long id, String userEmail) {
+    public RepairInterventionResponse approvePD(Long id, RepairReviewRequest request, String userEmail) {
         RepairIntervention repair = repairRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Repair intervention not found"));
 
@@ -103,10 +109,13 @@ public class RepairInterventionService {
                              (reviewer.getLastName() != null ? reviewer.getLastName() : "");
         repair.setReviewedByPdName(reviewerName.trim());
         repair.setReviewedByPdAt(Instant.now());
+        repair.setPdReviewStatus(request.getReviewStatus());
+        repair.setPdReviewComments(request.getReviewComments());
         repair.setUpdatedAt(Instant.now());
 
         // Update status if both approvals are done
-        if (repair.getReviewedByClinicalAt() != null) {
+        if ("approved".equals(request.getReviewStatus()) && 
+            "approved".equals(repair.getClinicalReviewStatus())) {
             repair.setStatus("approved");
         }
 
@@ -115,7 +124,7 @@ public class RepairInterventionService {
     }
 
     @Transactional
-    public RepairInterventionResponse approveClinical(Long id, String userEmail) {
+    public RepairInterventionResponse approveClinical(Long id, RepairReviewRequest request, String userEmail) {
         RepairIntervention repair = repairRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Repair intervention not found"));
 
@@ -128,10 +137,13 @@ public class RepairInterventionService {
                              (reviewer.getLastName() != null ? reviewer.getLastName() : "");
         repair.setReviewedByClinicalName(reviewerName.trim());
         repair.setReviewedByClinicalAt(Instant.now());
+        repair.setClinicalReviewStatus(request.getReviewStatus());
+        repair.setClinicalReviewComments(request.getReviewComments());
         repair.setUpdatedAt(Instant.now());
 
         // Update status if both approvals are done
-        if (repair.getReviewedByPdAt() != null) {
+        if ("approved".equals(request.getReviewStatus()) && 
+            "approved".equals(repair.getPdReviewStatus())) {
             repair.setStatus("approved");
         }
 
@@ -165,10 +177,25 @@ public class RepairInterventionService {
         response.setReviewedByClinicalId(repair.getReviewedByClinicalId());
         response.setReviewedByClinicalName(repair.getReviewedByClinicalName());
         response.setReviewedByClinicalAt(repair.getReviewedByClinicalAt());
+        response.setRepairDurationDays(repair.getRepairDurationDays());
+        response.setRepairStartDate(repair.getRepairStartDate());
+        response.setRepairEndDate(repair.getRepairEndDate());
+        response.setPointsSuspended(repair.getPointsSuspended());
+        response.setPdReviewStatus(repair.getPdReviewStatus());
+        response.setPdReviewComments(repair.getPdReviewComments());
+        response.setClinicalReviewStatus(repair.getClinicalReviewStatus());
+        response.setClinicalReviewComments(repair.getClinicalReviewComments());
         response.setStatus(repair.getStatus());
         response.setCreatedAt(repair.getCreatedAt());
         response.setUpdatedAt(repair.getUpdatedAt());
         
         return response;
+    }
+
+    public List<RepairInterventionResponse> getRepairsByResident(Long residentId) {
+        return repairRepo.findByResident_IdOrderByInfractionDateDesc(residentId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 }
