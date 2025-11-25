@@ -192,16 +192,26 @@ public class ShiftLogService {
         // Parse certification datetime
         if (request.getCertificationDatetime() != null && !request.getCertificationDatetime().trim().isEmpty()) {
             try {
+                // Try parsing as ZonedDateTime first
                 Instant certTime = ZonedDateTime.parse(request.getCertificationDatetime()).toInstant();
                 log.setCertificationDatetime(certTime);
-            } catch (DateTimeParseException e) {
-                // Try parsing as local datetime
+            } catch (DateTimeParseException e1) {
                 try {
+                    // Try parsing as Instant
                     Instant certTime = Instant.parse(request.getCertificationDatetime());
                     log.setCertificationDatetime(certTime);
-                } catch (DateTimeParseException ex) {
-                    // Ignore invalid datetime
-                    log.setCertificationDatetime(null);
+                } catch (DateTimeParseException e2) {
+                    try {
+                        // Try parsing as LocalDateTime (from datetime-local input: "2024-11-25T15:30")
+                        java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(request.getCertificationDatetime());
+                        // Convert to Instant using system default timezone
+                        Instant certTime = localDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant();
+                        log.setCertificationDatetime(certTime);
+                    } catch (DateTimeParseException e3) {
+                        // If all parsing attempts fail, log error and set to null
+                        System.err.println("Failed to parse certification datetime: " + request.getCertificationDatetime());
+                        log.setCertificationDatetime(null);
+                    }
                 }
             }
         }
