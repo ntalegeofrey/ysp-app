@@ -78,8 +78,28 @@ export default function LogbookPage() {
   const [status, setStatus] = useState('Regular');
   const [addedStaff, setAddedStaff] = useState<StaffMember[]>([]);
   
+  // Equipment counts state
+  const [equipmentCounts, setEquipmentCounts] = useState({
+    bigsRoomKeys: 12,
+    dutyBelts: 8,
+    staffKeys: 8,
+    flashlights: 6,
+    jHooks: 8,
+    pencils: 15
+  });
+  
+  // Shift documentation state
+  const [residentComments, setResidentComments] = useState('');
+  const [incidentsEvents, setIncidentsEvents] = useState('');
+  const [overallStatus, setOverallStatus] = useState('Routine');
+  const [followUpRequired, setFollowUpRequired] = useState('No');
+  const [shiftSummary, setShiftSummary] = useState('');
+  
   // File upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  // Archive data
+  const [archiveLogs, setArchiveLogs] = useState<any[]>([]);
   
   // Certification state
   const [certificationComplete, setCertificationComplete] = useState(false);
@@ -255,6 +275,117 @@ export default function LogbookPage() {
   // Remove staff member
   const removeStaffMember = (index: number) => {
     setAddedStaff(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  // Load archive data
+  const loadArchiveData = async () => {
+    if (!programId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/logbook/shift-logs?page=0&size=50`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setArchiveLogs(data.content || []);
+      }
+    } catch (error) {
+      console.error('Error loading archive logs:', error);
+    }
+  };
+  
+  // Load archive on program change
+  useEffect(() => {
+    if (programId && activeTab === 'archive') {
+      loadArchiveData();
+    }
+  }, [programId, activeTab]);
+  
+  // Handle form submission
+  const handleSubmitShiftLog = async () => {
+    // Validation
+    if (!unitSupervisor) {
+      addToast('Please select a unit supervisor', 'warning');
+      return;
+    }
+    
+    if (!certificationComplete) {
+      addToast('Please certify the report before submitting', 'error');
+      return;
+    }
+    
+    if (!certificationDatetime) {
+      addToast('Please enter certification date and time', 'warning');
+      return;
+    }
+    
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Prepare payload
+      const payload = {
+        shiftDate,
+        shiftType: shift,
+        unitSupervisor,
+        residentInitials: generateResidentInitials,
+        residentCount: residentsList.length,
+        residentComments,
+        incidentsEvents,
+        overallStatus,
+        followUpRequired,
+        shiftSummary,
+        staffAssignmentsJson: JSON.stringify(addedStaff),
+        equipmentCountsJson: JSON.stringify(equipmentCounts),
+        certificationComplete,
+        certEquipmentVerified,
+        certShiftEventsAccurate,
+        certificationDatetime,
+        reportCompletedBy: currentUser.fullName,
+        reportCompletedByEmail: currentUser.email
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/logbook/shift-logs`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Shift log submitted successfully', 'success');
+        // Reset form
+        setShiftDate(new Date().toISOString().split('T')[0]);
+        setShift('Day (7:00 AM - 3:00 PM)');
+        setUnitSupervisor('');
+        setAddedStaff([]);
+        setResidentComments('');
+        setIncidentsEvents('');
+        setOverallStatus('Routine');
+        setFollowUpRequired('No');
+        setShiftSummary('');
+        setSelectedFiles([]);
+        setCertificationComplete(false);
+        setCertEquipmentVerified(false);
+        setCertShiftEventsAccurate(false);
+        setCertificationDatetime('');
+        // Reload archive
+        loadArchiveData();
+      } else {
+        const error = await res.json();
+        addToast(error.message || 'Failed to submit shift log', 'error');
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      addToast('Error submitting shift log', 'error');
+    }
   };
 
   const tabBtnBase = 'py-2 px-1 border-b-2 text-sm font-medium';
@@ -538,11 +669,21 @@ export default function LogbookPage() {
                     />
                   </div>
                 </div>
-                <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="General comments about residents' behavior, mood, or notable observations during this shift..."></textarea>
+                <textarea 
+                  value={residentComments}
+                  onChange={(e) => setResidentComments(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" 
+                  placeholder="General comments about residents' behavior, mood, or notable observations during this shift..."
+                ></textarea>
               </div>
               <div>
                 <h4 className="font-medium text-font-base mb-4">Incidents & Events</h4>
-                <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Document any incidents, behavioral issues, medical concerns, maintenance problems, or significant events that occurred during this shift..."></textarea>
+                <textarea 
+                  value={incidentsEvents}
+                  onChange={(e) => setIncidentsEvents(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary" 
+                  placeholder="Document any incidents, behavioral issues, medical concerns, maintenance problems, or significant events that occurred during this shift..."
+                ></textarea>
               </div>
               <div>
                 <h4 className="font-medium text-font-base mb-4">Scanned Log Book Pages</h4>
@@ -598,7 +739,11 @@ export default function LogbookPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Overall Status</label>
-                      <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <select 
+                        value={overallStatus}
+                        onChange={(e) => setOverallStatus(e.target.value)}
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
                         <option>Routine</option>
                         <option>Warning</option>
                         <option>High</option>
@@ -607,7 +752,11 @@ export default function LogbookPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Follow-up Required</label>
-                      <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <select 
+                        value={followUpRequired}
+                        onChange={(e) => setFollowUpRequired(e.target.value)}
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
                         <option>No</option>
                         <option>Yes - Next Shift</option>
                         <option>Yes - Supervisor</option>
@@ -616,7 +765,12 @@ export default function LogbookPage() {
                       </select>
                     </div>
                   </div>
-                  <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Provide a concise summary of the shift, including key accomplishments, challenges, and any immediate follow-up actions needed..."></textarea>
+                  <textarea 
+                    value={shiftSummary}
+                    onChange={(e) => setShiftSummary(e.target.value)}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary" 
+                    placeholder="Provide a concise summary of the shift, including key accomplishments, challenges, and any immediate follow-up actions needed..."
+                  ></textarea>
                 </div>
               </div>
               
@@ -682,7 +836,7 @@ export default function LogbookPage() {
               <div className="flex justify-end">
                 <button 
                   type="button"
-                  onClick={() => addToast('Shift report submitted successfully', 'success')}
+                  onClick={handleSubmitShiftLog}
                   className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium"
                 >
                   Submit Shift Report
