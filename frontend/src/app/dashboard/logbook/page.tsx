@@ -1,9 +1,259 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import ToastContainer from '@/app/components/Toast';
+import { useToast } from '@/app/hooks/useToast';
+import { abbreviateTitle } from '@/app/utils/titleAbbrev';
+
+// Position list from titleAbbrev.ts mapping
+const POSITION_LIST = [
+  { full: 'Juvenile Justice Youth Development Specialist I', abbrev: 'JJYDS-I' },
+  { full: 'Juvenile Justice Youth Development Specialist II', abbrev: 'JJYDS-II' },
+  { full: 'Juvenile Justice Youth Development Specialist III', abbrev: 'JJYDS-III' },
+  { full: 'Master Juvenile Justice Youth Development Specialist', abbrev: 'M-JJYDS' },
+  { full: 'Youth Services Group Worker', abbrev: 'YSGW' },
+  { full: 'Program Director', abbrev: 'PD' },
+  { full: 'Assistant Program Director', abbrev: 'APD' },
+  { full: 'Caseworker I', abbrev: 'CW-I' },
+  { full: 'Caseworker II', abbrev: 'CW-II' },
+  { full: 'Clinical Social Worker I', abbrev: 'CSW-I' },
+  { full: 'Clinical Social Worker II', abbrev: 'CSW-II' },
+  { full: 'Psychologist', abbrev: 'PSY' },
+  { full: 'Registered Nurse', abbrev: 'RN' },
+  { full: 'Nurse Practitioner', abbrev: 'NP' },
+  { full: 'Teacher', abbrev: 'TCH' },
+  { full: 'Special Education Teacher', abbrev: 'SPED-T' },
+  { full: 'Administrative Assistant', abbrev: 'AA' },
+  { full: 'Medical Director', abbrev: 'MD' },
+];
+
+type StaffDirectory = {
+  id: string;
+  fullName: string;
+  email: string;
+  jobTitle?: string;
+};
+
+type ProgramAssignment = {
+  roleType?: string;
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  userEmail?: string;
+};
+
+type Resident = {
+  id: number;
+  firstName: string;
+  lastName: string;
+};
+
+type StaffMember = {
+  name: string;
+  position: string;
+  duties: string;
+  status: string;
+};
 
 export default function LogbookPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'archive'>('current');
+  const { toasts, addToast, removeToast } = useToast();
+  
+  // Get logged-in user and program
+  const [currentUser, setCurrentUser] = useState({ fullName: '', email: '' });
+  const [programId, setProgramId] = useState<number | null>(null);
+  
+  // Data from APIs
+  const [staffDirectory, setStaffDirectory] = useState<StaffDirectory[]>([]);
+  const [programStaff, setProgramStaff] = useState<ProgramAssignment[]>([]);
+  const [residentsList, setResidentsList] = useState<Resident[]>([]);
+  
+  // Form state
+  const [shiftDate, setShiftDate] = useState(new Date().toISOString().split('T')[0]);
+  const [shift, setShift] = useState('Day (7:00 AM - 3:00 PM)');
+  const [unitSupervisor, setUnitSupervisor] = useState('');
+  const [selectedStaffName, setSelectedStaffName] = useState('');
+  const [selectedPosition, setSelectedPosition] = useState('');
+  const [duties, setDuties] = useState('');
+  const [status, setStatus] = useState('Regular');
+  const [addedStaff, setAddedStaff] = useState<StaffMember[]>([]);
+  
+  // File upload state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  // Certification state
+  const [certificationComplete, setCertificationComplete] = useState(false);
+  const [certificationDatetime, setCertificationDatetime] = useState('');
+  
+  // Create lookup by email
+  const staffByEmail = useMemo(
+    () => Object.fromEntries(staffDirectory.map((s) => [s.email.toLowerCase(), s])),
+    [staffDirectory]
+  );
+  
+  // Get unique program staff
+  const uniqueProgramStaff = useMemo(() => {
+    const map: Record<string, ProgramAssignment> = {};
+    for (const staff of programStaff) {
+      const key = (staff.userEmail || '').toLowerCase();
+      if (!key) continue;
+      if (!map[key]) map[key] = staff;
+    }
+    return Object.values(map);
+  }, [programStaff]);
+
+  // Load user and program data
+  useEffect(() => {
+    try {
+      const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (userData) {
+        const user = JSON.parse(userData);
+        setCurrentUser({
+          fullName: user.fullName || user.name || user.email || 'Unknown User',
+          email: user.email || ''
+        });
+      }
+      
+      const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      if (programData) {
+        const program = JSON.parse(programData);
+        setProgramId(program.id);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }, []);
+  
+  // Load staff directory
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/users/search?q=', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data: Array<any> = await res.json();
+        setStaffDirectory(data.map((u) => ({
+          id: typeof u.id === 'string' ? u.id : String(u.id),
+          fullName: u.fullName,
+          email: u.email,
+          jobTitle: u.jobTitle
+        })));
+      } catch (error) {
+        console.error('Error loading staff directory:', error);
+      }
+    })();
+  }, []);
+  
+  // Load program staff and residents
+  useEffect(() => {
+    if (!programId) return;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers = {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        
+        const [staffRes, residentsRes] = await Promise.all([
+          fetch(`/api/programs/${programId}/assignments`, {
+            credentials: 'include',
+            headers
+          }),
+          fetch(`/api/programs/${programId}/residents`, {
+            credentials: 'include',
+            headers
+          })
+        ]);
+        
+        if (staffRes.ok) {
+          const data: Array<any> = await staffRes.json();
+          setProgramStaff((data || []).map((a) => ({
+            roleType: a.roleType,
+            title: a.title,
+            firstName: a.firstName,
+            lastName: a.lastName,
+            userEmail: a.userEmail
+          })));
+        }
+        
+        if (residentsRes.ok) {
+          const data = await residentsRes.json();
+          setResidentsList(data);
+        }
+      } catch (error) {
+        console.error('Error loading program data:', error);
+      }
+    })();
+  }, [programId]);
+  
+  // Auto-generate resident initials with duplicate handling
+  const generateResidentInitials = useMemo(() => {
+    const initialsMap: Record<string, number> = {};
+    return residentsList.map(resident => {
+      const lastName = String(resident.lastName || '');
+      const firstName = String(resident.firstName || '');
+      const lastInitial = (lastName[0] || '').toUpperCase();
+      const firstInitial = (firstName[0] || '').toUpperCase();
+      const baseInitials = lastInitial + firstInitial;
+      
+      // Handle duplicates by adding additional letters
+      if (initialsMap[baseInitials]) {
+        initialsMap[baseInitials]++;
+        const additionalLetter = String(lastName[initialsMap[baseInitials]] || firstName[1] || initialsMap[baseInitials]).toUpperCase();
+        return `${baseInitials}${additionalLetter}`;
+      } else {
+        initialsMap[baseInitials] = 0;
+        return baseInitials;
+      }
+    }).join(', ');
+  }, [residentsList]);
+  
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+  
+  // Remove file
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  // Add staff member
+  const handleAddStaff = () => {
+    if (!selectedStaffName || !selectedPosition) {
+      addToast('Please select staff name and position', 'warning');
+      return;
+    }
+    
+    const newStaff: StaffMember = {
+      name: selectedStaffName,
+      position: selectedPosition,
+      duties: duties || 'N/A',
+      status
+    };
+    
+    setAddedStaff(prev => [...prev, newStaff]);
+    setSelectedStaffName('');
+    setSelectedPosition('');
+    setDuties('');
+    setStatus('Regular');
+    addToast('Staff member added', 'success');
+  };
+  
+  // Remove staff member
+  const removeStaffMember = (index: number) => {
+    setAddedStaff(prev => prev.filter((_, i) => i !== index));
+  };
 
   const tabBtnBase = 'py-2 px-1 border-b-2 text-sm font-medium';
   const tabActive = 'border-primary text-primary';
@@ -57,16 +307,34 @@ export default function LogbookPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Unit Supervisor</label>
-                      <input type="text" defaultValue="John Smith" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Unit Assignment</label>
-                      <select defaultValue="Unit B" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                        <option>Unit A</option>
-                        <option>Unit B</option>
-                        <option>Unit C</option>
-                        <option>Unit D</option>
+                      <select 
+                        value={unitSupervisor}
+                        onChange={(e) => setUnitSupervisor(e.target.value)}
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
+                        <option value="">Select Supervisor...</option>
+                        {uniqueProgramStaff.map((s, idx) => {
+                          const emailKey = (s.userEmail || '').toLowerCase();
+                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                          const baseName = fromDirectory?.fullName?.trim() || '';
+                          const emailFallback = (s.userEmail || '').trim();
+                          const name = baseName || emailFallback || 'Staff';
+                          const directoryTitle = fromDirectory?.jobTitle?.trim();
+                          const rawTitle = directoryTitle || (s.title || '').trim();
+                          let label = name;
+                          if (rawTitle) {
+                            const abbr = abbreviateTitle(rawTitle);
+                            const titleDisplay = abbr || rawTitle;
+                            label = `${name} (${titleDisplay})`;
+                          }
+                          return (
+                            <option key={s.userEmail || idx} value={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
                       </select>
+                      <p className="text-xs text-font-detail mt-1">Select from program staff</p>
                     </div>
                   </div>
                 </div>
@@ -74,35 +342,81 @@ export default function LogbookPage() {
                   <h4 className="font-medium text-font-base mb-4">Add Staff Member</h4>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Staff Name</label>
-                      <input type="text" placeholder="Enter staff name" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                      <label className="block text-sm font-medium text-font-base mb-2">Staff Member</label>
+                      <select 
+                        value={selectedStaffName}
+                        onChange={(e) => setSelectedStaffName(e.target.value)}
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
+                        <option value="">Select Staff...</option>
+                        {uniqueProgramStaff.map((s, idx) => {
+                          const emailKey = (s.userEmail || '').toLowerCase();
+                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                          const baseName = fromDirectory?.fullName?.trim() || '';
+                          const emailFallback = (s.userEmail || '').trim();
+                          const name = baseName || emailFallback || 'Staff';
+                          const directoryTitle = fromDirectory?.jobTitle?.trim();
+                          const rawTitle = directoryTitle || (s.title || '').trim();
+                          let label = name;
+                          if (rawTitle) {
+                            const abbr = abbreviateTitle(rawTitle);
+                            const titleDisplay = abbr || rawTitle;
+                            label = `${name} (${titleDisplay})`;
+                          }
+                          return (
+                            <option key={s.userEmail || idx} value={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <p className="text-xs text-font-detail mt-1">Select from program staff</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Position</label>
-                      <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                        <option>JJYDS I</option>
-                        <option>JJYDS II</option>
-                        <option>JJYDS III</option>
-                        <option>Caseworker</option>
-                        <option>Support Staff</option>
-                        <option>Medical Staff</option>
+                      <select 
+                        value={selectedPosition}
+                        onChange={(e) => setSelectedPosition(e.target.value)}
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      >
+                        <option value="">Select Position...</option>
+                        {POSITION_LIST.map(pos => (
+                          <option key={pos.abbrev} value={pos.abbrev}>
+                            {pos.full}
+                          </option>
+                        ))}
                       </select>
+                      <p className="text-xs text-font-detail mt-1">Select position from list</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Duties</label>
-                      <input type="text" placeholder="e.g., Unit Supervision, Security Rounds" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                      <input 
+                        type="text" 
+                        value={duties}
+                        onChange={(e) => setDuties(e.target.value)}
+                        placeholder="e.g., Unit Supervision, Security Rounds" 
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Status</label>
-                        <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                        <select 
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
                           <option>Regular</option>
                           <option>Overtime</option>
                           <option>Force</option>
                         </select>
                       </div>
                       <div className="flex items-end">
-                        <button className="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light flex items-center justify-center">
+                        <button 
+                          type="button"
+                          onClick={handleAddStaff}
+                          className="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light flex items-center justify-center"
+                        >
                           <i className="fa-solid fa-plus mr-2"></i>
                           Add Staff
                         </button>
@@ -111,18 +425,41 @@ export default function LogbookPage() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-4 mb-6">
-                {[{ name: 'Sarah Johnson', role: 'JJYDS II', duties: 'Unit Supervision, Resident Support', tag: 'Regular', tagClass: 'bg-primary-alt' }, { name: 'Mike Rodriguez', role: 'JJYDS I', duties: 'Security Rounds, Equipment Check', tag: 'Overtime', tagClass: 'bg-warning' }, { name: 'Dr. Lisa Chen', role: 'Medical Staff', duties: 'Medical Rounds, Emergency Response', tag: 'Force', tagClass: 'bg-error' }].map((s) => (
-                  <div key={s.name} className="bg-bg-subtle rounded-lg p-4 border border-bd">
-                    <div className="grid grid-cols-5 gap-4">
-                      <div><span className="text-sm font-medium text-font-base">{s.name}</span></div>
-                      <div><span className="text-sm text-font-detail">{s.role}</span></div>
-                      <div><span className="text-sm text-font-detail">{s.duties}</span></div>
-                      <div><span className={`${s.tagClass} text-white px-2 py-1 rounded text-xs`}>{s.tag}</span></div>
-                      <div className="text-right"><button className="text-error hover:text-error-lighter"><i className="fa-solid fa-trash text-sm"></i></button></div>
-                    </div>
+              {/* Gap between form and staff cards */}
+              <div className="mt-6 space-y-4">
+                {addedStaff.length === 0 ? (
+                  <div className="bg-bg-subtle rounded-lg p-6 text-center border border-bd">
+                    <i className="fa-solid fa-users text-3xl text-font-detail mb-2"></i>
+                    <p className="text-sm text-font-detail">No staff members added yet</p>
                   </div>
-                ))}
+                ) : (
+                  addedStaff.map((s, index) => {
+                    const tagClass = 
+                      s.status === 'Overtime' ? 'bg-warning' :
+                      s.status === 'Force' ? 'bg-error' :
+                      'bg-primary-alt';
+                    
+                    return (
+                      <div key={index} className="bg-bg-subtle rounded-lg p-4 border border-bd">
+                        <div className="grid grid-cols-5 gap-4">
+                          <div><span className="text-sm font-medium text-font-base">{s.name}</span></div>
+                          <div><span className="text-sm text-font-detail">{s.position}</span></div>
+                          <div><span className="text-sm text-font-detail">{s.duties}</span></div>
+                          <div><span className={`${tagClass} text-white px-2 py-1 rounded text-xs`}>{s.status}</span></div>
+                          <div className="text-right">
+                            <button 
+                              type="button"
+                              onClick={() => removeStaffMember(index)}
+                              className="text-error hover:text-error-lighter"
+                            >
+                              <i className="fa-solid fa-trash text-sm"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -210,11 +547,24 @@ export default function LogbookPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Resident Initials</label>
-                    <input type="text" placeholder="e.g., J.D., M.S., A.R." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input 
+                      type="text" 
+                      value={generateResidentInitials}
+                      readOnly
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
+                      title="Auto-generated from residents on unit"
+                    />
+                    <p className="text-xs text-font-detail mt-1">Auto-generated from program residents</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Total Count</label>
-                    <input type="number" defaultValue={8} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input 
+                      type="number" 
+                      value={residentsList.length}
+                      readOnly
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
+                      title="Auto-counted from residents list"
+                    />
                   </div>
                 </div>
                 <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="General comments about residents' behavior, mood, or notable observations during this shift..."></textarea>
@@ -228,9 +578,48 @@ export default function LogbookPage() {
                 <div className="border-2 border-dashed border-bd rounded-lg p-8 text-center">
                   <i className="fa-solid fa-cloud-upload-alt text-4xl text-primary-lighter mb-4"></i>
                   <p className="text-font-detail mb-2">Drop scanned log book pages here or click to upload</p>
-                  <input type="file" multiple accept="image/*,.pdf" className="hidden" id="scan-upload" />
-                  <label htmlFor="scan-upload" className="bg-primary text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-primary-light transition-colors">Choose Files</label>
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*,.pdf" 
+                    className="hidden" 
+                    id="scan-upload"
+                    onChange={handleFileSelect}
+                  />
+                  <label htmlFor="scan-upload" className="bg-primary text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-primary-light transition-colors">
+                    Choose Files
+                  </label>
                 </div>
+                {selectedFiles.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium text-font-base">Selected Files:</p>
+                    {selectedFiles.map((file, index) => {
+                      const fileSize = (file.size / 1024).toFixed(2);
+                      const isImage = file.type.startsWith('image/');
+                      const isPDF = file.type === 'application/pdf';
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between bg-bg-subtle p-3 rounded-lg border border-bd">
+                          <div className="flex items-center gap-3">
+                            <i className={`fa-solid ${isImage ? 'fa-image text-primary' : isPDF ? 'fa-file-pdf text-error' : 'fa-file text-font-detail'} text-xl`}></i>
+                            <div>
+                              <p className="text-sm font-medium text-font-base">{file.name}</p>
+                              <p className="text-xs text-font-detail">{fileSize} KB</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="text-error hover:text-error-lighter"
+                            title="Remove file"
+                          >
+                            <i className="fa-solid fa-times-circle text-lg"></i>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div>
                 <h4 className="font-medium text-font-base mb-4">Shift Summary</h4>
@@ -259,13 +648,72 @@ export default function LogbookPage() {
                   <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Provide a concise summary of the shift, including key accomplishments, challenges, and any immediate follow-up actions needed..."></textarea>
                 </div>
               </div>
+              
+              {/* Certification & Signature Section */}
+              <div>
+                <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
+                <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
+                  <div className="space-y-4">
+                    <label className="flex items-start gap-3 text-sm">
+                      <input 
+                        type="checkbox" 
+                        checked={certificationComplete} 
+                        onChange={(e) => setCertificationComplete(e.target.checked)} 
+                        className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" 
+                      />
+                      <span>I certify that all information in this shift log is accurate and complete to the best of my knowledge.</span>
+                    </label>
+                    <label className="flex items-start gap-3 text-sm">
+                      <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                      <span>I confirm all equipment counts have been verified and documented correctly.</span>
+                    </label>
+                    <label className="flex items-start gap-3 text-sm">
+                      <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                      <span>I attest that this log reflects all actual shift events and resident interactions.</span>
+                    </label>
+                    <div className="pt-4 border-t border-bd">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-font-base mb-2">Report Completed By</label>
+                          <input 
+                            type="text" 
+                            value={currentUser.fullName} 
+                            readOnly 
+                            className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
+                            title="Auto-filled from logged-in user"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-font-base mb-2">Certification Date & Time</label>
+                          <input 
+                            type="datetime-local" 
+                            value={certificationDatetime} 
+                            onChange={(e) => setCertificationDatetime(e.target.value)} 
+                            className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div className="flex justify-end">
-                <button className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium">Submit Shift Report</button>
+                <button 
+                  type="button"
+                  onClick={() => addToast('Shift report submitted successfully', 'success')}
+                  className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium"
+                >
+                  Submit Shift Report
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+      
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* Historical Logs Archive */}
       {activeTab === 'archive' && (
