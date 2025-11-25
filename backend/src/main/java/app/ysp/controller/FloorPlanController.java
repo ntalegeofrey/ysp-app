@@ -19,7 +19,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
 public class FloorPlanController {
 
     private final FirePlanRepository firePlans;

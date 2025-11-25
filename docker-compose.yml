@@ -39,6 +39,7 @@ services:
       - "${NGINX_HTTPS_PORT}:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - uploads:/opt/ysp-app/uploads:ro
 
   mailpit:
     image: axllent/mailpit:latest
@@ -81,6 +82,9 @@ services:
       APP_LOGO_URL: ${APP_LOGO_URL:-}
     ports:
       - "${BACKEND_PORT}:8080"
+    volumes:
+      - uploads:/opt/ysp-app/uploads
 
 volumes:
   db_data:
+  uploads:
