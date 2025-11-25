@@ -788,15 +788,15 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Date of Incident</label>
-                    <input type="date" defaultValue="2024-10-28" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input type="date" value={incidentReport.incidentDate} onChange={(e) => setIncidentReport({...incidentReport, incidentDate: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Time of Incident</label>
-                    <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input type="time" value={incidentReport.incidentTime} onChange={(e) => setIncidentReport({...incidentReport, incidentTime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select value={incidentReport.shift} onChange={(e) => setIncidentReport({...incidentReport, shift: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>Day (7:00 AM - 3:00 PM)</option>
                       <option>Evening (3:00 PM - 11:00 PM)</option>
                       <option>Night (11:00 PM - 7:00 AM)</option>
@@ -807,7 +807,7 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Area of Incident</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select value={incidentReport.areaOfIncident} onChange={(e) => setIncidentReport({...incidentReport, areaOfIncident: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>Common Area</option>
                       <option>Dining Hall</option>
                       <option>Recreation Room</option>
@@ -827,7 +827,7 @@ export default function IncidentsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Nature of Incident</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select value={incidentReport.natureOfIncident} onChange={(e) => setIncidentReport({...incidentReport, natureOfIncident: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>Restraint</option>
                       <option>Youth on Youth Assault</option>
                       <option>Youth on Staff Assault</option>
@@ -857,22 +857,22 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Residents Involved</label>
-                    <textarea placeholder="List resident names or IDs involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <textarea value={incidentReport.residentsInvolved} onChange={(e) => setIncidentReport({...incidentReport, residentsInvolved: e.target.value})} placeholder="List resident names or IDs involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Involved</label>
-                    <textarea placeholder="List staff members involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <textarea value={incidentReport.staffInvolved} onChange={(e) => setIncidentReport({...incidentReport, staffInvolved: e.target.value})} placeholder="List staff members involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Resident Witnesses</label>
-                    <textarea placeholder="List residents who witnessed the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <textarea value={incidentReport.residentWitnesses} onChange={(e) => setIncidentReport({...incidentReport, residentWitnesses: e.target.value})} placeholder="List residents who witnessed the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Primary Staff Applying Restraint</label>
-                    <input type="text" placeholder="Name of primary staff member" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input type="text" value={incidentReport.primaryStaffRestraint} onChange={(e) => setIncidentReport({...incidentReport, primaryStaffRestraint: e.target.value})} placeholder="Name of primary staff member" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                 </div>
 
@@ -882,11 +882,11 @@ export default function IncidentsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Start Time</label>
-                        <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input type="time" value={incidentReport.mechanicalsStartTime} onChange={(e) => setIncidentReport({...incidentReport, mechanicalsStartTime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Finish Time</label>
-                        <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input type="time" value={incidentReport.mechanicalsFinishTime} onChange={(e) => setIncidentReport({...incidentReport, mechanicalsFinishTime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                       </div>
                     </div>
                   </div>
@@ -895,11 +895,11 @@ export default function IncidentsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Start Time</label>
-                        <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input type="time" value={incidentReport.roomConfinementStartTime} onChange={(e) => setIncidentReport({...incidentReport, roomConfinementStartTime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Finish Time</label>
-                        <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input type="time" value={incidentReport.roomConfinementFinishTime} onChange={(e) => setIncidentReport({...incidentReport, roomConfinementFinishTime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                       </div>
                     </div>
                   </div>
@@ -908,17 +908,17 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Population of Staff on Shift</label>
-                    <input type="number" placeholder="Number of staff on duty" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input type="number" value={incidentReport.staffPopulation} onChange={(e) => setIncidentReport({...incidentReport, staffPopulation: e.target.value})} placeholder="Number of staff on duty" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Population of Youth on Shift</label>
-                    <input type="number" placeholder="Number of youth on unit" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input type="number" value={incidentReport.youthPopulation} onChange={(e) => setIncidentReport({...incidentReport, youthPopulation: e.target.value})} placeholder="Number of youth on unit" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Detailed Description of Incident</label>
-                  <textarea placeholder="Provide a comprehensive description of the incident, including events leading up to it, actions taken, and outcome" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                  <textarea value={incidentReport.detailedDescription} onChange={(e) => setIncidentReport({...incidentReport, detailedDescription: e.target.value})} placeholder="Provide a comprehensive description of the incident, including events leading up to it, actions taken, and outcome" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
                 </div>
 
                 {/* Certification & Signature Section */}
@@ -927,15 +927,15 @@ export default function IncidentsPage() {
                   <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
                     <div className="space-y-4">
                       <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <input type="checkbox" checked={incidentReport.certificationComplete} onChange={(e) => setIncidentReport({...incidentReport, certificationComplete: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I certify that the information provided in this incident report is accurate and complete to the best of my knowledge.</span>
                       </label>
                       <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
                         <span>I confirm that all required notifications have been made and proper protocols were followed.</span>
                       </label>
                       <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
                         <span>I understand that this report will be reviewed by facility administration and may be subject to regulatory oversight.</span>
                       </label>
                       <div className="pt-4 border-t border-bd">
@@ -952,7 +952,7 @@ export default function IncidentsPage() {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-font-base mb-2">Date & Time</label>
-                            <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                            <input type="datetime-local" value={incidentReport.signatureDatetime} onChange={(e) => setIncidentReport({...incidentReport, signatureDatetime: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
                           </div>
                         </div>
                       </div>
@@ -984,6 +984,22 @@ export default function IncidentsPage() {
                 </h3>
               </div>
               <div className="p-6 space-y-8">
+                {/* Date and Shift */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Date of Shakedown</label>
+                    <input type="date" value={shakedownReport.shakedownDate} onChange={(e) => setShakedownReport({...shakedownReport, shakedownDate: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
+                    <select value={shakedownReport.shift} onChange={(e) => setShakedownReport({...shakedownReport, shift: e.target.value})} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option>Day (7:00 AM - 3:00 PM)</option>
+                      <option>Evening (3:00 PM - 11:00 PM)</option>
+                      <option>Night (11:00 PM - 7:00 AM)</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Common Area Search */}
                 <div>
                   <h4 className="font-medium text-font-base mb-4">Common Area Search</h4>
