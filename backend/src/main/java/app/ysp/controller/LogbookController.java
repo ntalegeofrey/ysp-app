@@ -9,9 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/programs/{programId}/logbook")
@@ -20,6 +23,40 @@ public class LogbookController {
     
     @Autowired
     private ShiftLogService shiftLogService;
+    
+    /**
+     * Upload attachment for a shift log
+     * POST /programs/{programId}/logbook/shift-logs/{logId}/attachments
+     */
+    @PostMapping("/shift-logs/{logId}/attachments")
+    public ResponseEntity<Map<String, Object>> uploadAttachment(
+        @PathVariable Long programId,
+        @PathVariable Long logId,
+        @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            Map<String, Object> result = shiftLogService.addAttachment(programId, logId, file);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    /**
+     * Delete attachment from a shift log
+     * DELETE /programs/{programId}/logbook/shift-logs/{logId}/attachments/{attachmentId}
+     */
+    @DeleteMapping("/shift-logs/{logId}/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachment(
+        @PathVariable Long programId,
+        @PathVariable Long logId,
+        @PathVariable Long attachmentId
+    ) {
+        shiftLogService.deleteAttachment(programId, logId, attachmentId);
+        return ResponseEntity.noContent().build();
+    }
     
     /**
      * Get all shift logs for a program (paginated)

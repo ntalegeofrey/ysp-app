@@ -17,8 +17,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -40,6 +42,9 @@ public class ShiftLogService {
     
     @Autowired
     private ProgramRepository programRepository;
+    
+    @Autowired
+    private StorageService storageService;
     
     /**
      * Get all shift logs for a program with pagination
@@ -310,5 +315,65 @@ public class ShiftLogService {
         info.setFileUrl(attachment.getFileUrl());
         info.setUploadedAt(attachment.getUploadedAt());
         return info;
+    }
+    
+    /**
+     * Add attachment to a shift log
+     */
+    @Transactional
+    public Map<String, Object> addAttachment(Long programId, Long logId, MultipartFile file) throws IOException {
+        // Verify program and log exist
+        ShiftLog log = shiftLogRepository.findById(logId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shift log not found"));
+        
+        if (!log.getProgram().getId().equals(programId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Shift log does not belong to this program");
+        }
+        
+        // Upload file to storage
+        String fileUrl = storageService.uploadFile(file, "shift-logs");
+        
+        // Create attachment record
+        ShiftLogAttachment attachment = new ShiftLogAttachment();
+        attachment.setShiftLog(log);
+        attachment.setFileName(file.getOriginalFilename());
+        attachment.setFileType(file.getContentType());
+        attachment.setFileSize(file.getSize());
+        attachment.setFileUrl(fileUrl);
+        attachment.setUploadedAt(Instant.now());
+        
+        ShiftLogAttachment saved = attachmentRepository.save(attachment);
+        
+        // Return attachment info
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", saved.getId());
+        result.put("fileName", saved.getFileName());
+        result.put("fileType", saved.getFileType());
+        result.put("fileSize", saved.getFileSize());
+        result.put("fileUrl", saved.getFileUrl());
+        result.put("uploadedAt", saved.getUploadedAt());
+        
+        return result;
+    }
+    
+    /**
+     * Delete attachment from a shift log
+     */
+    @Transactional
+    public void deleteAttachment(Long programId, Long logId, Long attachmentId) {
+        // Verify attachment exists and belongs to the log
+        ShiftLogAttachment attachment = attachmentRepository.findById(attachmentId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+        
+        ShiftLog log = attachment.getShiftLog();
+        if (!log.getId().equals(logId) || !log.getProgram().getId().equals(programId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attachment does not belong to this shift log");
+        }
+        
+        // Delete file from storage
+        storageService.deleteFile(attachment.getFileUrl());
+        
+        // Delete attachment record
+        attachmentRepository.delete(attachment);
     }
 }

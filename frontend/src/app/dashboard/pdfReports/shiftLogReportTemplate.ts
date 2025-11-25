@@ -418,6 +418,33 @@ export function generateShiftLogReportHTML(data: any): string {
     <div class="text-content">${data.shiftSummary || 'No summary provided.'}</div>
   </div>
 
+  <!-- Attachments -->
+  ${(data.attachments && data.attachments.length > 0) ? `
+  <div class="section">
+    <div class="section-title">Attachments</div>
+    <table>
+      <thead>
+        <tr>
+          <th>File Name</th>
+          <th>Type</th>
+          <th>Size</th>
+          <th>Uploaded</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.attachments.map((att: any) => `
+          <tr>
+            <td><a href="${att.fileUrl}" target="_blank" style="color: #1e40af; text-decoration: none;">${att.fileName || 'File'}</a></td>
+            <td>${att.fileType || 'Unknown'}</td>
+            <td>${(att.fileSize / 1024).toFixed(2)} KB</td>
+            <td>${att.uploadedAt ? formatDateTime(att.uploadedAt) : 'N/A'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
   <!-- Certification & Signature -->
   <div class="certification-section">
     <div class="section-title" style="border-bottom: none; margin-bottom: 15px;">Certification & Signature</div>

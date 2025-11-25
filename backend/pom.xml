@@ -98,6 +98,13 @@
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>2.3.0</version>
     </dependency>
+    
+    <!-- AWS S3 SDK for Contabo Object Storage -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>2.20.26</version>
+    </dependency>
   </dependencies>
 
   <build>
