@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { logoUrl } from '@/app/utils/logo';
+import { abbreviateTitle } from '@/app/utils/titleAbbrev';
 import { generateIncidentReportHTML, generateShakedownReportHTML } from '../pdfReports';
 
 interface ToastMessage {
@@ -105,9 +106,30 @@ export default function IncidentsPage() {
     priority: 'All Priorities'
   });
   
-  // Staff and Residents lists for dropdowns
-  const [staffList, setStaffList] = useState<Array<{id: string; fullName: string; email: string}>>([]);
+  // Staff directory (all staff for lookup) and Program assignments
+  type StaffDirectory = {
+    id: string;
+    fullName: string;
+    email: string;
+    jobTitle?: string;
+    employeeNumber?: string;
+  };
+  type ProgramAssignment = {
+    roleType?: string;
+    title?: string;
+    firstName?: string;
+    lastName?: string;
+    userEmail?: string;
+  };
+  const [staffDirectory, setStaffDirectory] = useState<StaffDirectory[]>([]);
+  const [programStaff, setProgramStaff] = useState<ProgramAssignment[]>([]);
   const [residentsList, setResidentsList] = useState<Array<{id: number; firstName: string; lastName: string}>>([]);
+  
+  // Create lookup by email for staff details
+  const staffByEmail = useMemo(
+    () => Object.fromEntries(staffDirectory.map((s) => [s.email.toLowerCase(), s])),
+    [staffDirectory]
+  );
   
   // "Other" text fields for custom entries
   const [areaOtherText, setAreaOtherText] = useState('');
@@ -155,13 +177,12 @@ export default function IncidentsPage() {
     setRoomAddComments('');
   };
   
-  // Load staff list - ONLY staff assigned to this program
+  // Load staff directory (all staff for full details lookup)
   useEffect(() => {
-    if (!programId) return;
     (async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const res = await fetch(`/api/programs/${programId}/staff`, {
+        const res = await fetch('/api/users/search?q=', {
           credentials: 'include',
           headers: {
             'Accept': 'application/json',
@@ -169,11 +190,41 @@ export default function IncidentsPage() {
           }
         });
         if (!res.ok) return;
-        const data = await res.json();
-        setStaffList(data.map((s: any) => ({
-          id: String(s.userId || s.id),
-          fullName: s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-          email: s.email || ''
+        const data: Array<any> = await res.json();
+        setStaffDirectory(data.map((u) => ({
+          id: typeof u.id === 'string' ? u.id : String(u.id),
+          fullName: u.fullName,
+          email: u.email,
+          jobTitle: u.jobTitle,
+          employeeNumber: u.employeeNumber
+        })));
+      } catch (error) {
+        console.error('Error loading staff directory:', error);
+      }
+    })();
+  }, []);
+  
+  // Load program staff assignments - ONLY staff assigned to this program
+  useEffect(() => {
+    if (!programId) return;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/assignments`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data: Array<any> = await res.json();
+        setProgramStaff((data || []).map((a) => ({
+          roleType: a.roleType,
+          title: a.title,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          userEmail: a.userEmail
         })));
       } catch (error) {
         console.error('Error loading program staff:', error);
@@ -317,11 +368,25 @@ export default function IncidentsPage() {
         .filter(Boolean)
         .join(', ');
       
-      // Convert selected staff to comma-separated names
+      // Convert selected staff to comma-separated names with titles
       const staffInvolved = selectedStaff
         .map(id => {
-          const staff = staffList.find(s => s.id === id);
-          return staff ? staff.fullName : null;
+          const staff = programStaff.find((s, idx) => String(s.userEmail || `staff-${idx}`) === id);
+          if (!staff) return null;
+          
+          const emailKey = (staff.userEmail || '').toLowerCase();
+          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+          const baseName = fromDirectory?.fullName?.trim() || '';
+          const emailFallback = (staff.userEmail || '').trim();
+          const name = baseName || emailFallback || 'Staff';
+
+          const directoryTitle = fromDirectory?.jobTitle?.trim();
+          const rawTitle = directoryTitle || (staff.title || '').trim();
+          if (!rawTitle) return name;
+
+          const abbr = abbreviateTitle(rawTitle);
+          const titleDisplay = abbr || rawTitle;
+          return `${name} (${titleDisplay})`;
         })
         .filter(Boolean)
         .join(', ');
@@ -738,27 +803,45 @@ export default function IncidentsPage() {
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Involved</label>
                     <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
-                      {staffList.length === 0 ? (
-                        <p className="text-sm text-font-detail italic">No staff available</p>
+                      {programStaff.length === 0 ? (
+                        <p className="text-sm text-font-detail italic">No staff assigned to program</p>
                       ) : (
                         <div className="space-y-2">
-                          {staffList.map((staff) => (
-                            <label key={staff.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
-                              <input
-                                type="checkbox"
-                                checked={selectedStaff.includes(staff.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedStaff([...selectedStaff, staff.id]);
-                                  } else {
-                                    setSelectedStaff(selectedStaff.filter(id => id !== staff.id));
-                                  }
-                                }}
-                                className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
-                              />
-                              <span className="text-sm text-font-base">{staff.fullName}</span>
-                            </label>
-                          ))}
+                          {programStaff.map((s, idx) => {
+                            const id = String(s.userEmail || `staff-${idx}`);
+                            const emailKey = (s.userEmail || '').toLowerCase();
+                            const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                            const baseName = fromDirectory?.fullName?.trim() || '';
+                            const emailFallback = (s.userEmail || '').trim();
+                            const name = baseName || emailFallback || 'Staff';
+
+                            const directoryTitle = fromDirectory?.jobTitle?.trim();
+                            const rawTitle = directoryTitle || (s.title || '').trim();
+                            let label = name;
+                            if (rawTitle) {
+                              const abbr = abbreviateTitle(rawTitle);
+                              const titleDisplay = abbr || rawTitle;
+                              label = `${name} (${titleDisplay})`;
+                            }
+                            
+                            return (
+                              <label key={id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedStaff.includes(id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedStaff([...selectedStaff, id]);
+                                    } else {
+                                      setSelectedStaff(selectedStaff.filter(sid => sid !== id));
+                                    }
+                                  }}
+                                  className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
+                                />
+                                <span className="text-sm text-font-base">{label}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -804,11 +887,29 @@ export default function IncidentsPage() {
                       className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="">Select Staff...</option>
-                      {staffList.map((staff) => (
-                        <option key={staff.id} value={staff.fullName}>
-                          {staff.fullName}
-                        </option>
-                      ))}
+                      {programStaff.map((s, idx) => {
+                        const id = String(s.userEmail || `staff-${idx}`);
+                        const emailKey = (s.userEmail || '').toLowerCase();
+                        const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                        const baseName = fromDirectory?.fullName?.trim() || '';
+                        const emailFallback = (s.userEmail || '').trim();
+                        const name = baseName || emailFallback || 'Staff';
+
+                        const directoryTitle = fromDirectory?.jobTitle?.trim();
+                        const rawTitle = directoryTitle || (s.title || '').trim();
+                        let label = name;
+                        if (rawTitle) {
+                          const abbr = abbreviateTitle(rawTitle);
+                          const titleDisplay = abbr || rawTitle;
+                          label = `${name} (${titleDisplay})`;
+                        }
+                        
+                        return (
+                          <option key={id} value={label}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
                     <p className="text-xs text-font-detail mt-1">Select primary staff member</p>
                   </div>
