@@ -155,9 +155,19 @@ export default function RepairsPage() {
                         <i className="fa-solid fa-ellipsis-vertical"></i>
                       </button>
                       {openMenuIndex === 0 && (
-                        <div className="absolute right-0 mt-2 w-44 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/award')}>Points Management</button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/assign')}>Assign Repair</button>
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2847')}>
+                            <i className="fa-solid fa-history text-primary"></i>
+                            View Repairs
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                            <i className="fa-solid fa-star text-success"></i>
+                            Points Management
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                            <i className="fa-solid fa-exclamation-circle text-error"></i>
+                            Assign Repair
+                          </button>
                         </div>
                       )}
                     </div>
@@ -186,9 +196,19 @@ export default function RepairsPage() {
                         <i className="fa-solid fa-ellipsis-vertical"></i>
                       </button>
                       {openMenuIndex === 1 && (
-                        <div className="absolute right-0 mt-2 w-44 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/award')}>Points Management</button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/assign')}>Assign Repair</button>
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2851')}>
+                            <i className="fa-solid fa-history text-primary"></i>
+                            View Repairs
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                            <i className="fa-solid fa-star text-success"></i>
+                            Points Management
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                            <i className="fa-solid fa-exclamation-circle text-error"></i>
+                            Assign Repair
+                          </button>
                         </div>
                       )}
                     </div>
@@ -217,9 +237,19 @@ export default function RepairsPage() {
                         <i className="fa-solid fa-ellipsis-vertical"></i>
                       </button>
                       {openMenuIndex === 2 && (
-                        <div className="absolute right-0 mt-2 w-44 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/award')}>Points Management</button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/assign')}>Assign Repair</button>
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2849')}>
+                            <i className="fa-solid fa-history text-primary"></i>
+                            View Repairs
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                            <i className="fa-solid fa-star text-success"></i>
+                            Points Management
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                            <i className="fa-solid fa-exclamation-circle text-error"></i>
+                            Assign Repair
+                          </button>
                         </div>
                       )}
                     </div>
@@ -248,9 +278,19 @@ export default function RepairsPage() {
                         <i className="fa-solid fa-ellipsis-vertical"></i>
                       </button>
                       {openMenuIndex === 3 && (
-                        <div className="absolute right-0 mt-2 w-44 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/award')}>Points Management</button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle" onClick={() => router.push('/dashboard/repairs/assign')}>Assign Repair</button>
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2852')}>
+                            <i className="fa-solid fa-history text-primary"></i>
+                            View Repairs
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                            <i className="fa-solid fa-star text-success"></i>
+                            Points Management
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                            <i className="fa-solid fa-exclamation-circle text-error"></i>
+                            Assign Repair
+                          </button>
                         </div>
                       )}
                     </div>
