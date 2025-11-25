@@ -10,7 +10,9 @@ import java.util.Optional;
 
 public interface FireDrillReportRepository extends JpaRepository<FireDrillReport, Long> {
     
-    @Query("select r from FireDrillReport r where r.program.id = :programId and (:q is null or lower(coalesce(r.drillType,'')) like concat('%', lower(:q), '%') or lower(coalesce(r.status,'')) like concat('%', lower(:q), '%')) and (:drillType is null or lower(coalesce(r.drillType,'')) = lower(:drillType)) order by r.drillDate desc, r.drillTime desc, r.id desc")
+    @Query(value = "SELECT * FROM fire_drill_reports r WHERE r.program_id = :programId AND (:q IS NULL OR LOWER(CAST(r.drill_type AS TEXT)) LIKE CONCAT('%', LOWER(:q), '%') OR LOWER(CAST(r.status AS TEXT)) LIKE CONCAT('%', LOWER(:q), '%')) AND (:drillType IS NULL OR LOWER(CAST(r.drill_type AS TEXT)) = LOWER(:drillType)) ORDER BY r.drill_date DESC, r.drill_time DESC, r.id DESC", 
+           nativeQuery = true,
+           countQuery = "SELECT COUNT(*) FROM fire_drill_reports r WHERE r.program_id = :programId AND (:q IS NULL OR LOWER(CAST(r.drill_type AS TEXT)) LIKE CONCAT('%', LOWER(:q), '%') OR LOWER(CAST(r.status AS TEXT)) LIKE CONCAT('%', LOWER(:q), '%')) AND (:drillType IS NULL OR LOWER(CAST(r.drill_type AS TEXT)) = LOWER(:drillType))")
     Page<FireDrillReport> findByFilters(@Param("programId") Long programId, @Param("q") String q, @Param("drillType") String drillType, Pageable pageable);
 
     @Query("select r from FireDrillReport r where r.id = :id and r.program.id = :programId")
