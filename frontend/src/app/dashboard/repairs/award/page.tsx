@@ -5,6 +5,8 @@ import { useState } from 'react';
 export default function AwardPointsPage() {
   const [redeemPoints, setRedeemPoints] = useState('');
   const [redeemItem, setRedeemItem] = useState('');
+  const [customItem, setCustomItem] = useState('');
+  const [customPoints, setCustomPoints] = useState('');
   
   // Mock weekly data - will be replaced with API
   const weekData = {
@@ -16,7 +18,14 @@ export default function AwardPointsPage() {
   };
 
   const handleRedeem = () => {
-    if (redeemPoints && redeemItem) {
+    if (redeemItem === 'Other') {
+      if (customItem && customPoints) {
+        alert(`Redeeming ${customPoints} points for: ${customItem}`);
+        setRedeemItem('');
+        setCustomItem('');
+        setCustomPoints('');
+      }
+    } else if (redeemPoints && redeemItem) {
       alert(`Redeeming ${redeemPoints} points for: ${redeemItem}`);
       setRedeemPoints('');
       setRedeemItem('');
@@ -87,7 +96,67 @@ export default function AwardPointsPage() {
         </div>
         
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Reward Item Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-font-base mb-2">
+              Reward Item
+            </label>
+            <select
+              value={redeemItem}
+              onChange={(e) => setRedeemItem(e.target.value)}
+              className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+            >
+              <option value="">Select reward...</option>
+              <option value="Extra Phone Call (50pts)">Extra Phone Call (50pts)</option>
+              <option value="Movie Night (100pts)">Movie Night (100pts)</option>
+              <option value="Video Game Time (75pts)">Video Game Time (75pts)</option>
+              <option value="Snack from Store (30pts)">Snack from Store (30pts)</option>
+              <option value="Later Bedtime (125pts)">Later Bedtime (125pts)</option>
+              <option value="Special Activity (150pts)">Special Activity (150pts)</option>
+              <option value="Other">Other (Specify Item & Points)</option>
+            </select>
+          </div>
+
+          {/* Conditional Fields Based on Selection */}
+          {redeemItem === 'Other' ? (
+            // Custom Item and Points Fields
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">
+                  Custom Item Name
+                </label>
+                <input
+                  type="text"
+                  value={customItem}
+                  onChange={(e) => setCustomItem(e.target.value)}
+                  placeholder="Enter item name..."
+                  className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                />
+                <p className="mt-1 text-xs text-font-detail">
+                  Specify the custom reward item
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-2">
+                  Points for This Item
+                </label>
+                <input
+                  type="number"
+                  value={customPoints}
+                  onChange={(e) => setCustomPoints(e.target.value)}
+                  placeholder="Enter points..."
+                  min="0"
+                  max={weekData.currentBalance}
+                  className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                />
+                <p className="mt-1 text-xs text-font-detail">
+                  Maximum: {weekData.currentBalance} points
+                </p>
+              </div>
+            </div>
+          ) : redeemItem ? (
+            // Standard Points Field (for pre-defined items)
             <div>
               <label className="block text-sm font-medium text-font-base mb-2">
                 Points to Redeem
@@ -105,26 +174,7 @@ export default function AwardPointsPage() {
                 Maximum: {weekData.currentBalance} points
               </p>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-font-base mb-2">
-                Reward Item
-              </label>
-              <select
-                value={redeemItem}
-                onChange={(e) => setRedeemItem(e.target.value)}
-                className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-              >
-                <option value="">Select reward...</option>
-                <option value="Extra Phone Call (50pts)">Extra Phone Call (50pts)</option>
-                <option value="Movie Night (100pts)">Movie Night (100pts)</option>
-                <option value="Video Game Time (75pts)">Video Game Time (75pts)</option>
-                <option value="Snack from Store (30pts)">Snack from Store (30pts)</option>
-                <option value="Later Bedtime (125pts)">Later Bedtime (125pts)</option>
-                <option value="Special Activity (150pts)">Special Activity (150pts)</option>
-              </select>
-            </div>
-          </div>
+          ) : null}
           
           <div className="mt-6 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-font-detail">
@@ -133,7 +183,11 @@ export default function AwardPointsPage() {
             </div>
             <button
               onClick={handleRedeem}
-              disabled={!redeemPoints || !redeemItem}
+              disabled={
+                redeemItem === 'Other' 
+                  ? (!customItem || !customPoints)
+                  : (!redeemPoints || !redeemItem)
+              }
               className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               <i className="fa-solid fa-check-circle"></i>
