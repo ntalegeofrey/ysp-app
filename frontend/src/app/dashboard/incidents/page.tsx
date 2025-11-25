@@ -1378,11 +1378,29 @@ export default function IncidentsPage() {
                         className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                       >
                         <option value="">Select Staff...</option>
-                        {staffList.map((staff) => (
-                          <option key={staff.id} value={staff.fullName}>
-                            {staff.fullName}
-                          </option>
-                        ))}
+                        {programStaff.map((s, idx) => {
+                          const id = String(s.userEmail || `staff-${idx}`);
+                          const emailKey = (s.userEmail || '').toLowerCase();
+                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                          const baseName = fromDirectory?.fullName?.trim() || '';
+                          const emailFallback = (s.userEmail || '').trim();
+                          const name = baseName || emailFallback || 'Staff';
+
+                          const directoryTitle = fromDirectory?.jobTitle?.trim();
+                          const rawTitle = directoryTitle || (s.title || '').trim();
+                          let label = name;
+                          if (rawTitle) {
+                            const abbr = abbreviateTitle(rawTitle);
+                            const titleDisplay = abbr || rawTitle;
+                            label = `${name} (${titleDisplay})`;
+                          }
+                          
+                          return (
+                            <option key={id} value={label}>
+                              {label}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   </div>
