@@ -183,9 +183,12 @@ export default function AssignRepairPage() {
             <i className="fa-solid fa-times mr-2"></i>
             Cancel
           </button>
-          <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light">
+          <button 
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed">
             <i className="fa-solid fa-check mr-2"></i>
-            Submit Repair
+            {submitting ? 'Submitting...' : 'Submit Repair'}
           </button>
         </div>
       </div>
@@ -224,6 +227,8 @@ export default function AssignRepairPage() {
               <input
                 type="date"
                 id="infraction-date"
+                value={infractionDate}
+                onChange={(e) => setInfractionDate(e.target.value)}
                 className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
             </div>
@@ -259,14 +264,15 @@ export default function AssignRepairPage() {
               </label>
               <select
                 id="infraction-behavior"
+                value={infractionBehavior}
+                onChange={(e) => setInfractionBehavior(e.target.value)}
                 className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                defaultValue=""
               >
-                <option value="" disabled>Select Behavior...</option>
-                <option>Disrespect to Staff</option>
-                <option>Fighting</option>
-                <option>Contraband</option>
-                <option>Refusal to Follow Directives</option>
+                <option value="">Select Behavior...</option>
+                <option value="Disrespect to Staff">Disrespect to Staff</option>
+                <option value="Fighting">Fighting</option>
+                <option value="Contraband">Contraband</option>
+                <option value="Refusal to Follow Directives">Refusal to Follow Directives</option>
               </select>
             </div>
             <div>
@@ -293,9 +299,15 @@ export default function AssignRepairPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Repair 1 */}
-            <div className="border border-primary-lighter rounded-lg p-4 bg-primary-lightest">
+            <div 
+              onClick={() => setRepairLevel('Repair 1')}
+              className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                repairLevel === 'Repair 1' 
+                  ? 'border-primary border-2 bg-primary-lightest shadow-md' 
+                  : 'border-primary-lighter bg-primary-lightest/50 hover:border-primary'
+              }`}>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-primary">Repair 1</h4>
+                <h4 className="font-bold text-primary">Repair 1 {repairLevel === 'Repair 1' && '✓'}</h4>
                 <span className="text-xs font-medium text-primary bg-primary-lighter/30 px-2 py-1 rounded-full">1 Active Shift</span>
               </div>
               <div className="space-y-2 text-sm">
@@ -309,9 +321,15 @@ export default function AssignRepairPage() {
             </div>
 
             {/* Repair 2 */}
-            <div className="border border-warning rounded-lg p-4 bg-warning/5">
+            <div 
+              onClick={() => setRepairLevel('Repair 2')}
+              className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                repairLevel === 'Repair 2' 
+                  ? 'border-warning border-2 bg-warning/10 shadow-md' 
+                  : 'border-warning/50 bg-warning/5 hover:border-warning'
+              }`}>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-yellow-700">Repair 2</h4>
+                <h4 className="font-bold text-yellow-700">Repair 2 {repairLevel === 'Repair 2' && '✓'}</h4>
                 <span className="text-xs font-medium text-yellow-700 bg-warning/20 px-2 py-1 rounded-full">1-3 Active Shifts</span>
               </div>
               <div className="space-y-2 text-sm">
@@ -325,9 +343,15 @@ export default function AssignRepairPage() {
             </div>
 
             {/* Repair 3 */}
-            <div className="border border-error rounded-lg p-4 bg-error/5">
+            <div 
+              onClick={() => setRepairLevel('Repair 3')}
+              className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                repairLevel === 'Repair 3' 
+                  ? 'border-error border-2 bg-error/10 shadow-md' 
+                  : 'border-error/50 bg-error/5 hover:border-error'
+              }`}>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-error">Repair 3 / 3+</h4>
+                <h4 className="font-bold text-error">Repair 3 / 3+ {repairLevel === 'Repair 3' && '✓'}</h4>
                 <span className="text-xs font-medium text-error bg-error/20 px-2 py-1 rounded-full">3-7+ Active Shifts</span>
               </div>
               <div className="space-y-2 text-sm">
@@ -353,9 +377,11 @@ export default function AssignRepairPage() {
               <textarea
                 id="comments"
                 rows={6}
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
                 className="w-full border border-bd rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 placeholder="Provide a detailed description of the incident and behavior..."
-              ></textarea>
+              />
             </div>
             <div className="space-y-4">
               <div>
@@ -365,6 +391,8 @@ export default function AssignRepairPage() {
                 <input
                   type="date"
                   id="review-date"
+                  value={reviewDate}
+                  onChange={(e) => setReviewDate(e.target.value)}
                   className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
               </div>
