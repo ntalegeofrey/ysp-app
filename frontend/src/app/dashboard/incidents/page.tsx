@@ -113,6 +113,10 @@ export default function IncidentsPage() {
   const [areaOtherText, setAreaOtherText] = useState('');
   const [natureOtherText, setNatureOtherText] = useState('');
   
+  // Checkbox selections for residents and staff
+  const [selectedResidents, setSelectedResidents] = useState<number[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  
   // Shakedown add-other area state
   const commonAreas = ['Dining Hall','Recreation Room','Common Area','Laundry Room'];
   const [commonAddArea, setCommonAddArea] = useState<string>(commonAreas[0]);
@@ -302,10 +306,30 @@ export default function IncidentsPage() {
       setLoading(true);
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       
+      // Convert selected residents to comma-separated names
+      const residentsInvolved = selectedResidents
+        .map(id => {
+          const resident = residentsList.find(r => r.id === id);
+          return resident ? `${resident.firstName} ${resident.lastName}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
+      // Convert selected staff to comma-separated names
+      const staffInvolved = selectedStaff
+        .map(id => {
+          const staff = staffList.find(s => s.id === id);
+          return staff ? staff.fullName : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
       const payload = {
         ...incidentReport,
         areaOfIncident: incidentReport.areaOfIncident === 'Other' ? areaOtherText : incidentReport.areaOfIncident,
         natureOfIncident: incidentReport.natureOfIncident === 'Other' ? natureOtherText : incidentReport.natureOfIncident,
+        residentsInvolved,
+        staffInvolved,
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
@@ -353,6 +377,8 @@ export default function IncidentsPage() {
         });
         setAreaOtherText('');
         setNatureOtherText('');
+        setSelectedResidents([]);
+        setSelectedStaff([]);
         // Reload archive data
         loadArchiveData();
       } else {
@@ -669,26 +695,61 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Residents Involved</label>
-                    <select 
-                      multiple 
-                      value={incidentReport.residentsInvolved.split(',').filter(r => r.trim())} 
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                        setIncidentReport({...incidentReport, residentsInvolved: selected.join(', ')});
-                      }}
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      {residentsList.map((resident) => (
-                        <option key={resident.id} value={`${resident.firstName} ${resident.lastName}`}>
-                          {resident.firstName} {resident.lastName}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-font-detail mt-1">Hold Ctrl/Cmd to select multiple residents</p>
+                    <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
+                      {residentsList.length === 0 ? (
+                        <p className="text-sm text-font-detail italic">No residents available</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {residentsList.map((resident) => (
+                            <label key={resident.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedResidents.includes(resident.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedResidents([...selectedResidents, resident.id]);
+                                  } else {
+                                    setSelectedResidents(selectedResidents.filter(id => id !== resident.id));
+                                  }
+                                }}
+                                className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
+                              />
+                              <span className="text-sm text-font-base">{resident.firstName} {resident.lastName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-font-detail mt-1">Select one or more residents</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Involved</label>
-                    <textarea value={incidentReport.staffInvolved} onChange={(e) => setIncidentReport({...incidentReport, staffInvolved: e.target.value})} placeholder="List staff members involved in the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
+                      {staffList.length === 0 ? (
+                        <p className="text-sm text-font-detail italic">No staff available</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {staffList.map((staff) => (
+                            <label key={staff.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedStaff.includes(staff.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedStaff([...selectedStaff, staff.id]);
+                                  } else {
+                                    setSelectedStaff(selectedStaff.filter(id => id !== staff.id));
+                                  }
+                                }}
+                                className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
+                              />
+                              <span className="text-sm text-font-base">{staff.fullName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-font-detail mt-1">Select one or more staff members</p>
                   </div>
                 </div>
 

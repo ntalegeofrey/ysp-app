@@ -37,20 +37,6 @@ export default function LogbookPage() {
               </h3>
             </div>
             <div className="p-6">
-              <div className="space-y-4 mb-6">
-                {[{ name: 'Sarah Johnson', role: 'JJYDS II', duties: 'Unit Supervision, Resident Support', tag: 'Regular', tagClass: 'bg-primary-alt' }, { name: 'Mike Rodriguez', role: 'JJYDS I', duties: 'Security Rounds, Equipment Check', tag: 'Overtime', tagClass: 'bg-warning' }, { name: 'Dr. Lisa Chen', role: 'Medical Staff', duties: 'Medical Rounds, Emergency Response', tag: 'Force', tagClass: 'bg-error' }].map((s) => (
-                  <div key={s.name} className="bg-bg-subtle rounded-lg p-4 border border-bd">
-                    <div className="grid grid-cols-5 gap-4">
-                      <div><span className="text-sm font-medium text-font-base">{s.name}</span></div>
-                      <div><span className="text-sm text-font-detail">{s.role}</span></div>
-                      <div><span className="text-sm text-font-detail">{s.duties}</span></div>
-                      <div><span className={`${s.tagClass} text-white px-2 py-1 rounded text-xs`}>{s.tag}</span></div>
-                      <div className="text-right"><button className="text-error hover:text-error-lighter"><i className="fa-solid fa-trash text-sm"></i></button></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
                   <h4 className="font-medium text-font-base mb-4">Shift Details</h4>
@@ -124,6 +110,19 @@ export default function LogbookPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className="space-y-4 mb-6">
+                {[{ name: 'Sarah Johnson', role: 'JJYDS II', duties: 'Unit Supervision, Resident Support', tag: 'Regular', tagClass: 'bg-primary-alt' }, { name: 'Mike Rodriguez', role: 'JJYDS I', duties: 'Security Rounds, Equipment Check', tag: 'Overtime', tagClass: 'bg-warning' }, { name: 'Dr. Lisa Chen', role: 'Medical Staff', duties: 'Medical Rounds, Emergency Response', tag: 'Force', tagClass: 'bg-error' }].map((s) => (
+                  <div key={s.name} className="bg-bg-subtle rounded-lg p-4 border border-bd">
+                    <div className="grid grid-cols-5 gap-4">
+                      <div><span className="text-sm font-medium text-font-base">{s.name}</span></div>
+                      <div><span className="text-sm text-font-detail">{s.role}</span></div>
+                      <div><span className="text-sm text-font-detail">{s.duties}</span></div>
+                      <div><span className={`${s.tagClass} text-white px-2 py-1 rounded text-xs`}>{s.tag}</span></div>
+                      <div className="text-right"><button className="text-error hover:text-error-lighter"><i className="fa-solid fa-trash text-sm"></i></button></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
