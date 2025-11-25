@@ -1,12 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface ToastMessage {
+  id: number;
+  title: string;
+  tone: 'success' | 'error' | 'info' | 'warning';
+}
 
 export default function IncidentsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'incident-report' | 'shakedown-report' | 'incident-archive'>('incident-report');
   
-  // Get logged-in user information
+  // Toast notifications
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const addToast = (title: string, tone: 'success' | 'error' | 'info' | 'warning') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, title, tone }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
+  
+  // Get logged-in user information and program ID
   const [currentUser, setCurrentUser] = useState({ fullName: '', email: '' });
+  const [programId, setProgramId] = useState<number | null>(null);
   
   useEffect(() => {
     try {
@@ -18,10 +35,62 @@ export default function IncidentsPage() {
           email: user.email || ''
         });
       }
+      
+      const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      if (programData) {
+        const program = JSON.parse(programData);
+        setProgramId(program.id);
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
     }
   }, []);
+  
+  // Incident Report Form State
+  const [incidentReport, setIncidentReport] = useState({
+    incidentDate: new Date().toISOString().split('T')[0],
+    incidentTime: '',
+    shift: 'Day (7:00 AM - 3:00 PM)',
+    areaOfIncident: '',
+    natureOfIncident: '',
+    residentsInvolved: '',
+    staffInvolved: '',
+    residentWitnesses: '',
+    primaryStaffRestraint: '',
+    mechanicalsStartTime: '',
+    mechanicalsFinishTime: '',
+    roomConfinementStartTime: '',
+    roomConfinementFinishTime: '',
+    staffPopulation: '',
+    youthPopulation: '',
+    detailedDescription: '',
+    certificationComplete: false,
+    signatureDatetime: ''
+  });
+  
+  // Shakedown Report Form State
+  const [shakedownReport, setShakedownReport] = useState({
+    shakedownDate: new Date().toISOString().split('T')[0],
+    shift: 'Day (7:00 AM - 3:00 PM)',
+    announcementTime: '',
+    announcementStaff: '',
+    announcementAreas: '',
+    additionalComments: '',
+    certificationComplete: false,
+    signatureDatetime: '',
+    equipmentCondition: {
+      cuffs: 'Good',
+      waistbands: 'Good',
+      radios: 'Good',
+      shackles: 'Good',
+      keys: 'Good',
+      flashlights: 'Good'
+    }
+  });
+  
+  // Archive data from backend
+  const [archiveReports, setArchiveReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   // Archive pagination state (top-level to respect hooks rules)
   const [archivePage, setArchivePage] = useState(1);
   const archivePageSize = 10;
@@ -61,8 +130,606 @@ export default function IncidentsPage() {
     setRoomAddStaff('');
     setRoomAddComments('');
   };
+  
+  // Load archive data from backend
+  const loadArchiveData = async () => {
+    if (!programId) return;
+    
+    try {
+      setLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const [incidentsRes, shakedownsRes] = await Promise.all([
+        fetch(`/api/programs/${programId}/incidents/incident-reports`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        }),
+        fetch(`/api/programs/${programId}/incidents/shakedown-reports`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+      ]);
+      
+      if (incidentsRes.ok && shakedownsRes.ok) {
+        const incidents = await incidentsRes.json();
+        const shakedowns = await shakedownsRes.json();
+        
+        // Combine and format for archive display
+        const combined = [
+          ...incidents.map((r: any) => ({
+            id: r.id,
+            type: 'Incident',
+            reportData: r,
+            dt: new Date(r.incidentDate).toLocaleDateString(),
+            time: r.incidentTime,
+            nature: `${r.natureOfIncident} - ${r.areaOfIncident || 'Location not specified'}`,
+            priority: r.priority,
+            staff: r.reportCompletedBy,
+            badge: 'bg-error-lightest text-error',
+            pcls: r.priority === 'Critical' ? 'bg-error text-white' : r.priority === 'High' ? 'bg-warning text-white' : r.priority === 'Medium' ? 'bg-warning text-white' : 'bg-success text-white'
+          })),
+          ...shakedowns.map((r: any) => ({
+            id: r.id,
+            type: 'Shakedown',
+            reportData: r,
+            dt: new Date(r.shakedownDate).toLocaleDateString(),
+            time: '',
+            nature: `Shakedown Report - ${r.contrabandFound ? 'Contraband found' : 'No contraband found'}`,
+            priority: r.contrabandFound ? 'High' : 'Low',
+            staff: r.reportCompletedBy,
+            badge: 'bg-primary-lightest text-primary',
+            pcls: r.contrabandFound ? 'bg-warning text-white' : 'bg-success text-white'
+          }))
+        ];
+        
+        // Sort by date descending
+        combined.sort((a, b) => new Date(b.reportData.createdAt).getTime() - new Date(a.reportData.createdAt).getTime());
+        setArchiveReports(combined);
+      }
+    } catch (error) {
+      console.error('Error loading archive data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load archive when tab changes to archive
+  useEffect(() => {
+    if (activeTab === 'incident-archive' && programId) {
+      loadArchiveData();
+    }
+  }, [activeTab, programId]);
+  
+  // Submit Incident Report
+  const handleSubmitIncidentReport = async () => {
+    if (!programId) {
+      addToast('Program not selected', 'error');
+      return;
+    }
+    
+    if (!incidentReport.incidentDate || !incidentReport.incidentTime) {
+      addToast('Please enter incident date and time', 'error');
+      return;
+    }
+    
+    if (!incidentReport.natureOfIncident) {
+      addToast('Please select nature of incident', 'error');
+      return;
+    }
+    
+    if (!incidentReport.detailedDescription) {
+      addToast('Please provide a detailed description', 'error');
+      return;
+    }
+    
+    if (!incidentReport.certificationComplete) {
+      addToast('Please certify the report before submitting', 'error');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      const payload = {
+        ...incidentReport,
+        reportCompletedBy: currentUser.fullName,
+        reportCompletedByEmail: currentUser.email,
+        signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
+        staffPopulation: incidentReport.staffPopulation ? parseInt(incidentReport.staffPopulation) : null,
+        youthPopulation: incidentReport.youthPopulation ? parseInt(incidentReport.youthPopulation) : null,
+        mechanicalsStartTime: incidentReport.mechanicalsStartTime || null,
+        mechanicalsFinishTime: incidentReport.mechanicalsFinishTime || null,
+        roomConfinementStartTime: incidentReport.roomConfinementStartTime || null,
+        roomConfinementFinishTime: incidentReport.roomConfinementFinishTime || null
+      };
+      
+      const response = await fetch(`/api/programs/${programId}/incidents/incident-reports`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        addToast('Incident report submitted successfully', 'success');
+        // Reset form
+        setIncidentReport({
+          incidentDate: new Date().toISOString().split('T')[0],
+          incidentTime: '',
+          shift: 'Day (7:00 AM - 3:00 PM)',
+          areaOfIncident: '',
+          natureOfIncident: '',
+          residentsInvolved: '',
+          staffInvolved: '',
+          residentWitnesses: '',
+          primaryStaffRestraint: '',
+          mechanicalsStartTime: '',
+          mechanicalsFinishTime: '',
+          roomConfinementStartTime: '',
+          roomConfinementFinishTime: '',
+          staffPopulation: '',
+          youthPopulation: '',
+          detailedDescription: '',
+          certificationComplete: false,
+          signatureDatetime: ''
+        });
+        // Reload archive data
+        loadArchiveData();
+      } else {
+        const errorText = await response.text();
+        addToast(errorText || 'Failed to submit incident report', 'error');
+      }
+    } catch (error) {
+      console.error('Error submitting incident report:', error);
+      addToast('Failed to submit incident report', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Submit Shakedown Report
+  const handleSubmitShakedownReport = async () => {
+    if (!programId) {
+      addToast('Program not selected', 'error');
+      return;
+    }
+    
+    if (!shakedownReport.shakedownDate) {
+      addToast('Please enter shakedown date', 'error');
+      return;
+    }
+    
+    if (!shakedownReport.certificationComplete) {
+      addToast('Please certify the report before submitting', 'error');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Build search arrays
+      const commonSearches: any[] = [];
+      ['Dining Hall', 'Recreation Room', 'Common Area', 'Laundry Room'].forEach((area) => {
+        commonSearches.push({ area, staff: '', contrabandFound: 'No', comments: '' });
+      });
+      commonAddedRows.forEach((row) => {
+        commonSearches.push(row);
+      });
+      
+      const schoolSearches: any[] = [];
+      ['Classroom 1', 'Classroom 2', 'Gymnasium', 'STEM Room', 'Library'].forEach((area) => {
+        schoolSearches.push({ area, staff: '', contrabandFound: 'No', comments: '' });
+      });
+      schoolAddedRows.forEach((row) => {
+        schoolSearches.push(row);
+      });
+      
+      const payload = {
+        ...shakedownReport,
+        reportCompletedBy: currentUser.fullName,
+        reportCompletedByEmail: currentUser.email,
+        signatureDatetime: shakedownReport.signatureDatetime || new Date().toISOString(),
+        commonAreaSearches: JSON.stringify(commonSearches),
+        schoolAreaSearches: JSON.stringify(schoolSearches),
+        residentRoomSearches: JSON.stringify(addedRoomRows),
+        equipmentCondition: JSON.stringify(shakedownReport.equipmentCondition),
+        announcementTime: shakedownReport.announcementTime || null,
+        contrabandFound: addedRoomRows.some(r => r.result === 'Contraband found') || commonAddedRows.some(r => r.found === 'Yes') || schoolAddedRows.some(r => r.found === 'Yes')
+      };
+      
+      const response = await fetch(`/api/programs/${programId}/incidents/shakedown-reports`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        addToast('Shakedown report submitted successfully', 'success');
+        // Reset form
+        setShakedownReport({
+          shakedownDate: new Date().toISOString().split('T')[0],
+          shift: 'Day (7:00 AM - 3:00 PM)',
+          announcementTime: '',
+          announcementStaff: '',
+          announcementAreas: '',
+          additionalComments: '',
+          certificationComplete: false,
+          signatureDatetime: '',
+          equipmentCondition: {
+            cuffs: 'Good',
+            waistbands: 'Good',
+            radios: 'Good',
+            shackles: 'Good',
+            keys: 'Good',
+            flashlights: 'Good'
+          }
+        });
+        setCommonAddedRows([]);
+        setSchoolAddedRows([]);
+        setAddedRoomRows([]);
+        // Reload archive data
+        loadArchiveData();
+      } else {
+        const errorText = await response.text();
+        addToast(errorText || 'Failed to submit shakedown report', 'error');
+      }
+    } catch (error) {
+      console.error('Error submitting shakedown report:', error);
+      addToast('Failed to submit shakedown report', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Print Report Function
+  const printReport = (report: any) => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print report', 'error');
+        return;
+      }
+      
+      const isIncident = report.type === 'Incident';
+      const data = report.reportData;
+      
+      let html = '';
+      
+      if (isIncident) {
+        html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Incident Report - ${data.id}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #333; padding-bottom: 20px; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header p { color: #666; }
+    .section { margin-bottom: 25px; }
+    .section-title { font-size: 16px; font-weight: bold; background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-left: 4px solid #333; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .info-item { padding: 10px; border: 1px solid #ddd; }
+    .info-label { font-weight: bold; font-size: 12px; color: #666; margin-bottom: 5px; }
+    .info-value { font-size: 14px; color: #333; }
+    .full-width { grid-column: 1 / -1; }
+    .priority-critical { background: #fee; color: #c00; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-high { background: #fff3cd; color: #856404; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-medium { background: #d1ecf1; color: #0c5460; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .priority-low { background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .signature-box { border: 2px solid #333; padding: 20px; margin-top: 30px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>INCIDENT REPORT</h1>
+    <p>Report ID: ${data.id} | ${data.programName}</p>
+    <p>Generated: ${new Date().toLocaleString()}</p>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Incident Details</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Date of Incident</div>
+        <div class="info-value">${new Date(data.incidentDate).toLocaleDateString()}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Time of Incident</div>
+        <div class="info-value">${data.incidentTime}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Shift</div>
+        <div class="info-value">${data.shift || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Priority Level</div>
+        <div class="info-value"><span class="priority-${data.priority.toLowerCase()}">${data.priority}</span></div>
+      </div>
+      <div class="info-item full-width">
+        <div class="info-label">Area of Incident</div>
+        <div class="info-value">${data.areaOfIncident || 'Not specified'}</div>
+      </div>
+      <div class="info-item full-width">
+        <div class="info-label">Nature of Incident</div>
+        <div class="info-value" style="font-weight: bold;">${data.natureOfIncident}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">People Involved</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Residents Involved</div>
+        <div class="info-value">${data.residentsInvolved || 'None listed'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Staff Involved</div>
+        <div class="info-value">${data.staffInvolved || 'None listed'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Resident Witnesses</div>
+        <div class="info-value">${data.residentWitnesses || 'None listed'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Primary Staff (Restraint)</div>
+        <div class="info-value">${data.primaryStaffRestraint || 'N/A'}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Population & Timing</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Staff Population on Shift</div>
+        <div class="info-value">${data.staffPopulation || 'Not recorded'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Youth Population on Shift</div>
+        <div class="info-value">${data.youthPopulation || 'Not recorded'}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Detailed Description</div>
+    <div class="info-item full-width">
+      <div class="info-value" style="white-space: pre-wrap;">${data.detailedDescription}</div>
+    </div>
+  </div>
+  
+  <div class="signature-box">
+    <div class="section-title">Certification & Signature</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Report Completed By</div>
+        <div class="info-value">${data.reportCompletedBy}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Email</div>
+        <div class="info-value">${data.reportCompletedByEmail || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Signature Date & Time</div>
+        <div class="info-value">${new Date(data.signatureDatetime).toLocaleString()}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Status</div>
+        <div class="info-value">${data.status}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+      } else {
+        // Shakedown report
+        html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Shakedown Report - ${data.id}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #333; padding-bottom: 20px; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header p { color: #666; }
+    .section { margin-bottom: 25px; }
+    .section-title { font-size: 16px; font-weight: bold; background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-left: 4px solid #333; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .info-item { padding: 10px; border: 1px solid #ddd; }
+    .info-label { font-weight: bold; font-size: 12px; color: #666; margin-bottom: 5px; }
+    .info-value { font-size: 14px; color: #333; }
+    .full-width { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    table th, table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    table th { background: #f5f5f5; font-weight: bold; }
+    .signature-box { border: 2px solid #333; padding: 20px; margin-top: 30px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SHAKEDOWN REPORT</h1>
+    <p>Report ID: ${data.id} | ${data.programName}</p>
+    <p>Generated: ${new Date().toLocaleString()}</p>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Report Details</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Shakedown Date</div>
+        <div class="info-value">${new Date(data.shakedownDate).toLocaleDateString()}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Shift</div>
+        <div class="info-value">${data.shift || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Contraband Found</div>
+        <div class="info-value" style="font-weight: bold; color: ${data.contrabandFound ? '#c00' : '#060'};">${data.contrabandFound ? 'YES' : 'NO'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Status</div>
+        <div class="info-value">${data.status}</div>
+      </div>
+    </div>
+  </div>
+  
+  ${data.commonAreaSearches ? `
+  <div class="section">
+    <div class="section-title">Common Area Searches</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Area</th>
+          <th>Staff Searching</th>
+          <th>Contraband Found</th>
+          <th>Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${JSON.parse(data.commonAreaSearches).map((s: any) => `
+          <tr>
+            <td>${s.area}</td>
+            <td>${s.staff || 'N/A'}</td>
+            <td>${s.contrabandFound}</td>
+            <td>${s.comments || ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+  
+  ${data.schoolAreaSearches ? `
+  <div class="section">
+    <div class="section-title">School Area Searches</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Area</th>
+          <th>Staff Searching</th>
+          <th>Contraband Found</th>
+          <th>Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${JSON.parse(data.schoolAreaSearches).map((s: any) => `
+          <tr>
+            <td>${s.area}</td>
+            <td>${s.staff || 'N/A'}</td>
+            <td>${s.contrabandFound}</td>
+            <td>${s.comments || ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+  
+  ${data.residentRoomSearches ? `
+  <div class="section">
+    <div class="section-title">Resident Room Searches</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Unit</th>
+          <th>Room</th>
+          <th>Staff</th>
+          <th>Result</th>
+          <th>Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${JSON.parse(data.residentRoomSearches).map((s: any) => `
+          <tr>
+            <td>${s.unit}</td>
+            <td>${s.room}</td>
+            <td>${s.staff || 'N/A'}</td>
+            <td>${s.result}</td>
+            <td>${s.comments || ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+  
+  ${data.additionalComments ? `
+  <div class="section">
+    <div class="section-title">Additional Comments</div>
+    <div class="info-item full-width">
+      <div class="info-value" style="white-space: pre-wrap;">${data.additionalComments}</div>
+    </div>
+  </div>
+  ` : ''}
+  
+  <div class="signature-box">
+    <div class="section-title">Certification & Signature</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Report Completed By</div>
+        <div class="info-value">${data.reportCompletedBy}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Email</div>
+        <div class="info-value">${data.reportCompletedByEmail || 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Signature Date & Time</div>
+        <div class="info-value">${new Date(data.signatureDatetime).toLocaleString()}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Status</div>
+        <div class="info-value">${data.status}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+      }
+      
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+      
+      addToast('Report opened for printing', 'success');
+    } catch (error) {
+      console.error('Error printing report:', error);
+      addToast('Failed to print report', 'error');
+    }
+  };
+  
   // Demo archive rows (replace with data source later)
-  const allRowsArchive = [
+  const allRowsArchive = archiveReports.length > 0 ? archiveReports : [
     { dt: 'Oct 28, 2024', time: '2:30 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Youth on Youth Assault - Recreation Room', priority: 'Critical', pcls: 'bg-error text-white', staff: 'J. Smith' },
     { dt: 'Oct 28, 2024', time: '1:15 PM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'Routine Unit Search - No contraband found', priority: 'Low', pcls: 'bg-success text-white', staff: 'M. Johnson' },
     { dt: 'Oct 27, 2024', time: '11:45 AM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Contraband Found - Room A2', priority: 'High', pcls: 'bg-warning text-white', staff: 'K. Williams' },
@@ -294,7 +961,12 @@ export default function IncidentsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <button className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium">Submit Incident Report</button>
+                  <button 
+                    onClick={handleSubmitIncidentReport} 
+                    disabled={loading}
+                    className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    {loading ? 'Submitting...' : 'Submit Incident Report'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -689,7 +1361,12 @@ export default function IncidentsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <button className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium">Submit Shakedown Report</button>
+                  <button 
+                    onClick={handleSubmitShakedownReport}
+                    disabled={loading}
+                    className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-light font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    {loading ? 'Submitting...' : 'Submit Shakedown Report'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -768,8 +1445,12 @@ export default function IncidentsPage() {
                           <td className="py-3 px-4 text-sm text-font-base">{row.staff}</td>
                           <td className="py-3 px-4">
                             <div className="flex space-x-2">
-                              <button className="text-primary hover:text-primary-light text-sm"><i className="fa-solid fa-eye"></i></button>
-                              <button className="text-primary hover:text-primary-light text-sm"><i className="fa-solid fa-download"></i></button>
+                              <button 
+                                onClick={() => printReport(row)} 
+                                className="text-primary hover:text-primary-light text-sm" 
+                                title="Print Report">
+                                <i className="fa-solid fa-print"></i>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -796,6 +1477,23 @@ export default function IncidentsPage() {
           </div>
         )}
       </main>
+      
+      {/* Toast Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`px-4 py-3 rounded-lg shadow-lg text-white animate-slide-in-right ${
+              toast.tone === 'success' ? 'bg-green-500' :
+              toast.tone === 'error' ? 'bg-red-500' :
+              toast.tone === 'warning' ? 'bg-yellow-500' :
+              'bg-blue-500'
+            }`}
+          >
+            {toast.title}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
