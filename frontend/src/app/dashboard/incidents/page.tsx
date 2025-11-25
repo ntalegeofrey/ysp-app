@@ -1,9 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function IncidentsPage() {
   const [activeTab, setActiveTab] = useState<'incident-report' | 'shakedown-report' | 'incident-archive'>('incident-report');
+  
+  // Get logged-in user information
+  const [currentUser, setCurrentUser] = useState({ fullName: '', email: '' });
+  
+  useEffect(() => {
+    try {
+      const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (userData) {
+        const user = JSON.parse(userData);
+        setCurrentUser({
+          fullName: user.fullName || user.name || user.email || 'Unknown User',
+          email: user.email || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }, []);
   // Archive pagination state (top-level to respect hooks rules)
   const [archivePage, setArchivePage] = useState(1);
   const archivePageSize = 10;
@@ -234,6 +252,45 @@ export default function IncidentsPage() {
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Detailed Description of Incident</label>
                   <textarea placeholder="Provide a comprehensive description of the incident, including events leading up to it, actions taken, and outcome" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-32 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                </div>
+
+                {/* Certification & Signature Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
+                  <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
+                    <div className="space-y-4">
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I certify that the information provided in this incident report is accurate and complete to the best of my knowledge.</span>
+                      </label>
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I confirm that all required notifications have been made and proper protocols were followed.</span>
+                      </label>
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I understand that this report will be reviewed by facility administration and may be subject to regulatory oversight.</span>
+                      </label>
+                      <div className="pt-4 border-t border-bd">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Report Completed By</label>
+                            <input 
+                              type="text" 
+                              value={currentUser.fullName} 
+                              readOnly 
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
+                              title="Auto-filled from logged-in user"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Date & Time</label>
+                            <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end">
@@ -589,6 +646,45 @@ export default function IncidentsPage() {
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-font-base mb-2">Areas Announced</label>
                     <textarea placeholder="List areas where opposite gender announcement was made" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                  </div>
+                </div>
+
+                {/* Certification & Signature Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
+                  <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
+                    <div className="space-y-4">
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I certify that the information provided in this shakedown report is accurate and complete to the best of my knowledge.</span>
+                      </label>
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I confirm that all searches were conducted in accordance with facility policies and legal requirements.</span>
+                      </label>
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                        <span>I understand that any contraband found has been properly documented and secured according to protocol.</span>
+                      </label>
+                      <div className="pt-4 border-t border-bd">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Report Completed By</label>
+                            <input 
+                              type="text" 
+                              value={currentUser.fullName} 
+                              readOnly 
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
+                              title="Auto-filled from logged-in user"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Date & Time</label>
+                            <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
