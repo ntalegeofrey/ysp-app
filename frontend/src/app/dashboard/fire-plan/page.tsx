@@ -124,7 +124,11 @@ export default function FirePlanPage() {
     shiftSupervisor: string;
   };
   const [drillReports, setDrillReports] = useState<DrillReportItem[]>([]);
+  const [drillSearchQuery, setDrillSearchQuery] = useState('');
   const [drillTypeFilter, setDrillTypeFilter] = useState('All Types');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const pageSize = 10;
 
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
@@ -184,8 +188,8 @@ export default function FirePlanPage() {
     })();
   }, []);
 
-  // Reusable function to load drill reports
-  const loadDrillReports = useCallback(async () => {
+  // Reusable function to load drill reports with pagination
+  const loadDrillReports = useCallback(async (page: number = 0) => {
     if (!programId) return;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -194,7 +198,7 @@ export default function FirePlanPage() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
       
-      const res = await fetch(`/api/programs/${programId}/fire-plan/drills?page=0&size=100`, {
+      const res = await fetch(`/api/programs/${programId}/fire-plan/drills?page=${page}&size=${pageSize}`, {
         credentials: 'include',
         headers: commonHeaders,
       });
@@ -208,6 +212,7 @@ export default function FirePlanPage() {
       console.log('Drill reports loaded:', data);
       
       if (data.content && Array.isArray(data.content)) {
+        // Reports are already sorted DESC by backend (latest first)
         const mapped = data.content.map((item: any) => ({
           id: item.id,
           drillDate: item.drillDate,
@@ -220,13 +225,15 @@ export default function FirePlanPage() {
         }));
         console.log('Mapped drill reports:', mapped);
         setDrillReports(mapped);
+        setTotalPages(data.totalPages || 0);
+        setCurrentPage(page);
       } else {
         console.warn('No drill reports content found in response');
       }
     } catch (error) {
       console.error('Error loading drill reports:', error);
     }
-  }, [programId]);
+  }, [programId, pageSize]);
 
   // Load staff assignments, residents, and current fire plan for the current program
   useEffect(() => {
@@ -824,16 +831,36 @@ export default function FirePlanPage() {
     }
   };
 
-  const printSavedDrillReport = (drill: DrillReportItem) => {
+  const printSavedDrillReport = async (drill: DrillReportItem) => {
     try {
+      // Fetch full drill report details
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      const response = await fetch(`/api/programs/${programId}/fire-plan/drills/${drill.id}`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        addToast('Failed to load drill report details', 'error');
+        return;
+      }
+
+      const fullReport: any = await response.json();
+
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
         addToast('Please allow popups to print drill report', 'error');
         return;
       }
 
-      const dateStr = drill.drillDate ? new Date(drill.drillDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
-      const timeStr = drill.drillTime || 'N/A';
+      const dateStr = fullReport.drillDate ? new Date(fullReport.drillDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+      const timeStr = fullReport.drillTime || '';
+      const signatureDate = fullReport.signatureDatetime ? new Date(fullReport.signatureDatetime).toLocaleString() : '';
 
       const html = `
 <!DOCTYPE html>
@@ -844,16 +871,19 @@ export default function FirePlanPage() {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
-    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #dc2626; padding-bottom: 20px; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
     .logo { width: 120px; height: auto; margin-bottom: 15px; }
-    h1 { font-size: 28px; color: #dc2626; margin-bottom: 10px; }
+    h1 { font-size: 28px; color: #2563eb; margin-bottom: 10px; }
     .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
     .section { margin-bottom: 25px; page-break-inside: avoid; }
-    .section-title { font-size: 18px; font-weight: bold; color: #dc2626; margin-bottom: 12px; border-bottom: 2px solid #fee; padding-bottom: 5px; }
+    .section-title { font-size: 18px; font-weight: bold; color: #2563eb; margin-bottom: 12px; border-bottom: 2px solid #dbeafe; padding-bottom: 5px; }
     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; }
-    .info-item { padding: 10px; background: #fef2f2; border-radius: 4px; }
+    .info-item { padding: 10px; background: #eff6ff; border-radius: 4px; border-left: 3px solid #2563eb; }
     .info-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
-    .info-value { font-size: 14px; color: #1a1a1a; }
+    .info-value { font-size: 14px; color: #1a1a1a; white-space: pre-wrap; }
+    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #2563eb; margin-bottom: 15px; }
+    .text-content { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+    .signature-box { border: 2px solid #2563eb; padding: 20px; margin-top: 30px; background: #eff6ff; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }
     @media print { body { padding: 20px; } .no-print { display: none; } }
   </style>
@@ -863,7 +893,7 @@ export default function FirePlanPage() {
     <img src="${logoUrl}" alt="Logo" class="logo" />
     <h1>Fire Drill Report</h1>
     <div class="subtitle">${programName || 'Program Name'}</div>
-    <div class="subtitle">Generated: ${new Date().toLocaleString()}</div>
+    <div class="subtitle">Official Fire Safety Record</div>
   </div>
 
   <div class="section">
@@ -871,15 +901,15 @@ export default function FirePlanPage() {
     <div class="info-grid">
       <div class="info-item">
         <div class="info-label">Drill Date</div>
-        <div class="info-value">${dateStr}</div>
+        <div class="info-value">${dateStr || 'Not specified'}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Drill Time</div>
-        <div class="info-value">${timeStr}</div>
+        <div class="info-value">${timeStr || 'Not specified'}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Drill Type</div>
-        <div class="info-value">${drill.drillType}</div>
+        <div class="info-value">${fullReport.drillType || 'Not specified'}</div>
       </div>
     </div>
   </div>
@@ -889,30 +919,86 @@ export default function FirePlanPage() {
     <div class="info-grid">
       <div class="info-item">
         <div class="info-label">Shift</div>
-        <div class="info-value">${drill.shift || 'N/A'}</div>
+        <div class="info-value">${fullReport.shift || 'Not specified'}</div>
       </div>
       <div class="info-item">
         <div class="info-label">Shift Supervisor</div>
-        <div class="info-value">${drill.shiftSupervisor || 'N/A'}</div>
+        <div class="info-value">${fullReport.shiftSupervisor || 'Not specified'}</div>
       </div>
       <div class="info-item">
-        <div class="info-label">Status</div>
-        <div class="info-value">${drill.status || 'N/A'}</div>
+        <div class="info-label">Report Completed By</div>
+        <div class="info-value">${fullReport.reportCompletedBy || 'Not specified'}</div>
       </div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Performance</div>
+    <div class="section-title">Performance Metrics</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Total Evacuation Time</div>
+        <div class="info-value">${fullReport.totalEvacuationTime || 'Not recorded'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Weather Conditions</div>
+        <div class="info-value">${fullReport.weatherConditions || 'Not recorded'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Staff Present</div>
+        <div class="info-value">${fullReport.totalStaffPresent || 0}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Residents Present</div>
+        <div class="info-value">${fullReport.totalResidentsPresent || 0}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Drill Assessment</div>
+    ${fullReport.overallPerformance ? `
+    <div class="text-block">
+      <div class="info-label" style="margin-bottom: 8px;">Overall Drill Performance</div>
+      <div class="text-content">${fullReport.overallPerformance}</div>
+    </div>` : ''}
+    ${fullReport.issuesIdentified ? `
+    <div class="text-block">
+      <div class="info-label" style="margin-bottom: 8px;">Issues/Bottlenecks Identified</div>
+      <div class="text-content">${fullReport.issuesIdentified}</div>
+    </div>` : ''}
+    ${fullReport.recommendations ? `
+    <div class="text-block">
+      <div class="info-label" style="margin-bottom: 8px;">Recommendations for Improvement</div>
+      <div class="text-content">${fullReport.recommendations}</div>
+    </div>` : ''}
+    ${!fullReport.overallPerformance && !fullReport.issuesIdentified && !fullReport.recommendations ? '<p style="color: #666; font-style: italic;">No assessment details recorded.</p>' : ''}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Certification & Digital Signature</div>
+    <div class="signature-box">
+      <div class="info-label" style="margin-bottom: 10px;">Certification Status</div>
+      <div class="info-value" style="margin-bottom: 15px;">${fullReport.certificationComplete ? '✓ Certified - Report is complete and accurate' : 'Not Certified'}</div>
+      ${signatureDate ? `
+      <div class="info-label" style="margin-bottom: 10px;">Digital Signature</div>
+      <div class="info-value" style="font-family: 'Brush Script MT', cursive; font-size: 24px; margin-bottom: 10px;">${fullReport.digitalSignature || fullReport.reportCompletedBy || 'Authorized Personnel'}</div>
+      <div class="info-label">Signed on: ${signatureDate}</div>
+      ` : '<div style="color: #666; font-style: italic;">No digital signature recorded</div>'}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Report Status</div>
     <div class="info-item">
-      <div class="info-label">Total Evacuation Time</div>
-      <div class="info-value">${drill.totalEvacuationTime || 'N/A'}</div>
+      <div class="info-label">Status</div>
+      <div class="info-value" style="color: ${fullReport.status === 'Successful' ? '#16a34a' : '#dc2626'}; font-weight: bold;">${fullReport.status || 'Not specified'}</div>
     </div>
   </div>
 
   <div class="footer">
-    <p>This is an official fire drill report generated by the YSP Fire Safety Management System</p>
-    <p>Report ID: ${drill.id} | Generated on ${new Date().toLocaleString()}</p>
+    <p><strong>This is an official fire drill report for Department of Youth Services</strong></p>
+    <p>Report ID: ${fullReport.id} | Generated on ${new Date().toLocaleString()}</p>
+    <p>Created: ${fullReport.createdAt ? new Date(fullReport.createdAt).toLocaleString() : 'N/A'}</p>
   </div>
 </body>
 </html>
@@ -2103,7 +2189,14 @@ export default function FirePlanPage() {
             </h3>
           </div>
           <div className="p-6">
-            <div className="mb-4">
+            <div className="flex items-center gap-4 mb-4">
+              <input 
+                type="text" 
+                placeholder="Search by date, type, supervisor..." 
+                className="border border-bd rounded-lg px-3 py-2 text-sm w-64"
+                value={drillSearchQuery}
+                onChange={(e) => setDrillSearchQuery(e.target.value)}
+              />
               <select 
                 className="border border-bd rounded-lg px-3 py-2 text-sm"
                 value={drillTypeFilter}
@@ -2132,9 +2225,20 @@ export default function FirePlanPage() {
                 <tbody>
                   {drillReports
                     .filter(drill => {
-                      // Filter by type only
+                      // Filter by type
                       if (drillTypeFilter !== 'All Types' && drill.drillType !== drillTypeFilter) {
                         return false;
+                      }
+                      // Filter by search query
+                      if (drillSearchQuery) {
+                        const query = drillSearchQuery.toLowerCase();
+                        return (
+                          drill.drillDate?.toLowerCase().includes(query) ||
+                          drill.drillType?.toLowerCase().includes(query) ||
+                          drill.shiftSupervisor?.toLowerCase().includes(query) ||
+                          drill.status?.toLowerCase().includes(query) ||
+                          drill.shift?.toLowerCase().includes(query)
+                        );
                       }
                       return true;
                     })
@@ -2170,6 +2274,45 @@ export default function FirePlanPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-font-detail">
+                  Page {currentPage + 1} of {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => loadDrillReports(0)}
+                    disabled={currentPage === 0}
+                    className="px-3 py-2 border border-bd rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="fa-solid fa-angles-left"></i>
+                  </button>
+                  <button
+                    onClick={() => loadDrillReports(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className="px-3 py-2 border border-bd rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="fa-solid fa-angle-left mr-1"></i> Previous
+                  </button>
+                  <button
+                    onClick={() => loadDrillReports(currentPage + 1)}
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-2 border border-bd rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next <i className="fa-solid fa-angle-right ml-1"></i>
+                  </button>
+                  <button
+                    onClick={() => loadDrillReports(totalPages - 1)}
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-2 border border-bd rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="fa-solid fa-angles-right"></i>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
