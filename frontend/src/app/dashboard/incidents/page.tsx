@@ -59,6 +59,8 @@ export default function IncidentsPage() {
     youthPopulation: '',
     detailedDescription: '',
     certificationComplete: false,
+    certNotificationsComplete: false,
+    certUnderstandRegulatory: false,
     signatureDatetime: ''
   });
   
@@ -71,6 +73,8 @@ export default function IncidentsPage() {
     announcementAreas: '',
     additionalComments: '',
     certificationComplete: false,
+    certProtocolsFollowed: false,
+    certDocumentationAccurate: false,
     signatureDatetime: '',
     equipmentCondition: {
       cuffs: 'Good',
@@ -480,6 +484,8 @@ export default function IncidentsPage() {
           youthPopulation: '',
           detailedDescription: '',
           certificationComplete: false,
+          certNotificationsComplete: false,
+          certUnderstandRegulatory: false,
           signatureDatetime: ''
         });
         setAreaOtherText('');
@@ -576,6 +582,8 @@ export default function IncidentsPage() {
           announcementAreas: '',
           additionalComments: '',
           certificationComplete: false,
+          certProtocolsFollowed: false,
+          certDocumentationAccurate: false,
           signatureDatetime: '',
           equipmentCondition: {
             cuffs: 'Good',
@@ -1021,16 +1029,16 @@ export default function IncidentsPage() {
                   <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
                   <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
                     <div className="space-y-4">
-                      <label className="flex items-start gap-3 text-sm">
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
                         <input type="checkbox" checked={incidentReport.certificationComplete} onChange={(e) => setIncidentReport({...incidentReport, certificationComplete: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I certify that the information provided in this incident report is accurate and complete to the best of my knowledge.</span>
                       </label>
-                      <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
+                        <input type="checkbox" checked={incidentReport.certNotificationsComplete} onChange={(e) => setIncidentReport({...incidentReport, certNotificationsComplete: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I confirm that all required notifications have been made and proper protocols were followed.</span>
                       </label>
-                      <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
+                        <input type="checkbox" checked={incidentReport.certUnderstandRegulatory} onChange={(e) => setIncidentReport({...incidentReport, certUnderstandRegulatory: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I understand that this report will be reviewed by facility administration and may be subject to regulatory oversight.</span>
                       </label>
                       <div className="pt-4 border-t border-bd">
@@ -1477,16 +1485,16 @@ export default function IncidentsPage() {
                   <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
                   <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
                     <div className="space-y-4">
-                      <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
+                        <input type="checkbox" checked={shakedownReport.certificationComplete} onChange={(e) => setShakedownReport({...shakedownReport, certificationComplete: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I certify that the information provided in this shakedown report is accurate and complete to the best of my knowledge.</span>
                       </label>
-                      <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
+                        <input type="checkbox" checked={shakedownReport.certProtocolsFollowed} onChange={(e) => setShakedownReport({...shakedownReport, certProtocolsFollowed: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I confirm that all searches were conducted in accordance with facility policies and legal requirements.</span>
                       </label>
-                      <label className="flex items-start gap-3 text-sm">
-                        <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
+                      <label className="flex items-start gap-3 text-sm cursor-pointer">
+                        <input type="checkbox" checked={shakedownReport.certDocumentationAccurate} onChange={(e) => setShakedownReport({...shakedownReport, certDocumentationAccurate: e.target.checked})} className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" />
                         <span>I understand that any contraband found has been properly documented and secured according to protocol.</span>
                       </label>
                       <div className="pt-4 border-t border-bd">

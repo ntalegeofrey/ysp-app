@@ -83,6 +83,8 @@ export default function LogbookPage() {
   
   // Certification state
   const [certificationComplete, setCertificationComplete] = useState(false);
+  const [certEquipmentVerified, setCertEquipmentVerified] = useState(false);
+  const [certShiftEventsAccurate, setCertShiftEventsAccurate] = useState(false);
   const [certificationDatetime, setCertificationDatetime] = useState('');
   
   // Create lookup by email
@@ -475,41 +477,10 @@ export default function LogbookPage() {
             <div className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="font-medium text-font-base mb-4">Shift Details</h4>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Date</label>
-                        <input type="date" defaultValue="2024-10-28" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
-                        <select defaultValue="Night (11:00 PM - 7:00 AM)" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                          <option>Day (7:00 AM - 3:00 PM)</option>
-                          <option>Evening (3:00 PM - 11:00 PM)</option>
-                          <option>Night (11:00 PM - 7:00 AM)</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Supervisor</label>
-                        <input type="text" defaultValue="John Smith" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Unit</label>
-                        <select defaultValue="Unit B" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                          <option>Unit A</option>
-                          <option>Unit B</option>
-                          <option>Unit C</option>
-                          <option>Unit D</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  <h4 className="font-medium text-font-base mb-4">Equipment Count</h4>
+                  <p className="text-sm text-font-detail mb-4">Verify and document all equipment counts for this shift</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-font-base mb-4">Equipment Count</h4>
                   <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: 'BIGs (Room Keys)', val: 12, ok: true },
@@ -654,7 +625,7 @@ export default function LogbookPage() {
                 <h4 className="text-lg font-semibold text-font-base mb-4">Certification & Signature</h4>
                 <div className="border border-bd rounded-lg p-6 bg-bg-subtle">
                   <div className="space-y-4">
-                    <label className="flex items-start gap-3 text-sm">
+                    <label className="flex items-start gap-3 text-sm cursor-pointer">
                       <input 
                         type="checkbox" 
                         checked={certificationComplete} 
@@ -663,12 +634,22 @@ export default function LogbookPage() {
                       />
                       <span>I certify that all information in this shift log is accurate and complete to the best of my knowledge.</span>
                     </label>
-                    <label className="flex items-start gap-3 text-sm">
-                      <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                    <label className="flex items-start gap-3 text-sm cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={certEquipmentVerified} 
+                        onChange={(e) => setCertEquipmentVerified(e.target.checked)} 
+                        className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" 
+                      />
                       <span>I confirm all equipment counts have been verified and documented correctly.</span>
                     </label>
-                    <label className="flex items-start gap-3 text-sm">
-                      <input type="checkbox" className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" disabled />
+                    <label className="flex items-start gap-3 text-sm cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={certShiftEventsAccurate} 
+                        onChange={(e) => setCertShiftEventsAccurate(e.target.checked)} 
+                        className="mt-1 h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary" 
+                      />
                       <span>I attest that this log reflects all actual shift events and resident interactions.</span>
                     </label>
                     <div className="pt-4 border-t border-bd">
