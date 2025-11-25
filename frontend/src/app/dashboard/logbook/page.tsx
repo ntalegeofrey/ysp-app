@@ -5,6 +5,7 @@ import ToastContainer from '@/app/components/Toast';
 import { useToast } from '@/app/hooks/useToast';
 import { abbreviateTitle } from '@/app/utils/titleAbbrev';
 import { generateShiftLogReportHTML } from '../pdfReports';
+import FileUpload from '@/app/components/FileUpload';
 
 // Position list from titleAbbrev.ts mapping
 const POSITION_LIST = [
@@ -98,6 +99,7 @@ export default function LogbookPage() {
   
   // File upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [viewingAttachments, setViewingAttachments] = useState<any>(null);
   
   // Archive data
   const [archiveLogs, setArchiveLogs] = useState<any[]>([]);
@@ -910,51 +912,16 @@ export default function LogbookPage() {
               </div>
               <div>
                 <h4 className="font-medium text-font-base mb-4">Scanned Log Book Pages</h4>
-                <div className="border-2 border-dashed border-bd rounded-lg p-8 text-center">
-                  <i className="fa-solid fa-cloud-upload-alt text-4xl text-primary-lighter mb-4"></i>
-                  <p className="text-font-detail mb-2">Drop scanned log book pages here or click to upload</p>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*,.pdf" 
-                    className="hidden" 
-                    id="scan-upload"
-                    onChange={handleFileSelect}
-                  />
-                  <label htmlFor="scan-upload" className="bg-primary text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-primary-light transition-colors">
-                    Choose Files
-                  </label>
-                </div>
-                {selectedFiles.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-sm font-medium text-font-base">Selected Files:</p>
-                    {selectedFiles.map((file, index) => {
-                      const fileSize = (file.size / 1024).toFixed(2);
-                      const isImage = file.type.startsWith('image/');
-                      const isPDF = file.type === 'application/pdf';
-                      
-                      return (
-                        <div key={index} className="flex items-center justify-between bg-bg-subtle p-3 rounded-lg border border-bd">
-                          <div className="flex items-center gap-3">
-                            <i className={`fa-solid ${isImage ? 'fa-image text-primary' : isPDF ? 'fa-file-pdf text-error' : 'fa-file text-font-detail'} text-xl`}></i>
-                            <div>
-                              <p className="text-sm font-medium text-font-base">{file.name}</p>
-                              <p className="text-xs text-font-detail">{fileSize} KB</p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(index)}
-                            className="text-error hover:text-error-lighter"
-                            title="Remove file"
-                          >
-                            <i className="fa-solid fa-times-circle text-lg"></i>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <FileUpload
+                  onFilesSelected={(files) => setSelectedFiles(prev => [...prev, ...files])}
+                  selectedFiles={selectedFiles}
+                  onRemoveFile={removeFile}
+                  accept="image/*,.pdf"
+                  multiple={true}
+                  maxSizeMB={10}
+                  label="Upload Scanned Log Book Pages"
+                  description="Drop scanned pages here or click to upload (PDF or Images)"
+                />
               </div>
               <div>
                 <h4 className="font-medium text-font-base mb-4">Shift Summary</h4>
@@ -1178,13 +1145,14 @@ export default function LogbookPage() {
                     <th className="text-left py-3 px-4 font-medium text-font-base">Supervisor</th>
                     <th className="text-left py-3 px-4 font-medium text-font-base">Summary</th>
                     <th className="text-left py-3 px-4 font-medium text-font-base">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-font-base">Attachments</th>
                     <th className="text-left py-3 px-4 font-medium text-font-base">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center">
+                      <td colSpan={7} className="py-12 text-center">
                         <i className="fa-solid fa-inbox text-4xl text-font-detail mb-3"></i>
                         <p className="text-font-detail">No shift logs found</p>
                         <p className="text-sm text-font-detail mt-1">
@@ -1222,12 +1190,27 @@ export default function LogbookPage() {
                             </span>
                           </td>
                           <td className="py-3 px-4">
+                            {log.attachments && log.attachments.length > 0 ? (
+                              <button
+                                onClick={() => setViewingAttachments(log)}
+                                className="text-primary hover:text-primary-light transition-colors text-sm font-medium flex items-center gap-1.5"
+                                title="View attachments"
+                              >
+                                <i className="fa-solid fa-paperclip"></i>
+                                <span>{log.attachments.length}</span>
+                              </button>
+                            ) : (
+                              <span className="text-font-detail text-xs">None</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
                             <button 
                               onClick={() => handlePrintShiftLog(log)}
-                              className="text-primary hover:text-primary-light transition-colors"
-                              title="Print/Download PDF"
+                              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light transition-colors text-sm font-medium flex items-center gap-2"
+                              title="View full report"
                             >
-                              <i className="fa-solid fa-print"></i>
+                              <i className="fa-solid fa-file-alt"></i>
+                              View Report
                             </button>
                           </td>
                         </tr>
@@ -1250,6 +1233,109 @@ export default function LogbookPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Attachments Viewing Modal */}
+      {viewingAttachments && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-bd">
+              <div>
+                <h3 className="text-xl font-semibold text-font-base flex items-center gap-2">
+                  <i className="fa-solid fa-paperclip text-primary"></i>
+                  Shift Log Attachments
+                </h3>
+                <p className="text-sm text-font-detail mt-1">
+                  {new Date(viewingAttachments.shiftDate).toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })} - {viewingAttachments.shiftType?.split('(')[0]?.trim()}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingAttachments(null)}
+                className="text-font-detail hover:text-font-base transition-colors p-2"
+              >
+                <i className="fa-solid fa-times text-2xl"></i>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {viewingAttachments.attachments && viewingAttachments.attachments.length > 0 ? (
+                <div className="space-y-3">
+                  {viewingAttachments.attachments.map((attachment: any, index: number) => {
+                    const fileSize = attachment.fileSize ? (attachment.fileSize / 1024).toFixed(2) : 'Unknown';
+                    const isImage = attachment.fileType?.startsWith('image/');
+                    const isPDF = attachment.fileType === 'application/pdf';
+                    
+                    return (
+                      <div
+                        key={attachment.id || index}
+                        className="flex items-center justify-between p-4 bg-bg-subtle hover:bg-bg-subtle/70 rounded-lg border border-bd transition-all group"
+                      >
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className={`w-12 h-12 flex items-center justify-center rounded-lg ${
+                            isImage ? 'bg-primary/10' : isPDF ? 'bg-error/10' : 'bg-bg'
+                          }`}>
+                            <i className={`fa-solid text-2xl ${
+                              isImage ? 'fa-image text-primary' : 
+                              isPDF ? 'fa-file-pdf text-error' : 
+                              'fa-file text-font-detail'
+                            }`}></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-font-base truncate" title={attachment.fileName}>
+                              {attachment.fileName || 'Untitled'}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-font-detail">{fileSize} KB</span>
+                              {attachment.uploadedAt && (
+                                <>
+                                  <span className="text-xs text-font-detail">•</span>
+                                  <span className="text-xs text-font-detail">
+                                    {new Date(attachment.uploadedAt).toLocaleDateString()}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <a
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light transition-colors text-sm font-medium flex items-center gap-2 opacity-0 group-hover:opacity-100"
+                        >
+                          <i className="fa-solid fa-external-link-alt"></i>
+                          Open
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <i className="fa-solid fa-folder-open text-5xl text-font-detail mb-4"></i>
+                  <p className="text-font-detail">No attachments found</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-bd bg-bg-subtle/30">
+              <button
+                onClick={() => setViewingAttachments(null)}
+                className="w-full bg-white border border-bd text-font-base px-6 py-3 rounded-lg hover:bg-bg-subtle transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
