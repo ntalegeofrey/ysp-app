@@ -63,7 +63,8 @@ export default function AssignRepairPage() {
               
               if (userAssignment) {
                 const roleType = userAssignment.roleType?.toUpperCase();
-                const category = userAssignment.category;
+                const category = userAssignment.category?.toLowerCase();
+                const roleName = userAssignment.roleName?.toLowerCase();
                 
                 setIsProgramDirector(
                   roleType === 'PROGRAM_DIRECTOR' || 
@@ -71,7 +72,20 @@ export default function AssignRepairPage() {
                   roleType === 'REGIONAL_ADMIN'
                 );
                 
-                setIsClinical(category?.toLowerCase() === 'clinical');
+                // Check if user is clinical - check multiple fields
+                const isClinicalRole = 
+                  category === 'clinical' ||
+                  roleType === 'CLINICAL' ||
+                  roleType === 'THERAPIST' ||
+                  roleType === 'COUNSELOR' ||
+                  roleName?.includes('clinical') ||
+                  roleName?.includes('therapist') ||
+                  roleName?.includes('counselor');
+                
+                setIsClinical(isClinicalRole);
+                
+                console.log('User assignment:', userAssignment);
+                console.log('Is Clinical:', isClinicalRole);
               }
             }
           }
