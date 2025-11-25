@@ -402,6 +402,19 @@ export default function LogbookPage() {
     }
   };
   
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+  
+  // Remove file from selection
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  
   // Handle form submission
   const handleSubmitShiftLog = async () => {
     // Validation
@@ -457,6 +470,34 @@ export default function LogbookPage() {
       });
       
       if (res.ok) {
+        const createdLog = await res.json();
+        
+        // Upload files if any were selected
+        if (selectedFiles.length > 0) {
+          addToast('Uploading attachments...', 'info');
+          for (const file of selectedFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+              const uploadRes = await fetch(`/api/programs/${programId}/logbook/shift-logs/${createdLog.id}/attachments`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: formData
+              });
+              
+              if (!uploadRes.ok) {
+                console.error('Failed to upload file:', file.name);
+              }
+            } catch (uploadError) {
+              console.error('Error uploading file:', uploadError);
+            }
+          }
+        }
+        
         addToast('Shift log submitted successfully', 'success');
         // Reset form
         setShiftDate(new Date().toISOString().split('T')[0]);
