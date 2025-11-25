@@ -25,14 +25,14 @@ public class IncidentController {
     // ============ INCIDENT REPORTS ============
 
     @GetMapping("/incident-reports")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<IncidentReportResponse>> getIncidentReports(@PathVariable Long programId) {
         List<IncidentReportResponse> reports = incidentService.getAllIncidentReports(programId);
         return ResponseEntity.ok(reports);
     }
 
     @GetMapping("/incident-reports/{id}")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<IncidentReportResponse> getIncidentReport(
             @PathVariable Long programId,
             @PathVariable Long id) {
@@ -42,7 +42,7 @@ public class IncidentController {
     }
 
     @PostMapping("/incident-reports")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createIncidentReport(
             @PathVariable Long programId,
             @RequestBody IncidentReportRequest request) {
@@ -57,14 +57,14 @@ public class IncidentController {
     // ============ SHAKEDOWN REPORTS ============
 
     @GetMapping("/shakedown-reports")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ShakedownReportResponse>> getShakedownReports(@PathVariable Long programId) {
         List<ShakedownReportResponse> reports = incidentService.getAllShakedownReports(programId);
         return ResponseEntity.ok(reports);
     }
 
     @GetMapping("/shakedown-reports/{id}")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ShakedownReportResponse> getShakedownReport(
             @PathVariable Long programId,
             @PathVariable Long id) {
@@ -74,7 +74,7 @@ public class IncidentController {
     }
 
     @PostMapping("/shakedown-reports")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createShakedownReport(
             @PathVariable Long programId,
             @RequestBody ShakedownReportRequest request) {
