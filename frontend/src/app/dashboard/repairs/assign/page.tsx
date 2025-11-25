@@ -12,6 +12,15 @@ export default function AssignRepairPage() {
   const [isClinical, setIsClinical] = useState(false);
   const [selectedShift, setSelectedShift] = useState('');
   const [otherShift, setOtherShift] = useState('');
+  
+  // Form fields
+  const [infractionDate, setInfractionDate] = useState('');
+  const [infractionBehavior, setInfractionBehavior] = useState('');
+  const [repairLevel, setRepairLevel] = useState('');
+  const [interventions, setInterventions] = useState<string[]>([]);
+  const [comments, setComments] = useState('');
+  const [reviewDate, setReviewDate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Fetch user info, program, and residents on mount
   useEffect(() => {
@@ -97,6 +106,69 @@ export default function AssignRepairPage() {
 
     loadData();
   }, []);
+
+  const handleSubmit = async () => {
+    if (!selectedResident || !infractionDate || !infractionBehavior || !repairLevel) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (!programId) {
+      alert('No program selected');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        alert('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/programs/${programId}/repairs/interventions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          residentId: parseInt(selectedResident),
+          infractionDate,
+          infractionShift: selectedShift === 'Other' ? otherShift : selectedShift,
+          infractionBehavior,
+          repairLevel,
+          interventionsJson: JSON.stringify(interventions),
+          comments,
+          reviewDate,
+          pointsSuspended: true
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Repair created successfully! ID: ${data.id}`);
+        // Reset form
+        setSelectedResident('');
+        setInfractionDate('');
+        setSelectedShift('');
+        setInfractionBehavior('');
+        setRepairLevel('');
+        setInterventions([]);
+        setComments('');
+        setReviewDate('');
+      } else {
+        const error = await response.text();
+        alert(`Error creating repair: ${error}`);
+      }
+    } catch (error) {
+      console.error('Error submitting repair:', error);
+      alert('Failed to create repair');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page actions */}
