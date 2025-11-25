@@ -458,29 +458,49 @@ export default function LogbookPage() {
       
       if (res.ok) {
         const createdLog = await res.json();
+        console.log('Created log:', createdLog);
+        console.log('Selected files count:', selectedFiles.length);
         
         // Upload files if any were selected
         if (selectedFiles.length > 0) {
-          addToast('Uploading attachments...', 'info');
-          for (const file of selectedFiles) {
-            const formData = new FormData();
-            formData.append('file', file);
+          if (!createdLog.id) {
+            console.error('No log ID in response!', createdLog);
+            addToast('Error: Could not upload attachments - no log ID', 'error');
+          } else {
+            addToast(`Uploading ${selectedFiles.length} attachment(s)...`, 'info');
+            let uploadedCount = 0;
             
-            try {
-              const uploadRes = await fetch(`/api/programs/${programId}/logbook/shift-logs/${createdLog.id}/attachments`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                  ...(token ? { Authorization: `Bearer ${token}` } : {})
-                },
-                body: formData
-              });
+            for (const file of selectedFiles) {
+              console.log('Uploading file:', file.name);
+              const formData = new FormData();
+              formData.append('file', file);
               
-              if (!uploadRes.ok) {
-                console.error('Failed to upload file:', file.name);
+              try {
+                const uploadRes = await fetch(`/api/programs/${programId}/logbook/shift-logs/${createdLog.id}/attachments`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                  },
+                  body: formData
+                });
+                
+                if (uploadRes.ok) {
+                  uploadedCount++;
+                  console.log('Successfully uploaded:', file.name);
+                } else {
+                  const error = await uploadRes.text();
+                  console.error('Failed to upload file:', file.name, error);
+                  addToast(`Failed to upload ${file.name}`, 'error');
+                }
+              } catch (uploadError) {
+                console.error('Error uploading file:', uploadError);
+                addToast(`Error uploading ${file.name}`, 'error');
               }
-            } catch (uploadError) {
-              console.error('Error uploading file:', uploadError);
+            }
+            
+            if (uploadedCount > 0) {
+              addToast(`Successfully uploaded ${uploadedCount} file(s) to Contabo`, 'success');
             }
           }
         }
