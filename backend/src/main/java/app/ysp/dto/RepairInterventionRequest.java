@@ -11,6 +11,10 @@ public class RepairInterventionRequest {
     private String interventionsJson;
     private String comments;
     private LocalDate reviewDate;
+    private Integer repairDurationDays;
+    private LocalDate repairStartDate;
+    private LocalDate repairEndDate;
+    private Boolean pointsSuspended;
 
     // Getters and Setters
     public Long getResidentId() { return residentId; }
@@ -36,4 +40,16 @@ public class RepairInterventionRequest {
 
     public LocalDate getReviewDate() { return reviewDate; }
     public void setReviewDate(LocalDate reviewDate) { this.reviewDate = reviewDate; }
+
+    public Integer getRepairDurationDays() { return repairDurationDays; }
+    public void setRepairDurationDays(Integer repairDurationDays) { this.repairDurationDays = repairDurationDays; }
+
+    public LocalDate getRepairStartDate() { return repairStartDate; }
+    public void setRepairStartDate(LocalDate repairStartDate) { this.repairStartDate = repairStartDate; }
+
+    public LocalDate getRepairEndDate() { return repairEndDate; }
+    public void setRepairEndDate(LocalDate repairEndDate) { this.repairEndDate = repairEndDate; }
+
+    public Boolean getPointsSuspended() { return pointsSuspended; }
+    public void setPointsSuspended(Boolean pointsSuspended) { this.pointsSuspended = pointsSuspended; }
 }

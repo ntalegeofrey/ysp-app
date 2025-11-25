@@ -24,6 +24,14 @@ public class RepairInterventionResponse {
     private Long reviewedByClinicalId;
     private String reviewedByClinicalName;
     private Instant reviewedByClinicalAt;
+    private Integer repairDurationDays;
+    private LocalDate repairStartDate;
+    private LocalDate repairEndDate;
+    private Boolean pointsSuspended;
+    private String pdReviewStatus;
+    private String pdReviewComments;
+    private String clinicalReviewStatus;
+    private String clinicalReviewComments;
     private String status;
     private Instant createdAt;
     private Instant updatedAt;
@@ -97,4 +105,28 @@ public class RepairInterventionResponse {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getRepairDurationDays() { return repairDurationDays; }
+    public void setRepairDurationDays(Integer repairDurationDays) { this.repairDurationDays = repairDurationDays; }
+
+    public LocalDate getRepairStartDate() { return repairStartDate; }
+    public void setRepairStartDate(LocalDate repairStartDate) { this.repairStartDate = repairStartDate; }
+
+    public LocalDate getRepairEndDate() { return repairEndDate; }
+    public void setRepairEndDate(LocalDate repairEndDate) { this.repairEndDate = repairEndDate; }
+
+    public Boolean getPointsSuspended() { return pointsSuspended; }
+    public void setPointsSuspended(Boolean pointsSuspended) { this.pointsSuspended = pointsSuspended; }
+
+    public String getPdReviewStatus() { return pdReviewStatus; }
+    public void setPdReviewStatus(String pdReviewStatus) { this.pdReviewStatus = pdReviewStatus; }
+
+    public String getPdReviewComments() { return pdReviewComments; }
+    public void setPdReviewComments(String pdReviewComments) { this.pdReviewComments = pdReviewComments; }
+
+    public String getClinicalReviewStatus() { return clinicalReviewStatus; }
+    public void setClinicalReviewStatus(String clinicalReviewStatus) { this.clinicalReviewStatus = clinicalReviewStatus; }
+
+    public String getClinicalReviewComments() { return clinicalReviewComments; }
+    public void setClinicalReviewComments(String clinicalReviewComments) { this.clinicalReviewComments = clinicalReviewComments; }
 }
