@@ -94,6 +94,14 @@ export default function IncidentsPage() {
   // Archive pagination state (top-level to respect hooks rules)
   const [archivePage, setArchivePage] = useState(1);
   const archivePageSize = 10;
+  
+  // Archive filters
+  const [archiveFilters, setArchiveFilters] = useState({
+    search: '',
+    type: 'All Types',
+    dateRange: 'Last 30 Days',
+    priority: 'All Priorities'
+  });
   // Shakedown add-other area state
   const commonAreas = ['Dining Hall','Recreation Room','Common Area','Laundry Room'];
   const [commonAddArea, setCommonAddArea] = useState<string>(commonAreas[0]);
@@ -742,9 +750,42 @@ export default function IncidentsPage() {
     { dt: 'Oct 20, 2024', time: '11:55 AM', type: 'Shakedown', badge: 'bg-primary-lightest text-primary', nature: 'School Area Search - No issues', priority: 'Low', pcls: 'bg-success text-white', staff: 'B. Foster' },
     { dt: 'Oct 19, 2024', time: '6:40 PM', type: 'Incident', badge: 'bg-error-lightest text-error', nature: 'Fire Alarm - False alarm', priority: 'Medium', pcls: 'bg-warning text-white', staff: 'M. Turner' },
   ];
-  const archiveTotalPages = Math.ceil(allRowsArchive.length / archivePageSize);
+  
+  // Apply filters to archive
+  const filteredArchive = allRowsArchive.filter(row => {
+    // Search filter
+    if (archiveFilters.search && !row.nature.toLowerCase().includes(archiveFilters.search.toLowerCase()) && 
+        !row.staff.toLowerCase().includes(archiveFilters.search.toLowerCase())) {
+      return false;
+    }
+    
+    // Type filter
+    if (archiveFilters.type !== 'All Types') {
+      const typeMatch = archiveFilters.type === 'Incident Report' ? 'Incident' : 'Shakedown';
+      if (row.type !== typeMatch) return false;
+    }
+    
+    // Priority filter
+    if (archiveFilters.priority !== 'All Priorities' && row.priority !== archiveFilters.priority) {
+      return false;
+    }
+    
+    // Date range filter
+    if (archiveFilters.dateRange !== 'Last 30 Days' && row.reportData) {
+      const reportDate = new Date(row.reportData.createdAt);
+      const now = new Date();
+      const daysDiff = Math.floor((now.getTime() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (archiveFilters.dateRange === 'Last 7 Days' && daysDiff > 7) return false;
+      if (archiveFilters.dateRange === 'Last 90 Days' && daysDiff > 90) return false;
+    }
+    
+    return true;
+  });
+  
+  const archiveTotalPages = Math.ceil(filteredArchive.length / archivePageSize);
   const archiveStart = (archivePage - 1) * archivePageSize;
-  const archivePagedRows = allRowsArchive.slice(archiveStart, archiveStart + archivePageSize);
+  const archivePagedRows = filteredArchive.slice(archiveStart, archiveStart + archivePageSize);
 
   const TabButton = ({ id, icon, label }: { id: 'incident-report' | 'shakedown-report' | 'incident-archive'; icon: string; label: string }) => {
     const isActive = activeTab === id;
@@ -1405,13 +1446,22 @@ export default function IncidentsPage() {
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Search</label>
                     <div className="relative">
-                      <input type="text" placeholder="Search incidents..." className="w-full border border-bd rounded-lg px-3 py-2 pl-10 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                      <input 
+                        type="text" 
+                        value={archiveFilters.search} 
+                        onChange={(e) => { setArchiveFilters({...archiveFilters, search: e.target.value}); setArchivePage(1); }} 
+                        placeholder="Search incidents..." 
+                        className="w-full border border-bd rounded-lg px-3 py-2 pl-10 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                      />
                       <i className="fa-solid fa-search absolute left-3 top-3 text-font-medium text-sm"></i>
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Type</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select 
+                      value={archiveFilters.type} 
+                      onChange={(e) => { setArchiveFilters({...archiveFilters, type: e.target.value}); setArchivePage(1); }} 
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>All Types</option>
                       <option>Incident Report</option>
                       <option>Shakedown Report</option>
@@ -1419,7 +1469,10 @@ export default function IncidentsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Date Range</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select 
+                      value={archiveFilters.dateRange} 
+                      onChange={(e) => { setArchiveFilters({...archiveFilters, dateRange: e.target.value}); setArchivePage(1); }} 
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>Last 30 Days</option>
                       <option>Last 7 Days</option>
                       <option>Last 90 Days</option>
@@ -1428,7 +1481,10 @@ export default function IncidentsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Priority</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <select 
+                      value={archiveFilters.priority} 
+                      onChange={(e) => { setArchiveFilters({...archiveFilters, priority: e.target.value}); setArchivePage(1); }} 
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                       <option>All Priorities</option>
                       <option>Critical</option>
                       <option>High</option>
@@ -1439,6 +1495,22 @@ export default function IncidentsPage() {
                 </div>
 
                 {/* Archive Table */}
+                {loading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="text-center">
+                      <i className="fa-solid fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                      <p className="text-font-detail">Loading reports...</p>
+                    </div>
+                  </div>
+                ) : archivePagedRows.length === 0 ? (
+                  <div className="flex justify-center items-center py-12 border border-bd rounded-lg">
+                    <div className="text-center">
+                      <i className="fa-solid fa-inbox text-4xl text-font-detail mb-4"></i>
+                      <p className="text-font-base font-medium mb-2">No reports found</p>
+                      <p className="text-font-detail text-sm">Try adjusting your filters or submit a new report</p>
+                    </div>
+                  </div>
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border border-bd rounded-lg">
                     <thead className="bg-bg-subtle">
@@ -1474,13 +1546,26 @@ export default function IncidentsPage() {
                     </tbody>
                   </table>
                 </div>
-                {archiveTotalPages > 1 && (
+                )}
+                {!loading && archivePagedRows.length > 0 && archiveTotalPages > 1 && (
                   <div className="px-4 sm:px-6 py-4 border-t border-bd bg-bg-subtle">
                     <div className="flex items-center justify-between">
-                      <div className="text-sm text-font-detail">Showing {Math.min(archiveStart + archivePageSize, allRowsArchive.length)} of {allRowsArchive.length} entries</div>
+                      <div className="text-sm text-font-detail">Showing {archiveStart + 1}-{Math.min(archiveStart + archivePageSize, filteredArchive.length)} of {filteredArchive.length} entries</div>
                       <div className="flex space-x-2">
                         <button onClick={() => setArchivePage((p) => Math.max(1, p - 1))} disabled={archivePage === 1} className={`px-3 py-2 border border-bd rounded text-sm ${archivePage === 1 ? 'text-font-detail opacity-50 cursor-not-allowed' : 'text-font-detail hover:bg-primary-lightest'}`}>Previous</button>
-                        {Array.from({ length: archiveTotalPages }, (_, i) => i + 1).map((n) => (
+                        {Array.from({ length: Math.min(archiveTotalPages, 5) }, (_, i) => {
+                          let pageNum;
+                          if (archiveTotalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (archivePage <= 3) {
+                            pageNum = i + 1;
+                          } else if (archivePage >= archiveTotalPages - 2) {
+                            pageNum = archiveTotalPages - 4 + i;
+                          } else {
+                            pageNum = archivePage - 2 + i;
+                          }
+                          return pageNum;
+                        }).map((n) => (
                           <button key={n} onClick={() => setArchivePage(n)} className={`px-3 py-2 rounded text-sm ${n === archivePage ? 'bg-primary text-white hover:bg-primary-light' : 'border border-bd text-font-detail hover:bg-primary-lightest'}`}>{n}</button>
                         ))}
                         <button onClick={() => setArchivePage((p) => Math.min(archiveTotalPages, p + 1))} disabled={archivePage === archiveTotalPages} className={`px-3 py-2 border border-bd rounded text-sm ${archivePage === archiveTotalPages ? 'text-font-detail opacity-50 cursor-not-allowed' : 'text-font-detail hover:bg-primary-lightest'}`}>Next</button>
