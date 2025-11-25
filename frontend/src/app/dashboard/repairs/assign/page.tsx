@@ -1,6 +1,85 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 export default function AssignRepairPage() {
+  const [residents, setResidents] = useState<any[]>([]);
+  const [selectedResident, setSelectedResident] = useState('');
+  const [currentUser, setCurrentUser] = useState({ firstName: '', lastName: '', fullName: '', role: '' });
+  const [programId, setProgramId] = useState<number | null>(null);
+  const [userAssignments, setUserAssignments] = useState<any[]>([]);
+  const [isProgramDirector, setIsProgramDirector] = useState(false);
+  const [isClinical, setIsClinical] = useState(false);
+
+  // Fetch user info, program, and residents on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Get logged-in user
+        const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        if (userData) {
+          const user = JSON.parse(userData);
+          setCurrentUser({
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            fullName: user.fullName || user.name || '',
+            role: user.role || ''
+          });
+        }
+
+        // Get selected program
+        const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+        if (programData) {
+          const program = JSON.parse(programData);
+          setProgramId(program.id);
+
+          // Fetch residents for this program
+          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          if (token) {
+            const resResponse = await fetch(`/api/programs/${program.id}/residents`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resResponse.ok) {
+              const resData = await resResponse.json();
+              setResidents(resData);
+            }
+
+            // Fetch user's assignments to check role
+            const assignResponse = await fetch(`/api/programs/${program.id}/assignments`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (assignResponse.ok) {
+              const assignments = await assignResponse.json();
+              setUserAssignments(assignments);
+              
+              // Check if user is Program Director or Clinical
+              const userEmail = JSON.parse(userData).email;
+              const userAssignment = assignments.find((a: any) => 
+                a.userEmail?.toLowerCase() === userEmail?.toLowerCase()
+              );
+              
+              if (userAssignment) {
+                const roleType = userAssignment.roleType?.toUpperCase();
+                const category = userAssignment.category;
+                
+                setIsProgramDirector(
+                  roleType === 'PROGRAM_DIRECTOR' || 
+                  roleType === 'ASSISTANT_DIRECTOR' ||
+                  roleType === 'REGIONAL_ADMIN'
+                );
+                
+                setIsClinical(category?.toLowerCase() === 'clinical');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
   return (
     <div className="space-y-6">
       {/* Page actions */}
@@ -29,17 +108,24 @@ export default function AssignRepairPage() {
           <h3 className="text-lg font-semibold text-font-base mb-4">Infraction Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label htmlFor="resident-search" className="block text-sm font-medium text-font-detail mb-1">
+              <label htmlFor="resident-select" className="block text-sm font-medium text-font-detail mb-1">
                 Youth/Resident
               </label>
               <div className="relative">
-                <i className="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-font-medium"></i>
-                <input
-                  type="text"
-                  id="resident-search"
-                  placeholder="Search by name or ID..."
+                <i className="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-font-medium z-10"></i>
+                <select
+                  id="resident-select"
+                  value={selectedResident}
+                  onChange={(e) => setSelectedResident(e.target.value)}
                   className="w-full border border-bd rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                />
+                >
+                  <option value="">Select a resident...</option>
+                  {residents.map((resident) => (
+                    <option key={resident.id} value={resident.id}>
+                      {resident.firstName} {resident.lastName} {resident.residentId ? `(ID: ${resident.residentId})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div>
@@ -90,9 +176,9 @@ export default function AssignRepairPage() {
               <input
                 type="text"
                 id="assigning-staff"
-                defaultValue="John Smith"
+                value={`${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.fullName || 'Loading...'}
                 disabled
-                className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium"
+                className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium cursor-not-allowed"
               />
             </div>
           </div>
@@ -183,28 +269,66 @@ export default function AssignRepairPage() {
                 />
               </div>
               <div>
-                <label htmlFor="reviewed-by-pd" className="block text-sm font-medium text-font-detail mb-1">
-                  Reviewed by PD/AD
+                <label className="block text-sm font-medium text-font-detail mb-2">
+                  Program Director/AD Review
                 </label>
-                <input
-                  type="text"
-                  id="reviewed-by-pd"
-                  placeholder="Pending Review"
-                  disabled
-                  className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium"
-                />
+                {isProgramDirector ? (
+                  <div className="space-y-3">
+                    <textarea
+                      placeholder="Add review comments (optional)..."
+                      rows={3}
+                      className="w-full border border-bd rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                    ></textarea>
+                    <div className="flex gap-2">
+                      <button className="flex-1 px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors">
+                        <i className="fa-solid fa-check mr-2"></i>
+                        Approve
+                      </button>
+                      <button className="flex-1 px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors">
+                        <i className="fa-solid fa-times mr-2"></i>
+                        Disapprove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Pending Review"
+                    disabled
+                    className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium cursor-not-allowed"
+                  />
+                )}
               </div>
               <div>
-                <label htmlFor="reviewed-by-clinical" className="block text-sm font-medium text-font-detail mb-1">
-                  Reviewed by Clinical
+                <label className="block text-sm font-medium text-font-detail mb-2">
+                  Clinical Review
                 </label>
-                <input
-                  type="text"
-                  id="reviewed-by-clinical"
-                  placeholder="Pending Review"
-                  disabled
-                  className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium"
-                />
+                {isClinical ? (
+                  <div className="space-y-3">
+                    <textarea
+                      placeholder="Add review comments (optional)..."
+                      rows={3}
+                      className="w-full border border-bd rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                    ></textarea>
+                    <div className="flex gap-2">
+                      <button className="flex-1 px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors">
+                        <i className="fa-solid fa-check mr-2"></i>
+                        Approve
+                      </button>
+                      <button className="flex-1 px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors">
+                        <i className="fa-solid fa-times mr-2"></i>
+                        Disapprove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Pending Review"
+                    disabled
+                    className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium cursor-not-allowed"
+                  />
+                )}
               </div>
             </div>
           </div>

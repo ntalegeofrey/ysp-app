@@ -216,7 +216,13 @@ export default function LogbookPage() {
         
         if (residentsRes.ok) {
           const data = await residentsRes.json();
-          setResidentsList(data);
+          console.log('Loaded residents data:', data);
+          // Handle both array and object with content property
+          const residents = Array.isArray(data) ? data : (data.content || []);
+          setResidentsList(residents);
+          console.log('Residents list set to:', residents);
+        } else {
+          console.error('Failed to load residents:', residentsRes.status, residentsRes.statusText);
         }
       } catch (error) {
         console.error('Error loading program data:', error);
@@ -226,8 +232,14 @@ export default function LogbookPage() {
   
   // Auto-generate resident initials with duplicate handling
   const generateResidentInitials = useMemo(() => {
+    console.log('Generating initials for residents:', residentsList);
+    if (!residentsList || residentsList.length === 0) {
+      console.log('No residents found');
+      return '';
+    }
+    
     const initialsMap: Record<string, number> = {};
-    return residentsList.map(resident => {
+    const initials = residentsList.map(resident => {
       const lastName = String(resident.lastName || '');
       const firstName = String(resident.firstName || '');
       const lastInitial = (lastName[0] || '').toUpperCase();
@@ -244,6 +256,9 @@ export default function LogbookPage() {
         return baseInitials;
       }
     }).join(', ');
+    
+    console.log('Generated initials:', initials);
+    return initials;
   }, [residentsList]);
   
   // Handle file selection
@@ -734,11 +749,16 @@ export default function LogbookPage() {
                     <input 
                       type="text" 
                       value={generateResidentInitials}
+                      placeholder={residentsList.length === 0 ? 'No residents in program' : 'Auto-generated'}
                       readOnly
                       className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-gray-100 text-font-detail cursor-not-allowed" 
                       title="Auto-generated from residents on unit"
                     />
-                    <p className="text-xs text-font-detail mt-1">Auto-generated from program residents</p>
+                    <p className="text-xs text-font-detail mt-1">
+                      {residentsList.length === 0 
+                        ? 'Add residents to the program to see initials' 
+                        : `Auto-generated from ${residentsList.length} program residents`}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Total Count</label>
