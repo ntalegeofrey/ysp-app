@@ -1,6 +1,6 @@
+import { logoUrl } from '@/app/utils/logo';
+
 export function generateShakedownReportHTML(data: any): string {
-  const logoUrl = 'https://storage.googleapis.com/uxpilot-auth.appspot.com/5ea061d02c-eff4b0701f06055f1bc2.png';
-  
   return `
 <!DOCTYPE html>
 <html>

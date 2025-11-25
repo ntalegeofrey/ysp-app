@@ -150,7 +150,7 @@ export default function IncidentsPage() {
   const [selectedResidents, setSelectedResidents] = useState<number[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   const [selectedWitnesses, setSelectedWitnesses] = useState<number[]>([]);
-  const [selectedPrimaryRestraintStaff, setSelectedPrimaryRestraintStaff] = useState<string>('');
+  const [selectedPrimaryRestraintStaff, setSelectedPrimaryRestraintStaff] = useState<string[]>([]);
   
   // Shakedown staff selections
   const [selectedAnnouncementStaff, setSelectedAnnouncementStaff] = useState<string>('');
@@ -415,6 +415,29 @@ export default function IncidentsPage() {
         .filter(Boolean)
         .join(', ');
       
+      // Convert selected restraint staff to comma-separated names with titles
+      const primaryStaffRestraint = selectedPrimaryRestraintStaff
+        .map(id => {
+          const staff = uniqueProgramStaff.find((s, idx) => String(s.userEmail || `staff-${idx}`) === id);
+          if (!staff) return null;
+          
+          const emailKey = (staff.userEmail || '').toLowerCase();
+          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+          const baseName = fromDirectory?.fullName?.trim() || '';
+          const emailFallback = (staff.userEmail || '').trim();
+          const name = baseName || emailFallback || 'Staff';
+
+          const directoryTitle = fromDirectory?.jobTitle?.trim();
+          const rawTitle = directoryTitle || (staff.title || '').trim();
+          if (!rawTitle) return name;
+
+          const abbr = abbreviateTitle(rawTitle);
+          const titleDisplay = abbr || rawTitle;
+          return `${name} (${titleDisplay})`;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
       const payload = {
         ...incidentReport,
         areaOfIncident: incidentReport.areaOfIncident === 'Other' ? areaOtherText : incidentReport.areaOfIncident,
@@ -422,7 +445,7 @@ export default function IncidentsPage() {
         residentsInvolved,
         staffInvolved,
         residentWitnesses,
-        primaryStaffRestraint: selectedPrimaryRestraintStaff || '',
+        primaryStaffRestraint,
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
@@ -473,7 +496,7 @@ export default function IncidentsPage() {
         setSelectedResidents([]);
         setSelectedStaff([]);
         setSelectedWitnesses([]);
-        setSelectedPrimaryRestraintStaff('');
+        setSelectedPrimaryRestraintStaff([]);
         // Reload archive data
         loadArchiveData();
       } else {
@@ -900,43 +923,60 @@ export default function IncidentsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Primary Staff Applying Restraint</label>
-                    <select 
-                      value={selectedPrimaryRestraintStaff} 
-                      onChange={(e) => setSelectedPrimaryRestraintStaff(e.target.value)} 
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="">Select Staff...</option>
-                      {uniqueProgramStaff
-                        .filter((s, idx) => {
-                          const id = String(s.userEmail || `staff-${idx}`);
-                          // Exclude staff already selected in "Staff Involved"
-                          return !selectedStaff.includes(id);
-                        })
-                        .map((s, idx) => {
-                          const id = String(s.userEmail || `staff-${idx}`);
-                          const emailKey = (s.userEmail || '').toLowerCase();
-                          const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
-                          const baseName = fromDirectory?.fullName?.trim() || '';
-                          const emailFallback = (s.userEmail || '').trim();
-                          const name = baseName || emailFallback || 'Staff';
+                    <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
+                      {uniqueProgramStaff.filter((s, idx) => {
+                        const id = String(s.userEmail || `staff-${idx}`);
+                        // Exclude staff already selected in "Staff Involved"
+                        return !selectedStaff.includes(id);
+                      }).length === 0 ? (
+                        <p className="text-sm text-font-detail italic">No available staff (all staff are involved)</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {uniqueProgramStaff
+                            .filter((s, idx) => {
+                              const id = String(s.userEmail || `staff-${idx}`);
+                              // Exclude staff already selected in "Staff Involved"
+                              return !selectedStaff.includes(id);
+                            })
+                            .map((s, idx) => {
+                              const id = String(s.userEmail || `staff-${idx}`);
+                              const emailKey = (s.userEmail || '').toLowerCase();
+                              const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                              const baseName = fromDirectory?.fullName?.trim() || '';
+                              const emailFallback = (s.userEmail || '').trim();
+                              const name = baseName || emailFallback || 'Staff';
 
-                          const directoryTitle = fromDirectory?.jobTitle?.trim();
-                          const rawTitle = directoryTitle || (s.title || '').trim();
-                          let label = name;
-                          if (rawTitle) {
-                            const abbr = abbreviateTitle(rawTitle);
-                            const titleDisplay = abbr || rawTitle;
-                            label = `${name} (${titleDisplay})`;
-                          }
-                          
-                          return (
-                            <option key={id} value={label}>
-                              {label}
-                            </option>
-                          );
-                        })}
-                    </select>
-                    <p className="text-xs text-font-detail mt-1">Select primary staff (excludes staff already involved)</p>
+                              const directoryTitle = fromDirectory?.jobTitle?.trim();
+                              const rawTitle = directoryTitle || (s.title || '').trim();
+                              let label = name;
+                              if (rawTitle) {
+                                const abbr = abbreviateTitle(rawTitle);
+                                const titleDisplay = abbr || rawTitle;
+                                label = `${name} (${titleDisplay})`;
+                              }
+                              
+                              return (
+                                <label key={id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedPrimaryRestraintStaff.includes(id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedPrimaryRestraintStaff([...selectedPrimaryRestraintStaff, id]);
+                                      } else {
+                                        setSelectedPrimaryRestraintStaff(selectedPrimaryRestraintStaff.filter(sid => sid !== id));
+                                      }
+                                    }}
+                                    className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
+                                  />
+                                  <span className="text-sm text-font-base">{label}</span>
+                                </label>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-font-detail mt-1">Select staff applying restraint (excludes staff already involved)</p>
                   </div>
                 </div>
 
