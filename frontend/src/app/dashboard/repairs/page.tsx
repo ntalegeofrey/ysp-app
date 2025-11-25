@@ -6,6 +6,56 @@ import { useState } from 'react';
 export default function RepairsPage() {
   const router = useRouter();
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
+  const [detailsModal, setDetailsModal] = useState<any>(null);
+  
+  const repairDetails = {
+    0: {
+      resident: 'Marcus Johnson',
+      id: '2847',
+      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg',
+      repairType: 'R3',
+      violation: 'Major Violation - Fighting',
+      date: '2025-11-22',
+      assignedBy: 'John Smith',
+      duration: '7 days',
+      startedDays: '3 days ago',
+      interventions: ['DBT packet', 'Clinical Reflection', 'Character Essay'],
+      comments: 'Physical altercation in common area during recreation time. Escalated quickly despite staff intervention. Resident has shown remorse and is engaging well with interventions.',
+      status: 'Active',
+      pointsSuspended: true
+    },
+    1: {
+      resident: 'David Chen',
+      id: '2851',
+      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg',
+      repairType: 'R2',
+      violation: 'Moderate Violation - Disrespect to Staff',
+      date: '2025-11-24',
+      assignedBy: 'Sarah Williams',
+      duration: '3 days',
+      startedDays: '1 day ago',
+      interventions: ['Clean classrooms', 'Wipe down dining area'],
+      comments: 'Verbally disrespectful during room inspection. Used inappropriate language. Resident has been cooperative with cleaning tasks.',
+      status: 'Active',
+      pointsSuspended: true
+    },
+    2: {
+      resident: 'Alex Rodriguez',
+      id: '2849',
+      avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg',
+      repairType: 'R1',
+      violation: 'Minor Violation - Late to Count',
+      date: '2025-11-25',
+      assignedBy: 'Mike Johnson',
+      duration: '1 day',
+      startedDays: 'Today',
+      interventions: ['Written apology', 'Update Distress Tolerance'],
+      comments: 'Missed morning count due to oversleeping. Apologized immediately and completed repair tasks promptly.',
+      status: 'Active',
+      pointsSuspended: true
+    }
+  };
+  
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
@@ -71,7 +121,12 @@ export default function RepairsPage() {
                   <p className="text-sm text-font-detail">Started: 3 days ago | Duration: 7 days</p>
                   <p className="text-xs text-error mt-2">Point accrual suspended</p>
                 </div>
-                <button className="bg-error text-white px-3 py-1 rounded text-sm">View Details</button>
+                <button 
+                  onClick={() => setDetailsModal(repairDetails[0])}
+                  className="bg-error text-white px-3 py-1 rounded text-sm hover:bg-error/90 transition-colors"
+                >
+                  View Details
+                </button>
               </div>
             </div>
             <div className="bg-highlight-lightest border border-highlight rounded-lg p-4">
@@ -82,7 +137,12 @@ export default function RepairsPage() {
                   <p className="text-sm text-font-detail">Started: 1 day ago | Duration: 3 days</p>
                   <p className="text-xs text-highlight mt-2">Point accrual suspended</p>
                 </div>
-                <button className="bg-highlight text-white px-3 py-1 rounded text-sm">View Details</button>
+                <button 
+                  onClick={() => setDetailsModal(repairDetails[1])}
+                  className="bg-highlight text-white px-3 py-1 rounded text-sm hover:bg-highlight/90 transition-colors"
+                >
+                  View Details
+                </button>
               </div>
             </div>
             <div className="bg-primary-lightest border border-primary rounded-lg p-4">
@@ -93,7 +153,12 @@ export default function RepairsPage() {
                   <p className="text-sm text-font-detail">Started: Today | Duration: 1 day</p>
                   <p className="text-xs text-primary mt-2">Point accrual suspended</p>
                 </div>
-                <button className="bg-primary text-white px-3 py-1 rounded text-sm">View Details</button>
+                <button 
+                  onClick={() => setDetailsModal(repairDetails[2])}
+                  className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary/90 transition-colors"
+                >
+                  View Details
+                </button>
               </div>
             </div>
           </div>
@@ -308,6 +373,142 @@ export default function RepairsPage() {
           </div>
         </div>
       </div>
+
+      {/* Repair Details Modal */}
+      {detailsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-primary p-6 text-white sticky top-0">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={detailsModal.avatar} 
+                    alt={detailsModal.resident} 
+                    className="w-16 h-16 rounded-full border-2 border-white"
+                  />
+                  <div>
+                    <h2 className="text-2xl font-bold">{detailsModal.resident}</h2>
+                    <p className="text-primary-lightest">ID: {detailsModal.id}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setDetailsModal(null)}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <i className="fa-solid fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Repair Type Badge */}
+              <div className="flex justify-center">
+                <span className={`
+                  ${detailsModal.repairType === 'R3' ? 'bg-error' : 
+                    detailsModal.repairType === 'R2' ? 'bg-highlight' : 'bg-primary'}
+                  text-white px-6 py-2 rounded-full text-lg font-bold
+                `}>
+                  {detailsModal.repairType} - {detailsModal.violation}
+                </span>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                  <p className="text-sm text-font-detail mb-1">Date Assigned</p>
+                  <p className="font-semibold text-font-base">
+                    {new Date(detailsModal.date).toLocaleDateString('en-US', { 
+                      month: 'long', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
+                  </p>
+                </div>
+                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                  <p className="text-sm text-font-detail mb-1">Assigned By</p>
+                  <p className="font-semibold text-font-base">{detailsModal.assignedBy}</p>
+                </div>
+                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                  <p className="text-sm text-font-detail mb-1">Duration</p>
+                  <p className="font-semibold text-font-base">{detailsModal.duration}</p>
+                </div>
+                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                  <p className="text-sm text-font-detail mb-1">Status</p>
+                  <p className="font-semibold text-font-base flex items-center gap-2">
+                    <span className={`
+                      ${detailsModal.status === 'Active' ? 'bg-error' : 'bg-success'}
+                      w-2 h-2 rounded-full
+                    `}></span>
+                    {detailsModal.status}
+                  </p>
+                </div>
+              </div>
+
+              {/* Points Suspension Alert */}
+              {detailsModal.pointsSuspended && (
+                <div className="bg-error-lightest border border-error rounded-lg p-4 flex items-center gap-3">
+                  <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
+                  <div>
+                    <p className="font-semibold text-error">Point Accrual Suspended</p>
+                    <p className="text-sm text-font-detail">Resident cannot earn points during this repair period</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Interventions */}
+              <div>
+                <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
+                  <i className="fa-solid fa-clipboard-list text-primary"></i>
+                  Assigned Interventions
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {detailsModal.interventions.map((intervention: string, index: number) => (
+                    <div key={index} className="bg-primary-lightest border-l-4 border-primary p-3 rounded">
+                      <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-check-circle text-primary"></i>
+                        <span className="text-sm font-medium text-font-base">{intervention}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comments */}
+              <div>
+                <h3 className="text-lg font-semibold text-font-base mb-3 flex items-center gap-2">
+                  <i className="fa-solid fa-comment text-primary"></i>
+                  Staff Comments
+                </h3>
+                <div className="bg-bg-subtle p-4 rounded-lg border border-bd">
+                  <p className="text-sm text-font-base leading-relaxed">{detailsModal.comments}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-bd bg-bg-subtle flex justify-end gap-3">
+              <button 
+                onClick={() => setDetailsModal(null)}
+                className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-white transition-colors"
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => {
+                  setDetailsModal(null);
+                  router.push(`/dashboard/repairs/history/${detailsModal.id}`);
+                }}
+                className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-light transition-colors flex items-center gap-2"
+              >
+                <i className="fa-solid fa-history"></i>
+                View Full History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

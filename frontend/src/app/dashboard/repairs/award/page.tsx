@@ -1,6 +1,28 @@
 'use client';
 
+import { useState } from 'react';
+
 export default function AwardPointsPage() {
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [redeemItem, setRedeemItem] = useState('');
+  
+  // Mock weekly data - will be replaced with API
+  const weekData = {
+    startingPoints: 213,
+    currentBalance: 245,
+    weekEnding: '2025-11-30',
+    dailyPoints: [0, 0, 0, 13, 15, 16, 19], // SUN-SAT
+    repairDays: [true, true, true, false, false, false, false] // Days with repairs
+  };
+
+  const handleRedeem = () => {
+    if (redeemPoints && redeemItem) {
+      alert(`Redeeming ${redeemPoints} points for: ${redeemItem}`);
+      setRedeemPoints('');
+      setRedeemItem('');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Resident header card */}
@@ -40,6 +62,83 @@ export default function AwardPointsPage() {
               defaultValue="2025-10-31"
               className="border border-bd rounded-lg px-3 py-2 text-sm"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Redeeming Points Section */}
+      <div className="bg-gradient-to-br from-primary/5 via-white to-primary-lightest rounded-xl border border-primary/20 shadow-sm overflow-hidden">
+        <div className="bg-primary p-4">
+          <div className="flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-3 rounded-lg">
+                <i className="fa-solid fa-gift text-2xl"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold">Redeem Points</h3>
+                <p className="text-sm text-primary-lightest">Exchange points for rewards</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-primary-lightest">Available Points</p>
+              <p className="text-3xl font-bold">{weekData.currentBalance}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-font-base mb-2">
+                Points to Redeem
+              </label>
+              <input
+                type="number"
+                value={redeemPoints}
+                onChange={(e) => setRedeemPoints(e.target.value)}
+                placeholder="Enter points amount..."
+                min="0"
+                max={weekData.currentBalance}
+                className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+              <p className="mt-1 text-xs text-font-detail">
+                Maximum: {weekData.currentBalance} points
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-font-base mb-2">
+                Reward Item
+              </label>
+              <select
+                value={redeemItem}
+                onChange={(e) => setRedeemItem(e.target.value)}
+                className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              >
+                <option value="">Select reward...</option>
+                <option value="Extra Phone Call (50pts)">Extra Phone Call (50pts)</option>
+                <option value="Movie Night (100pts)">Movie Night (100pts)</option>
+                <option value="Video Game Time (75pts)">Video Game Time (75pts)</option>
+                <option value="Snack from Store (30pts)">Snack from Store (30pts)</option>
+                <option value="Later Bedtime (125pts)">Later Bedtime (125pts)</option>
+                <option value="Special Activity (150pts)">Special Activity (150pts)</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-font-detail">
+              <i className="fa-solid fa-info-circle text-primary"></i>
+              <span>Points are cumulative and reset weekly</span>
+            </div>
+            <button
+              onClick={handleRedeem}
+              disabled={!redeemPoints || !redeemItem}
+              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            >
+              <i className="fa-solid fa-check-circle"></i>
+              Redeem Points
+            </button>
           </div>
         </div>
       </div>

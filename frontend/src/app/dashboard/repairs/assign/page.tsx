@@ -10,6 +10,8 @@ export default function AssignRepairPage() {
   const [userAssignments, setUserAssignments] = useState<any[]>([]);
   const [isProgramDirector, setIsProgramDirector] = useState(false);
   const [isClinical, setIsClinical] = useState(false);
+  const [selectedShift, setSelectedShift] = useState('');
+  const [otherShift, setOtherShift] = useState('');
 
   // Fetch user info, program, and residents on mount
   useEffect(() => {
@@ -145,14 +147,25 @@ export default function AssignRepairPage() {
               </label>
               <select
                 id="infraction-shift"
+                value={selectedShift}
+                onChange={(e) => setSelectedShift(e.target.value)}
                 className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                defaultValue=""
               >
                 <option value="" disabled>Select Shift</option>
-                <option>1st Shift</option>
-                <option>2nd Shift</option>
-                <option>3rd Shift</option>
+                <option value="1st Shift">1st Shift</option>
+                <option value="2nd Shift">2nd Shift</option>
+                <option value="3rd Shift">3rd Shift</option>
+                <option value="Other">Other (Specify)</option>
               </select>
+              {selectedShift === 'Other' && (
+                <input
+                  type="text"
+                  placeholder="Specify shift..."
+                  value={otherShift}
+                  onChange={(e) => setOtherShift(e.target.value)}
+                  className="mt-2 w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                />
+              )}
             </div>
             <div className="md:col-span-2">
               <label htmlFor="infraction-behavior" className="block text-sm font-medium text-font-detail mb-1">
