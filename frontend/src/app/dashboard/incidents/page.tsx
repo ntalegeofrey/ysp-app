@@ -116,6 +116,7 @@ export default function IncidentsPage() {
   // Checkbox selections for residents and staff
   const [selectedResidents, setSelectedResidents] = useState<number[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  const [selectedWitnesses, setSelectedWitnesses] = useState<number[]>([]);
   
   // Shakedown add-other area state
   const commonAreas = ['Dining Hall','Recreation Room','Common Area','Laundry Room'];
@@ -154,12 +155,13 @@ export default function IncidentsPage() {
     setRoomAddComments('');
   };
   
-  // Load staff list
+  // Load staff list - ONLY staff assigned to this program
   useEffect(() => {
+    if (!programId) return;
     (async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const res = await fetch('/api/users/search?q=', {
+        const res = await fetch(`/api/programs/${programId}/staff`, {
           credentials: 'include',
           headers: {
             'Accept': 'application/json',
@@ -168,16 +170,16 @@ export default function IncidentsPage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        setStaffList(data.map((u: any) => ({
-          id: String(u.id),
-          fullName: u.fullName,
-          email: u.email
+        setStaffList(data.map((s: any) => ({
+          id: String(s.userId || s.id),
+          fullName: s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+          email: s.email || ''
         })));
       } catch (error) {
-        console.error('Error loading staff:', error);
+        console.error('Error loading program staff:', error);
       }
     })();
-  }, []);
+  }, [programId]);
   
   // Load residents list
   useEffect(() => {
@@ -324,12 +326,22 @@ export default function IncidentsPage() {
         .filter(Boolean)
         .join(', ');
       
+      // Convert selected witnesses to comma-separated names
+      const residentWitnesses = selectedWitnesses
+        .map(id => {
+          const resident = residentsList.find(r => r.id === id);
+          return resident ? `${resident.firstName} ${resident.lastName}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
       const payload = {
         ...incidentReport,
         areaOfIncident: incidentReport.areaOfIncident === 'Other' ? areaOtherText : incidentReport.areaOfIncident,
         natureOfIncident: incidentReport.natureOfIncident === 'Other' ? natureOtherText : incidentReport.natureOfIncident,
         residentsInvolved,
         staffInvolved,
+        residentWitnesses,
         reportCompletedBy: currentUser.fullName,
         reportCompletedByEmail: currentUser.email,
         signatureDatetime: incidentReport.signatureDatetime || new Date().toISOString(),
@@ -379,6 +391,7 @@ export default function IncidentsPage() {
         setNatureOtherText('');
         setSelectedResidents([]);
         setSelectedStaff([]);
+        setSelectedWitnesses([]);
         // Reload archive data
         loadArchiveData();
       } else {
@@ -756,11 +769,48 @@ export default function IncidentsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Resident Witnesses</label>
-                    <textarea value={incidentReport.residentWitnesses} onChange={(e) => setIncidentReport({...incidentReport, residentWitnesses: e.target.value})} placeholder="List residents who witnessed the incident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                    <div className="border border-bd rounded-lg px-4 py-3 bg-white max-h-48 overflow-y-auto">
+                      {residentsList.length === 0 ? (
+                        <p className="text-sm text-font-detail italic">No residents available</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {residentsList.map((resident) => (
+                            <label key={resident.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-subtle p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedWitnesses.includes(resident.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedWitnesses([...selectedWitnesses, resident.id]);
+                                  } else {
+                                    setSelectedWitnesses(selectedWitnesses.filter(id => id !== resident.id));
+                                  }
+                                }}
+                                className="h-4 w-4 text-primary border-bd rounded focus:ring-2 focus:ring-primary"
+                              />
+                              <span className="text-sm text-font-base">{resident.firstName} {resident.lastName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-font-detail mt-1">Select one or more resident witnesses</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Primary Staff Applying Restraint</label>
-                    <input type="text" value={incidentReport.primaryStaffRestraint} onChange={(e) => setIncidentReport({...incidentReport, primaryStaffRestraint: e.target.value})} placeholder="Name of primary staff member" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <select 
+                      value={incidentReport.primaryStaffRestraint} 
+                      onChange={(e) => setIncidentReport({...incidentReport, primaryStaffRestraint: e.target.value})} 
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="">Select Staff...</option>
+                      {staffList.map((staff) => (
+                        <option key={staff.id} value={staff.fullName}>
+                          {staff.fullName}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-font-detail mt-1">Select primary staff member</p>
                   </div>
                 </div>
 

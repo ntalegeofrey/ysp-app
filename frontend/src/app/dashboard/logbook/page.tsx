@@ -36,7 +36,7 @@ export default function LogbookPage() {
                 On-Duty Staff Assignment
               </h3>
             </div>
-            <div className="p-6">
+            <div className="p-6" space-y-4>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
                   <h4 className="font-medium text-font-base mb-4">Shift Details</h4>
