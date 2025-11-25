@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -169,11 +170,18 @@ public class StorageService {
             // Create credentials
             AwsBasicCredentials credentials = AwsBasicCredentials.create(s3AccessKey, s3SecretKey);
             
+            // Create S3Configuration with path-style access for Contabo
+            S3Configuration s3Config = S3Configuration.builder()
+                .pathStyleAccessEnabled(true)
+                .build();
+            
             // Create S3 Presigner with same configuration as S3Client
+            // Force path-style access for Contabo (bucket in path, not subdomain)
             S3Presigner presigner = S3Presigner.builder()
                 .region(Region.of(s3Region))
                 .endpointOverride(URI.create(s3Endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .serviceConfiguration(s3Config)
                 .build();
 
             // Create presign request
