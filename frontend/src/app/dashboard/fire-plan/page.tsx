@@ -101,9 +101,12 @@ export default function FirePlanPage() {
     shiftSupervisor: '',
     reportCompletedBy: '',
     totalEvacuationTime: '',
+    evacuationTimeThreshold: 5,
     weatherConditions: 'Clear',
     totalStaffPresent: 0,
     totalResidentsPresent: 0,
+    allResidentsAccountedFor: true,
+    unaccountedResidentsComment: '',
     overallPerformance: '',
     issuesIdentified: '',
     recommendations: '',
@@ -120,6 +123,7 @@ export default function FirePlanPage() {
     drillType: string;
     totalEvacuationTime: string;
     status: string;
+    statusReason?: string;
     shift: string;
     shiftSupervisor: string;
   };
@@ -233,6 +237,7 @@ export default function FirePlanPage() {
           drillType: item.drillType,
           totalEvacuationTime: item.totalEvacuationTime || 'N/A',
           status: item.status || 'Successful',
+          statusReason: item.statusReason,
           shift: item.shift,
           shiftSupervisor: item.shiftSupervisor
         }));
@@ -1159,6 +1164,10 @@ export default function FirePlanPage() {
       addToast('Please certify the report before saving', 'error');
       return;
     }
+    if (!drillReport.allResidentsAccountedFor && !drillReport.unaccountedResidentsComment.trim()) {
+      addToast('Please provide a comment about unaccounted residents', 'error');
+      return;
+    }
 
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -1167,6 +1176,26 @@ export default function FirePlanPage() {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
+
+      // Calculate drill status based on criteria
+      const evacuationTime = parseFloat(drillReport.totalEvacuationTime) || 0;
+      const threshold = drillReport.evacuationTimeThreshold;
+      const timeExceeded = evacuationTime > threshold;
+      const residentsNotAccountedFor = !drillReport.allResidentsAccountedFor;
+      
+      let drillStatus = 'Successful';
+      let statusReason = '';
+      
+      if (timeExceeded || residentsNotAccountedFor) {
+        drillStatus = 'Unsuccessful';
+        if (timeExceeded && residentsNotAccountedFor) {
+          statusReason = `Evacuation time exceeded threshold (${evacuationTime} > ${threshold} min) and residents not fully accounted for`;
+        } else if (timeExceeded) {
+          statusReason = `Evacuation time exceeded threshold (${evacuationTime} > ${threshold} min)`;
+        } else {
+          statusReason = 'Not all residents accounted for';
+        }
+      }
 
       const response = await fetch(`/api/programs/${programId}/fire-plan/drills`, {
         method: 'POST',
@@ -1180,16 +1209,20 @@ export default function FirePlanPage() {
           shiftSupervisor: drillReport.shiftSupervisor,
           reportCompletedBy: drillReport.reportCompletedBy,
           totalEvacuationTime: drillReport.totalEvacuationTime,
+          evacuationTimeThreshold: drillReport.evacuationTimeThreshold,
           weatherConditions: drillReport.weatherConditions,
           totalStaffPresent: drillReport.totalStaffPresent,
           totalResidentsPresent: drillReport.totalResidentsPresent,
+          allResidentsAccountedFor: drillReport.allResidentsAccountedFor,
+          unaccountedResidentsComment: drillReport.unaccountedResidentsComment,
           overallPerformance: drillReport.overallPerformance,
           issuesIdentified: drillReport.issuesIdentified,
           recommendations: drillReport.recommendations,
           routePerformance: drillReport.routePerformance,
           certificationComplete: drillReport.certificationComplete,
           signatureDatetime: drillReport.signatureDatetime || new Date().toISOString(),
-          status: 'Successful'
+          status: drillStatus,
+          statusReason: statusReason
         }),
       });
 
@@ -1208,9 +1241,12 @@ export default function FirePlanPage() {
           shiftSupervisor: '',
           reportCompletedBy: '',
           totalEvacuationTime: '',
+          evacuationTimeThreshold: 5,
           weatherConditions: 'Clear',
           totalStaffPresent: 0,
           totalResidentsPresent: 0,
+          allResidentsAccountedFor: true,
+          unaccountedResidentsComment: '',
           overallPerformance: '',
           issuesIdentified: '',
           recommendations: '',
@@ -1246,9 +1282,12 @@ export default function FirePlanPage() {
       shiftSupervisor: '',
       reportCompletedBy: '',
       totalEvacuationTime: '',
+      evacuationTimeThreshold: 5,
       weatherConditions: 'Clear',
       totalStaffPresent: 0,
       totalResidentsPresent: 0,
+      allResidentsAccountedFor: true,
+      unaccountedResidentsComment: '',
       overallPerformance: '',
       issuesIdentified: '',
       recommendations: '',
@@ -2193,8 +2232,13 @@ export default function FirePlanPage() {
               <h4 className="text-lg font-semibold text-font-base mb-4">Performance Metrics</h4>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Total Evacuation Time</label>
-                  <input type="text" placeholder="e.g., 4 minutes 30 seconds" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalEvacuationTime} onChange={(e) => setDrillReport({...drillReport, totalEvacuationTime: e.target.value})} />
+                  <label className="block text-sm font-medium text-font-base mb-2">Total Evacuation Time (minutes)</label>
+                  <input type="number" step="0.5" placeholder="e.g., 4.5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalEvacuationTime} onChange={(e) => setDrillReport({...drillReport, totalEvacuationTime: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Time Threshold (minutes)</label>
+                  <input type="number" step="0.5" placeholder="5" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.evacuationTimeThreshold} onChange={(e) => setDrillReport({...drillReport, evacuationTimeThreshold: parseFloat(e.target.value) || 5})} />
+                  <p className="text-xs text-font-detail mt-1">Max acceptable evacuation time</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Weather Conditions</label>
@@ -2213,6 +2257,37 @@ export default function FirePlanPage() {
                   <label className="block text-sm font-medium text-font-base mb-2">Total Residents Present</label>
                   <input type="number" placeholder="24" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary" value={drillReport.totalResidentsPresent} onChange={(e) => setDrillReport({...drillReport, totalResidentsPresent: parseInt(e.target.value) || 0})} />
                 </div>
+              </div>
+
+              {/* Resident Accountability Section */}
+              <div className="mt-6 p-4 border border-bd rounded-lg bg-bg-subtle">
+                <div className="flex items-center gap-3 mb-4">
+                  <input 
+                    type="checkbox" 
+                    id="allResidentsAccountedFor"
+                    checked={drillReport.allResidentsAccountedFor}
+                    onChange={(e) => setDrillReport({...drillReport, allResidentsAccountedFor: e.target.checked})}
+                    className="w-5 h-5 rounded border-bd text-primary focus:ring-2 focus:ring-primary cursor-pointer"
+                  />
+                  <label htmlFor="allResidentsAccountedFor" className="text-sm font-semibold text-font-base cursor-pointer">
+                    All Residents Accounted For
+                  </label>
+                </div>
+                {!drillReport.allResidentsAccountedFor && (
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2 text-error">
+                      <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+                      Comment (Required - Explain unaccounted residents)
+                    </label>
+                    <textarea 
+                      rows={3} 
+                      placeholder="Please provide details about unaccounted residents..." 
+                      className="w-full border border-error rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-error" 
+                      value={drillReport.unaccountedResidentsComment} 
+                      onChange={(e) => setDrillReport({...drillReport, unaccountedResidentsComment: e.target.value})} 
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2363,7 +2438,10 @@ export default function FirePlanPage() {
                     .map((drill) => {
                       const dateFormatted = drill.drillDate ? new Date(drill.drillDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
                       const timeFormatted = drill.drillTime || 'N/A';
-                      const statusColor = drill.status === 'Successful' ? 'bg-success' : drill.status === 'Issues Found' ? 'bg-warning' : 'bg-error';
+                      const statusColor = drill.status === 'Successful' ? 'bg-success' : 'bg-error';
+                      const statusTooltip = drill.status === 'Successful' 
+                        ? 'Evacuation within threshold and all residents accounted for' 
+                        : (drill.statusReason || 'Drill did not meet success criteria');
                       
                       return (
                         <tr key={drill.id}>
@@ -2371,9 +2449,14 @@ export default function FirePlanPage() {
                           <td className="border border-bd p-3 text-sm">{timeFormatted}</td>
                           <td className="border border-bd p-3 text-sm">{drill.drillType}</td>
                           <td className="border border-bd p-3 text-sm">{drill.shift || 'N/A'}</td>
-                          <td className="border border-bd p-3 text-sm">{drill.totalEvacuationTime}</td>
+                          <td className="border border-bd p-3 text-sm">{drill.totalEvacuationTime} min</td>
                           <td className="border border-bd p-3 text-sm">
-                            <span className={`${statusColor} text-white px-2 py-1 rounded text-xs`}>{drill.status}</span>
+                            <span 
+                              className={`${statusColor} text-white px-2 py-1 rounded text-xs cursor-help`}
+                              title={statusTooltip}
+                            >
+                              {drill.status}
+                            </span>
                           </td>
                           <td className="border border-bd p-3 text-sm">
                             <button className="text-primary hover:underline" onClick={() => printSavedDrillReport(drill)}>Print Report</button>

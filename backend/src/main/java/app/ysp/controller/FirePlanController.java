@@ -180,6 +180,11 @@ public class FirePlanController {
         report.setShiftSupervisor(Objects.toString(body.get("shiftSupervisor"), null));
         report.setReportCompletedBy(Objects.toString(body.get("reportCompletedBy"), null));
         report.setTotalEvacuationTime(Objects.toString(body.get("totalEvacuationTime"), null));
+        
+        if (body.containsKey("evacuationTimeThreshold")) {
+            try { report.setEvacuationTimeThreshold(Double.parseDouble(Objects.toString(body.get("evacuationTimeThreshold"), "5.0"))); } catch (Exception ignored) {}
+        }
+        
         report.setWeatherConditions(Objects.toString(body.get("weatherConditions"), null));
 
         if (body.containsKey("totalStaffPresent")) {
@@ -188,6 +193,11 @@ public class FirePlanController {
         if (body.containsKey("totalResidentsPresent")) {
             try { report.setTotalResidentsPresent(Integer.parseInt(Objects.toString(body.get("totalResidentsPresent"), "0"))); } catch (Exception ignored) {}
         }
+
+        if (body.containsKey("allResidentsAccountedFor")) {
+            report.setAllResidentsAccountedFor(Boolean.parseBoolean(Objects.toString(body.get("allResidentsAccountedFor"), "true")));
+        }
+        report.setUnaccountedResidentsComment(Objects.toString(body.get("unaccountedResidentsComment"), null));
 
         report.setOverallPerformance(Objects.toString(body.get("overallPerformance"), null));
         report.setIssuesIdentified(Objects.toString(body.get("issuesIdentified"), null));
@@ -205,6 +215,7 @@ public class FirePlanController {
             try { report.setSignatureDatetime(LocalDateTime.parse(Objects.toString(body.get("signatureDatetime"), null))); } catch (Exception ignored) {}
         }
         report.setStatus(Objects.toString(body.get("status"), "Successful"));
+        report.setStatusReason(Objects.toString(body.get("statusReason"), null));
 
         FireDrillReport saved = drillReports.save(report);
         try { sseHub.broadcast(Map.of("type","programs.firedrill.created","programId", id, "id", saved.getId())); } catch (Exception ignored) {}

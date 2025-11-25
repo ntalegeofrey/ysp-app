@@ -39,6 +39,9 @@ public class FireDrillReport {
     @Column(name = "total_evacuation_time")
     private String totalEvacuationTime;
 
+    @Column(name = "evacuation_time_threshold")
+    private Double evacuationTimeThreshold;
+
     @Column(name = "weather_conditions")
     private String weatherConditions;
 
@@ -47,6 +50,12 @@ public class FireDrillReport {
 
     @Column(name = "total_residents_present")
     private Integer totalResidentsPresent;
+
+    @Column(name = "all_residents_accounted_for")
+    private Boolean allResidentsAccountedFor;
+
+    @Column(name = "unaccounted_residents_comment", columnDefinition = "TEXT")
+    private String unaccountedResidentsComment;
 
     @Column(name = "overall_performance", columnDefinition = "text")
     private String overallPerformance;
@@ -70,7 +79,10 @@ public class FireDrillReport {
     private LocalDateTime signatureDatetime;
 
     @Column(name = "status", columnDefinition = "VARCHAR(64)")
-    private String status; // Successful, Issues Found, Failed
+    private String status; // Successful, Unsuccessful
+
+    @Column(name = "status_reason", columnDefinition = "TEXT")
+    private String statusReason;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -117,6 +129,9 @@ public class FireDrillReport {
     public String getTotalEvacuationTime() { return totalEvacuationTime; }
     public void setTotalEvacuationTime(String totalEvacuationTime) { this.totalEvacuationTime = totalEvacuationTime; }
 
+    public Double getEvacuationTimeThreshold() { return evacuationTimeThreshold; }
+    public void setEvacuationTimeThreshold(Double evacuationTimeThreshold) { this.evacuationTimeThreshold = evacuationTimeThreshold; }
+
     public String getWeatherConditions() { return weatherConditions; }
     public void setWeatherConditions(String weatherConditions) { this.weatherConditions = weatherConditions; }
 
@@ -125,6 +140,12 @@ public class FireDrillReport {
 
     public Integer getTotalResidentsPresent() { return totalResidentsPresent; }
     public void setTotalResidentsPresent(Integer totalResidentsPresent) { this.totalResidentsPresent = totalResidentsPresent; }
+
+    public Boolean getAllResidentsAccountedFor() { return allResidentsAccountedFor; }
+    public void setAllResidentsAccountedFor(Boolean allResidentsAccountedFor) { this.allResidentsAccountedFor = allResidentsAccountedFor; }
+
+    public String getUnaccountedResidentsComment() { return unaccountedResidentsComment; }
+    public void setUnaccountedResidentsComment(String unaccountedResidentsComment) { this.unaccountedResidentsComment = unaccountedResidentsComment; }
 
     public String getOverallPerformance() { return overallPerformance; }
     public void setOverallPerformance(String overallPerformance) { this.overallPerformance = overallPerformance; }
@@ -149,6 +170,9 @@ public class FireDrillReport {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getStatusReason() { return statusReason; }
+    public void setStatusReason(String statusReason) { this.statusReason = statusReason; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
