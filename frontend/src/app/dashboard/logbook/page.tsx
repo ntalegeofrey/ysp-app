@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ToastContainer from '@/app/components/Toast';
 import { useToast } from '@/app/hooks/useToast';
 import { abbreviateTitle } from '@/app/utils/titleAbbrev';
+import { generateShiftLogReportHTML } from '../pdfReports';
 
 // Position list from titleAbbrev.ts mapping
 const POSITION_LIST = [
@@ -100,6 +101,14 @@ export default function LogbookPage() {
   
   // Archive data
   const [archiveLogs, setArchiveLogs] = useState<any[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
+  
+  // Archive filter state
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterShiftType, setFilterShiftType] = useState('All Shifts');
+  const [filterStatus, setFilterStatus] = useState('All Status');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Certification state
   const [certificationComplete, setCertificationComplete] = useState(false);
@@ -304,6 +313,65 @@ export default function LogbookPage() {
       loadArchiveData();
     }
   }, [programId, activeTab]);
+  
+  // Apply filters when archive logs or filter values change
+  useEffect(() => {
+    let filtered = [...archiveLogs];
+    
+    // Filter by date range
+    if (filterStartDate) {
+      filtered = filtered.filter(log => log.shiftDate >= filterStartDate);
+    }
+    if (filterEndDate) {
+      filtered = filtered.filter(log => log.shiftDate <= filterEndDate);
+    }
+    
+    // Filter by shift type
+    if (filterShiftType && filterShiftType !== 'All Shifts') {
+      filtered = filtered.filter(log => log.shiftType?.includes(filterShiftType));
+    }
+    
+    // Filter by status
+    if (filterStatus && filterStatus !== 'All Status') {
+      filtered = filtered.filter(log => log.overallStatus === filterStatus);
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(log => 
+        log.unitSupervisor?.toLowerCase().includes(query) ||
+        log.shiftSummary?.toLowerCase().includes(query) ||
+        log.incidentsEvents?.toLowerCase().includes(query)
+      );
+    }
+    
+    setFilteredLogs(filtered);
+  }, [archiveLogs, filterStartDate, filterEndDate, filterShiftType, filterStatus, searchQuery]);
+  
+  // Generate and print PDF
+  const handlePrintShiftLog = (log: any) => {
+    const htmlContent = generateShiftLogReportHTML(log);
+    const printWindow = window.open('', '', 'height=800,width=800');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  };
+  
+  // View shift log details (opens in new tab for viewing)
+  const handleViewShiftLog = (log: any) => {
+    const htmlContent = generateShiftLogReportHTML(log);
+    const viewWindow = window.open('', '_blank');
+    if (viewWindow) {
+      viewWindow.document.write(htmlContent);
+      viewWindow.document.close();
+    }
+  };
   
   // Handle form submission
   const handleSubmitShiftLog = async () => {
@@ -857,21 +925,53 @@ export default function LogbookPage() {
             <h3 className="text-lg font-semibold text-font-base flex items-center">
               <i className="fa-solid fa-archive text-primary mr-3"></i>
               Historical Shift Logs Archive
+              <span className="ml-3 text-sm font-normal text-font-detail">
+                ({filteredLogs.length} {filteredLogs.length === 1 ? 'log' : 'logs'})
+              </span>
             </h3>
           </div>
           <div className="p-6">
-            <div className="mb-6 grid grid-cols-4 gap-4">
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <i className="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-font-detail"></i>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by supervisor, summary, or incidents..."
+                  className="w-full border border-bd rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+            </div>
+            
+            {/* Filters */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Date Range</label>
-                <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                <label className="block text-sm font-medium text-font-base mb-2">From Date</label>
+                <input 
+                  type="date" 
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-2">To</label>
-                <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                <label className="block text-sm font-medium text-font-base mb-2">To Date</label>
+                <input 
+                  type="date" 
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-2">Shift</label>
-                <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                <label className="block text-sm font-medium text-font-base mb-2">Shift Type</label>
+                <select 
+                  value={filterShiftType}
+                  onChange={(e) => setFilterShiftType(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                >
                   <option>All Shifts</option>
                   <option>Day</option>
                   <option>Evening</option>
@@ -880,7 +980,11 @@ export default function LogbookPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Status</label>
-                <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                <select 
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                >
                   <option>All Status</option>
                   <option>Routine</option>
                   <option>Warning</option>
@@ -889,10 +993,31 @@ export default function LogbookPage() {
                 </select>
               </div>
             </div>
+            
+            {/* Clear Filters Button */}
+            {(filterStartDate || filterEndDate || filterShiftType !== 'All Shifts' || filterStatus !== 'All Status' || searchQuery) && (
+              <div className="mb-4 flex justify-end">
+                <button
+                  onClick={() => {
+                    setFilterStartDate('');
+                    setFilterEndDate('');
+                    setFilterShiftType('All Shifts');
+                    setFilterStatus('All Status');
+                    setSearchQuery('');
+                  }}
+                  className="text-sm text-primary hover:text-primary-light flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-times-circle"></i>
+                  Clear All Filters
+                </button>
+              </div>
+            )}
+            
+            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-bd">
+                  <tr className="border-b border-bd bg-bg-subtle">
                     <th className="text-left py-3 px-4 font-medium text-font-base">Date</th>
                     <th className="text-left py-3 px-4 font-medium text-font-base">Shift</th>
                     <th className="text-left py-3 px-4 font-medium text-font-base">Supervisor</th>
@@ -902,39 +1027,83 @@ export default function LogbookPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-bd hover:bg-bg-subtle">
-                    <td className="py-3 px-4 text-sm text-font-base">Oct 27, 2024</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Night</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">John Smith</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Routine night shift, medical call at 2:30 AM...</td>
-                    <td className="py-3 px-4"><span className="bg-warning text-white px-2 py-1 rounded text-xs">High</span></td>
-                    <td className="py-3 px-4"><button className="text-primary hover:text-primary-light mr-2"><i className="fa-solid fa-eye"></i></button><button className="text-primary hover:text-primary-light"><i className="fa-solid fa-download"></i></button></td>
-                  </tr>
-                  <tr className="border-b border-bd hover:bg-bg-subtle">
-                    <td className="py-3 px-4 text-sm text-font-base">Oct 27, 2024</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Evening</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Maria Lopez</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Quiet evening, all residents cooperative...</td>
-                    <td className="py-3 px-4"><span className="bg-success text-white px-2 py-1 rounded text-xs">Routine</span></td>
-                    <td className="py-3 px-4"><button className="text-primary hover:text-primary-light mr-2"><i className="fa-solid fa-eye"></i></button><button className="text-primary hover:text-primary-light"><i className="fa-solid fa-download"></i></button></td>
-                  </tr>
-                  <tr className="border-b border-bd hover:bg-bg-subtle">
-                    <td className="py-3 px-4 text-sm text-font-base">Oct 26, 2024</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Day</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Robert Kim</td>
-                    <td className="py-3 px-4 text-sm text-font-detail">Incident in common area, lockdown initiated...</td>
-                    <td className="py-3 px-4"><span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span></td>
-                    <td className="py-3 px-4"><button className="text-primary hover:text-primary-light mr-2"><i className="fa-solid fa-eye"></i></button><button className="text-primary hover:text-primary-light"><i className="fa-solid fa-download"></i></button></td>
-                  </tr>
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center">
+                        <i className="fa-solid fa-inbox text-4xl text-font-detail mb-3"></i>
+                        <p className="text-font-detail">No shift logs found</p>
+                        <p className="text-sm text-font-detail mt-1">
+                          {archiveLogs.length === 0 ? 'Submit a shift log to see it here' : 'Try adjusting your filters'}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log) => {
+                      const statusColors = {
+                        'Routine': 'bg-success',
+                        'Warning': 'bg-warning',
+                        'High': 'bg-warning',
+                        'Critical': 'bg-error'
+                      };
+                      const statusColor = statusColors[log.overallStatus as keyof typeof statusColors] || 'bg-primary-alt';
+                      
+                      return (
+                        <tr key={log.id} className="border-b border-bd hover:bg-bg-subtle transition-colors">
+                          <td className="py-3 px-4 text-sm text-font-base">
+                            {new Date(log.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-font-detail">
+                            {log.shiftType?.split('(')[0]?.trim() || 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-font-detail max-w-xs truncate" title={log.unitSupervisor}>
+                            {log.unitSupervisor || 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-font-detail max-w-md truncate" title={log.shiftSummary}>
+                            {log.shiftSummary || 'No summary'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`${statusColor} text-white px-2 py-1 rounded text-xs font-medium`}>
+                              {log.overallStatus || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => handleViewShiftLog(log)}
+                                className="text-primary hover:text-primary-light transition-colors"
+                                title="View Report"
+                              >
+                                <i className="fa-solid fa-eye"></i>
+                              </button>
+                              <button 
+                                onClick={() => handlePrintShiftLog(log)}
+                                className="text-primary hover:text-primary-light transition-colors"
+                                title="Print/Download PDF"
+                              >
+                                <i className="fa-solid fa-print"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-            <div className="mt-6 text-center">
-              <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-light font-medium">
-                <i className="fa-solid fa-chevron-down mr-2"></i>
-                Load More Logs
-              </button>
-            </div>
+            
+            {/* Refresh Button */}
+            {archiveLogs.length > 0 && (
+              <div className="mt-6 flex justify-center">
+                <button 
+                  onClick={loadArchiveData}
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-light font-medium flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-sync-alt"></i>
+                  Refresh Logs
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

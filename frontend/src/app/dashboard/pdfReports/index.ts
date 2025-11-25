@@ -3,6 +3,7 @@
 
 export { generateIncidentReportHTML } from './incidentReportTemplate';
 export { generateShakedownReportHTML } from './shakedownReportTemplate';
+export { generateShiftLogReportHTML } from './shiftLogReportTemplate';
 
 // Future exports (to be added):
 // export { generateFirePlanHTML } from './firePlanTemplate';
