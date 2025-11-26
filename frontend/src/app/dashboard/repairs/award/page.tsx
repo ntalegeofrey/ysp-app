@@ -157,9 +157,16 @@ export default function AwardPointsPage() {
     }
     
     let textClass = '';
-    if (displayValue === 'R3' || displayValue === 'R2' || displayValue === 'R1') {
-      bgClass = displayValue === 'R3' ? 'bg-error-lightest' : displayValue === 'R2' ? 'bg-highlight-lightest' : 'bg-primary-lightest';
-      textClass = displayValue === 'R3' ? 'text-error font-bold' : displayValue === 'R2' ? 'text-highlight font-bold' : 'text-primary font-bold';
+    // Color coding for R values
+    if (displayValue === 'R3') {
+      bgClass = 'bg-red-100'; // Light pinkish red
+      textClass = 'text-red-600 font-bold';
+    } else if (displayValue === 'R2') {
+      bgClass = 'bg-yellow-100'; // Light yellow
+      textClass = 'text-yellow-700 font-bold';
+    } else if (displayValue === 'R1' || displayValue === 'R') {
+      bgClass = 'bg-blue-100'; // Light blue
+      textClass = 'text-blue-600 font-bold';
     }
     
     // Allow editing only on TODAY
@@ -170,17 +177,33 @@ export default function AwardPointsPage() {
           value={displayValue}
           onChange={(e) => {
             const val = e.target.value.trim().toUpperCase();
-            // Accept R1, R2, R3, or numbers
+            
+            // Allow empty
+            if (val === '') {
+              updatePoints(behaviorKey, day, null);
+              return;
+            }
+            
+            // Allow R1, R2, R3 exactly
             if (val === 'R1' || val === 'R2' || val === 'R3') {
               updatePoints(behaviorKey, day, val);
-            } else if (val === '') {
-              updatePoints(behaviorKey, day, null);
-            } else {
-              const num = parseInt(val);
-              if (!isNaN(num) && num >= 0) {
-                updatePoints(behaviorKey, day, num);
-              }
+              return;
             }
+            
+            // Allow partial R input (R, R1, R2, R3) while typing
+            if (val === 'R' || val.match(/^R[123]?$/)) {
+              updatePoints(behaviorKey, day, val);
+              return;
+            }
+            
+            // Allow numbers 0-2
+            const num = parseInt(val);
+            if (!isNaN(num) && num >= 0 && num <= 2) {
+              updatePoints(behaviorKey, day, num);
+              return;
+            }
+            
+            // If none of the above, don't update (ignore invalid input)
           }}
           disabled={!isToday}
           placeholder={isToday ? '0-2 or R1/R2/R3' : ''}
@@ -201,12 +224,12 @@ export default function AwardPointsPage() {
         return sum + 0;
       }
       
-      // If value is R1, R2, or R3, it counts as 0 points
-      if (value === 'R1' || value === 'R2' || value === 'R3') {
+      // If value is R, R1, R2, or R3, it counts as 0 points
+      if (value === 'R' || value === 'R1' || value === 'R2' || value === 'R3') {
         return sum + 0;
       }
       
-      // Otherwise add the numeric value
+      // Otherwise add the numeric value (0, 1, or 2)
       return sum + (typeof value === 'number' ? value : parseInt(value.toString()) || 0);
     }, 0);
   };
