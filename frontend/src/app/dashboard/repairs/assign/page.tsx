@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
 
 export default function AssignRepairPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
   const [residents, setResidents] = useState<any[]>([]);
   const [selectedResident, setSelectedResident] = useState('');
@@ -198,18 +199,16 @@ export default function AssignRepairPage() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-font-detail">Create a new behavioral repair record for a resident.</p>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 border border-bd rounded-lg text-sm text-font-detail hover:text-primary hover:border-primary">
-            <i className="fa-solid fa-print mr-2"></i>
-            Print
-          </button>
-          <button className="px-4 py-2 bg-primary-lightest text-primary rounded-lg text-sm font-medium hover:bg-primary-lighter hover:text-white">
+          <button 
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-bg-subtle text-font-base rounded-lg text-sm font-medium hover:bg-bd hover:text-font-base transition-colors">
             <i className="fa-solid fa-times mr-2"></i>
             Cancel
           </button>
           <button 
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed">
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             <i className="fa-solid fa-check mr-2"></i>
             {submitting ? 'Submitting...' : 'Submit Repair'}
           </button>
