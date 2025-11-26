@@ -21,7 +21,7 @@ export default function AwardPointsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [programId, setProgramId] = useState<number | null>(null);
   const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number}}>({});
-  const [repairDays, setRepairDays] = useState<number[]>([]);
+  const [activeRepairs, setActiveRepairs] = useState<any[]>([]);
 
   // Define all behaviors with their keys and labels
   const shift1Behaviors = [
@@ -68,30 +68,44 @@ export default function AwardPointsPage() {
     setDiaryPoints(initialPoints);
   };
 
-  // Helper function to calculate which days have active repairs
-  const calculateRepairDays = (repairs: any[]) => {
-    const today = new Date();
-    const rDays: number[] = [];
+  // Helper to determine which day column is TODAY
+  const getTodayColumn = () => {
+    if (!diaryCard?.weekStartDate) return -1;
     
-    repairs.forEach(repair => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const weekStart = new Date(diaryCard.weekStartDate);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - weekStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 && diffDays < 7 ? diffDays : -1;
+  };
+
+  // Helper to check if a day has repairs and what level
+  const getRepairForDay = (day: number, repairs: any[]) => {
+    if (!diaryCard?.weekStartDate) return null;
+    
+    const weekStart = new Date(diaryCard.weekStartDate);
+    const checkDate = new Date(weekStart);
+    checkDate.setDate(weekStart.getDate() + day);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    for (const repair of repairs) {
       if (repair.status === 'approved' && repair.repairStartDate && repair.repairEndDate) {
         const startDate = new Date(repair.repairStartDate);
+        startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(repair.repairEndDate);
+        endDate.setHours(0, 0, 0, 0);
         
-        // Check each day of the current week
-        const weekStart = new Date(diaryCard?.weekStartDate || today);
-        for (let i = 0; i < 7; i++) {
-          const checkDate = new Date(weekStart);
-          checkDate.setDate(weekStart.getDate() + i);
-          
-          if (checkDate >= startDate && checkDate <= endDate) {
-            rDays.push(i);
-          }
+        if (checkDate >= startDate && checkDate <= endDate) {
+          return repair.repairLevel; // "Repair 1", "Repair 2", or "Repair 3"
         }
       }
-    });
-    
-    return Array.from(new Set(rDays)); // Remove duplicates
+    }
+    return null;
   };
 
   // Helper to update points for a behavior on a specific day
@@ -106,8 +120,19 @@ export default function AwardPointsPage() {
   };
 
   // Helper to calculate total points for a shift on a specific day
-  const calculateShiftTotal = (shiftBehaviors: string[], day: number) => {
-    if (repairDays.includes(day)) return 0; // R3 days have 0 points
+  const calculateShiftTotal = (shiftBehaviors: string[], day: number, shiftNumber: number) => {
+    const repairLevel = getRepairForDay(day, activeRepairs);
+    
+    // R1: Blocks specific shift
+    if (repairLevel === 'Repair 1' && shiftNumber === 1) return 0;
+    
+    // R2: Blocks entire day (all shifts)
+    if (repairLevel === 'Repair 2') return 0;
+    
+    // R3: Blocks 3 days (checked in getRepairForDay)
+    if (repairLevel === 'Repair 3') return 0;
+    
+    // Calculate sum of all behaviors in this shift
     return shiftBehaviors.reduce((sum, behavior) => {
       return sum + (diaryPoints[behavior]?.[day] || 0);
     }, 0);
@@ -129,15 +154,15 @@ export default function AwardPointsPage() {
       }
 
       // Calculate totals
-      const shift1Behaviors = ['s1_rule', 's1_directive', 's1_participate', 's1_hygiene', 's1_boundaries', 's1_respectful', 's1_coping', 's1_interactions', 's1_beyond'];
-      const shift2Behaviors = ['s2_rule', 's2_directive', 's2_participate'];
-      const shift3Behaviors = ['s3_sleep', 's3_schedule', 's3_quiet', 's3_disruptive'];
+      const shift1BehaviorKeys = shift1Behaviors.map(b => b.key);
+      const shift2BehaviorKeys = shift2Behaviors.map(b => b.key);
+      const shift3BehaviorKeys = shift3Behaviors.map(b => b.key);
       
       const dailyTotals = [];
       for (let day = 0; day < 7; day++) {
-        const shift1Total = calculateShiftTotal(shift1Behaviors, day);
-        const shift2Total = calculateShiftTotal(shift2Behaviors, day);
-        const shift3Total = calculateShiftTotal(shift3Behaviors, day);
+        const shift1Total = calculateShiftTotal(shift1BehaviorKeys, day, 1);
+        const shift2Total = calculateShiftTotal(shift2BehaviorKeys, day, 2);
+        const shift3Total = calculateShiftTotal(shift3BehaviorKeys, day, 3);
         dailyTotals.push(shift1Total + shift2Total + shift3Total);
       }
 
@@ -241,16 +266,14 @@ export default function AwardPointsPage() {
           }
         }
         
-        // Fetch repairs to mark R3 days
+        // Fetch repairs to mark repair days
         const repairsResponse = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${selectedResident}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (repairsResponse.ok) {
           const repairs = await repairsResponse.json();
-          // Calculate which days have active repairs
-          const rDays = calculateRepairDays(repairs);
-          setRepairDays(rDays);
+          setActiveRepairs(repairs);
         }
       } catch (error) {
         console.error('Error loading diary card:', error);
