@@ -223,9 +223,9 @@ export default function AwardPointsPage() {
             {preSelectedResident ? (
               <input
                 type="text"
-                value={`${preSelectedResident.firstName} ${preSelectedResident.lastName} (${preSelectedResident.residentId})`}
+                value={`${preSelectedResident.firstName} ${preSelectedResident.lastName} (${preSelectedResident.residentId || '000001'})`}
                 disabled
-                className="border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-base cursor-not-allowed"
+                className="border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-base cursor-not-allowed min-w-[250px]"
               />
             ) : (
               <select
