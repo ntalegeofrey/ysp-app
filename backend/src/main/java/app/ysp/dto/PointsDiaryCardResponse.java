@@ -13,6 +13,7 @@ public class PointsDiaryCardResponse {
     private LocalDate weekEndDate;
     private Integer startingPoints;
     private String dailyPointsJson;
+    private String dailyRedemptionsJson;
     private Integer totalPointsEarned;
     private Integer currentBalance;
     private String status;
@@ -49,6 +50,9 @@ public class PointsDiaryCardResponse {
     // Alias for frontend compatibility
     public String getDiaryData() { return dailyPointsJson; }
     public void setDiaryData(String diaryData) { this.dailyPointsJson = diaryData; }
+
+    public String getDailyRedemptionsJson() { return dailyRedemptionsJson; }
+    public void setDailyRedemptionsJson(String dailyRedemptionsJson) { this.dailyRedemptionsJson = dailyRedemptionsJson; }
 
     public Integer getTotalPointsEarned() { return totalPointsEarned; }
     public void setTotalPointsEarned(Integer totalPointsEarned) { this.totalPointsEarned = totalPointsEarned; }

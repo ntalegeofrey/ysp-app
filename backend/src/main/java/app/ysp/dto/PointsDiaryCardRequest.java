@@ -8,6 +8,7 @@ public class PointsDiaryCardRequest {
     private LocalDate weekEndDate;
     private Integer startingPoints;
     private String dailyPointsJson;
+    private String dailyRedemptionsJson;
 
     public Long getResidentId() { return residentId; }
     public void setResidentId(Long residentId) { this.residentId = residentId; }
@@ -23,4 +24,7 @@ public class PointsDiaryCardRequest {
 
     public String getDailyPointsJson() { return dailyPointsJson; }
     public void setDailyPointsJson(String dailyPointsJson) { this.dailyPointsJson = dailyPointsJson; }
+
+    public String getDailyRedemptionsJson() { return dailyRedemptionsJson; }
+    public void setDailyRedemptionsJson(String dailyRedemptionsJson) { this.dailyRedemptionsJson = dailyRedemptionsJson; }
 }

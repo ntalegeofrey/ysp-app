@@ -31,6 +31,9 @@ public class PointsDiaryCard {
     @Column(name = "daily_points_json", columnDefinition = "TEXT")
     private String dailyPointsJson; // JSON with daily points by shift and repair status
 
+    @Column(name = "daily_redemptions_json", columnDefinition = "TEXT")
+    private String dailyRedemptionsJson; // JSON storing daily redemptions per day
+
     @Column(name = "total_points_earned")
     private Integer totalPointsEarned = 0;
 
@@ -67,6 +70,9 @@ public class PointsDiaryCard {
 
     public String getDailyPointsJson() { return dailyPointsJson; }
     public void setDailyPointsJson(String dailyPointsJson) { this.dailyPointsJson = dailyPointsJson; }
+
+    public String getDailyRedemptionsJson() { return dailyRedemptionsJson; }
+    public void setDailyRedemptionsJson(String dailyRedemptionsJson) { this.dailyRedemptionsJson = dailyRedemptionsJson; }
 
     public Integer getTotalPointsEarned() { return totalPointsEarned; }
     public void setTotalPointsEarned(Integer totalPointsEarned) { this.totalPointsEarned = totalPointsEarned; }

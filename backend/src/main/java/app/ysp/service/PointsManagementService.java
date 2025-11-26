@@ -97,20 +97,26 @@ public class PointsManagementService {
             diaryCard.setCreatedAt(Instant.now());
         }
 
-        // Update daily points and recalculate totals
+        // Update daily points and redemptions
         diaryCard.setDailyPointsJson(request.getDailyPointsJson());
+        diaryCard.setDailyRedemptionsJson(request.getDailyRedemptionsJson());
         diaryCard.setUpdatedAt(Instant.now());
         
         // Calculate total points earned from JSON
         int totalEarned = calculateTotalPointsFromJson(request.getDailyPointsJson());
         diaryCard.setTotalPointsEarned(totalEarned);
         
-        // Calculate current balance: starting + earned - redeemed
-        int totalRedeemed = redemptionRepo.getTotalPointsRedeemedByResidentInPeriod(
-                request.getResidentId(),
-                request.getWeekStartDate(),
-                request.getWeekEndDate()
-        );
+        // Calculate total redeemed from JSON if available, otherwise from repo
+        int totalRedeemed = 0;
+        if (request.getDailyRedemptionsJson() != null && !request.getDailyRedemptionsJson().isEmpty()) {
+            totalRedeemed = calculateTotalRedemptionsFromJson(request.getDailyRedemptionsJson());
+        } else {
+            totalRedeemed = redemptionRepo.getTotalPointsRedeemedByResidentInPeriod(
+                    request.getResidentId(),
+                    request.getWeekStartDate(),
+                    request.getWeekEndDate()
+            );
+        }
         
         int currentBalance = diaryCard.getStartingPoints() + totalEarned - totalRedeemed;
         diaryCard.setCurrentBalance(currentBalance);
@@ -131,11 +137,17 @@ public class PointsManagementService {
         int totalEarned = calculateTotalPointsFromJson(dailyPointsJson);
         diaryCard.setTotalPointsEarned(totalEarned);
 
-        int totalRedeemed = redemptionRepo.getTotalPointsRedeemedByResidentInPeriod(
-                diaryCard.getResident().getId(),
-                diaryCard.getWeekStartDate(),
-                diaryCard.getWeekEndDate()
-        );
+        // Calculate redemptions from JSON if available
+        int totalRedeemed = 0;
+        if (diaryCard.getDailyRedemptionsJson() != null && !diaryCard.getDailyRedemptionsJson().isEmpty()) {
+            totalRedeemed = calculateTotalRedemptionsFromJson(diaryCard.getDailyRedemptionsJson());
+        } else {
+            totalRedeemed = redemptionRepo.getTotalPointsRedeemedByResidentInPeriod(
+                    diaryCard.getResident().getId(),
+                    diaryCard.getWeekStartDate(),
+                    diaryCard.getWeekEndDate()
+            );
+        }
 
         int currentBalance = diaryCard.getStartingPoints() + totalEarned - totalRedeemed;
         diaryCard.setCurrentBalance(currentBalance);
@@ -193,6 +205,36 @@ public class PointsManagementService {
         }
     }
 
+    private int calculateTotalRedemptionsFromJson(String dailyRedemptionsJson) {
+        if (dailyRedemptionsJson == null || dailyRedemptionsJson.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            // Parse: {"0": 10, "1": 5, ...}
+            var redemptions = JsonUtil.toMap(dailyRedemptionsJson);
+            int total = 0;
+            
+            for (var entry : redemptions.entrySet()) {
+                Object value = entry.getValue();
+                if (value instanceof Number) {
+                    total += ((Number) value).intValue();
+                } else {
+                    try {
+                        total += Integer.parseInt(value.toString());
+                    } catch (NumberFormatException e) {
+                        // Skip non-numeric values
+                    }
+                }
+            }
+            
+            return total;
+        } catch (Exception e) {
+            System.err.println("Error calculating redemptions from JSON: " + e.getMessage());
+            return 0;
+        }
+    }
+
     private PointsDiaryCardResponse toResponse(PointsDiaryCard card) {
         PointsDiaryCardResponse response = new PointsDiaryCardResponse();
         response.setId(card.getId());
@@ -208,6 +250,7 @@ public class PointsManagementService {
         response.setWeekEndDate(card.getWeekEndDate());
         response.setStartingPoints(card.getStartingPoints());
         response.setDailyPointsJson(card.getDailyPointsJson());
+        response.setDailyRedemptionsJson(card.getDailyRedemptionsJson());
         response.setTotalPointsEarned(card.getTotalPointsEarned());
         response.setCurrentBalance(card.getCurrentBalance());
         response.setStatus(card.getStatus());

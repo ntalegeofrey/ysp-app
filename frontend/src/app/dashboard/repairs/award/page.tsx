@@ -22,6 +22,7 @@ export default function AwardPointsPage() {
   const [programId, setProgramId] = useState<number | null>(null);
   const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number | string | null}}>({});
   const [activeRepairs, setActiveRepairs] = useState<any[]>([]);
+  const [dailyRedemptions, setDailyRedemptions] = useState<{[day: number]: number}>({});
 
   // Define all behaviors with their keys and labels
   const shift1Behaviors = [
@@ -365,6 +366,18 @@ export default function AwardPointsPage() {
           // Initialize with empty points
           initializeDiaryPoints();
         }
+
+        // Load redemptions if available
+        if (data.dailyRedemptionsJson) {
+          try {
+            setDailyRedemptions(JSON.parse(data.dailyRedemptionsJson));
+          } catch (e) {
+            console.error('Error parsing redemptions:', e);
+            setDailyRedemptions({});
+          }
+        } else {
+          setDailyRedemptions({});
+        }
       } else {
         // No diary card exists yet - initialize empty
         setDiaryCard({
@@ -375,6 +388,7 @@ export default function AwardPointsPage() {
           totalPointsEarned: 0
         });
         initializeDiaryPoints();
+        setDailyRedemptions({});
       }
       
       // Fetch repairs to mark repair days
@@ -428,8 +442,21 @@ export default function AwardPointsPage() {
       return;
     }
 
+    // Calculate current cumulative balance up to today
+    const todayColumn = getTodayColumn();
+    if (todayColumn < 0) {
+      addToast('Cannot determine current day', 'error');
+      return;
+    }
+
+    let currentBalance = diaryCard?.startingPoints || 0;
+    for (let d = 0; d <= todayColumn; d++) {
+      currentBalance += calculateDayTotal(d);
+      currentBalance -= (dailyRedemptions[d] || 0);
+    }
+
     // Check if sufficient balance
-    if (pointsToRedeem > (diaryCard?.currentBalance || 0)) {
+    if (pointsToRedeem > currentBalance) {
       addToast('Insufficient points balance', 'error');
       return;
     }
@@ -443,6 +470,7 @@ export default function AwardPointsPage() {
         return;
       }
 
+      // Submit redemption (instant, no approval)
       const response = await fetch(`/api/programs/${programId}/redemptions`, {
         method: 'POST',
         headers: {
@@ -454,18 +482,29 @@ export default function AwardPointsPage() {
           redemptionDate: new Date().toISOString().split('T')[0],
           pointsRedeemed: pointsToRedeem,
           rewardItem: itemName,
-          customItem: redeemItem === 'Other'
+          customItem: redeemItem === 'Other',
+          status: 'approved' // Instant approval
         })
       });
 
       if (response.ok) {
-        addToast('Redemption submitted successfully! Awaiting approval.', 'success');
+        // Add redemption to today's column
+        const updatedRedemptions = {
+          ...dailyRedemptions,
+          [todayColumn]: (dailyRedemptions[todayColumn] || 0) + pointsToRedeem
+        };
+        setDailyRedemptions(updatedRedemptions);
+
+        // Clear form
         setRedeemItem('');
         setRedeemPoints('');
         setCustomItem('');
         setCustomPoints('');
-        // Reload diary card to update balance
-        loadDiaryCardForResident(selectedResident);
+
+        addToast(`Redeemed ${pointsToRedeem} points for ${itemName}!`, 'success');
+
+        // Auto-save the diary card with updated redemptions
+        await autoSaveDiaryWithRedemptions(updatedRedemptions);
       } else {
         const error = await response.text();
         addToast(`Error: ${error}`, 'error');
@@ -475,6 +514,38 @@ export default function AwardPointsPage() {
       addToast('Failed to submit redemption', 'error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Auto-save diary card after redemption
+  const autoSaveDiaryWithRedemptions = async (redemptions: {[day: number]: number}) => {
+    if (!programId || !selectedResident) return;
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
+
+      const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          residentId: parseInt(selectedResident),
+          weekStartDate: diaryCard?.weekStartDate,
+          weekEndDate: diaryCard?.weekEndDate,
+          dailyPointsJson: JSON.stringify(diaryPoints),
+          dailyRedemptionsJson: JSON.stringify(redemptions)
+        })
+      });
+
+      if (response.ok) {
+        const newData = await response.json();
+        setDiaryCard(newData);
+      }
+    } catch (error) {
+      console.error('Error auto-saving diary:', error);
     }
   };
 
@@ -755,14 +826,31 @@ export default function AwardPointsPage() {
                 })}
               </tr>
               
-              {/* Cumulative Total Row - Running total */}
-              <tr className="bg-primary text-white border-t-2 border-primary-dark">
-                <td className="p-3 border border-bd text-sm font-bold">CUMULATIVE TOTAL (Week Running Total)</td>
+              {/* Redemptions Row */}
+              <tr className="bg-red-50 border-t-2 border-red-200">
+                <td className="p-3 border border-bd text-sm font-bold text-red-600">POINTS REDEEMED</td>
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => {
-                  // Calculate cumulative total up to and including this day
-                  let cumulativeTotal = 0;
+                  const redeemed = dailyRedemptions[day] || 0;
+                  const todayColumn = getTodayColumn();
+                  const isToday = day === todayColumn;
+                  
+                  return (
+                    <td key={`redeem-${day}`} className={`p-3 border border-bd text-center font-bold text-red-600 ${isToday ? 'bg-red-100' : ''}`}>
+                      {redeemed > 0 ? `-${redeemed}` : '0'}
+                    </td>
+                  );
+                })}
+              </tr>
+              
+              {/* Cumulative Total Row - Running total (includes redemptions) */}
+              <tr className="bg-primary text-white border-t-2 border-primary-dark">
+                <td className="p-3 border border-bd text-sm font-bold">CUMULATIVE BALANCE (Running Total)</td>
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  // Calculate cumulative: starting + earned - redeemed
+                  let cumulativeTotal = diaryCard?.startingPoints || 0;
                   for (let d = 0; d <= day; d++) {
                     cumulativeTotal += calculateDayTotal(d);
+                    cumulativeTotal -= (dailyRedemptions[d] || 0);
                   }
                   
                   return (
