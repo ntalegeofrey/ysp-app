@@ -1,14 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function AwardPointsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [redeemPoints, setRedeemPoints] = useState('');
   const [redeemItem, setRedeemItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [customPoints, setCustomPoints] = useState('');
   const [residents, setResidents] = useState<any[]>([]);
   const [selectedResident, setSelectedResident] = useState('');
+  const [preSelectedResident, setPreSelectedResident] = useState<any>(null);
   const [diaryCard, setDiaryCard] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +38,17 @@ export default function AwardPointsPage() {
         if (response.ok) {
           const data = await response.json();
           setResidents(data);
-          if (data.length > 0) {
+          
+          // Check if residentId is in URL query params
+          const residentIdParam = searchParams.get('residentId');
+          if (residentIdParam) {
+            setSelectedResident(residentIdParam);
+            // Find and store the pre-selected resident to lock the field
+            const preSelected = data.find((r: any) => r.id.toString() === residentIdParam);
+            if (preSelected) {
+              setPreSelectedResident(preSelected);
+            }
+          } else if (data.length > 0) {
             setSelectedResident(data[0].id.toString());
           }
         }
@@ -44,7 +58,7 @@ export default function AwardPointsPage() {
     };
 
     loadResidents();
-  }, []);
+  }, [searchParams]);
 
   // Fetch diary card when resident changes
   useEffect(() => {
@@ -139,15 +153,24 @@ export default function AwardPointsPage() {
       <div className="bg-white p-6 rounded-lg border border-bd">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <select
-              value={selectedResident}
-              onChange={(e) => setSelectedResident(e.target.value)}
-              className="border border-bd rounded-lg px-3 py-2 text-sm"
-            >
-              {residents.map(r => (
-                <option key={r.id} value={r.id}>{r.firstName} {r.lastName} ({r.residentId})</option>
-              ))}
-            </select>
+            {preSelectedResident ? (
+              <input
+                type="text"
+                value={`${preSelectedResident.firstName} ${preSelectedResident.lastName} (${preSelectedResident.residentId})`}
+                disabled
+                className="border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-base cursor-not-allowed"
+              />
+            ) : (
+              <select
+                value={selectedResident}
+                onChange={(e) => setSelectedResident(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm"
+              >
+                {residents.map(r => (
+                  <option key={r.id} value={r.id}>{r.firstName} {r.lastName} ({r.residentId})</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex items-center space-x-8 text-center">
             <div>

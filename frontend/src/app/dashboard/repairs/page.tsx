@@ -337,7 +337,7 @@ export default function RepairsPage() {
                                   <i className="fa-solid fa-history text-primary"></i>
                                   Repair History
                                 </button>
-                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push(`/dashboard/repairs/award?residentId=${resident.id}`)}>
                                   <i className="fa-solid fa-star text-success"></i>
                                   Points Management
                                 </button>
