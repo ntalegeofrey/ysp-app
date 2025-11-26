@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function AssignRepairPage() {
+  const searchParams = useSearchParams();
   const [residents, setResidents] = useState<any[]>([]);
   const [selectedResident, setSelectedResident] = useState('');
   const [currentUser, setCurrentUser] = useState({ firstName: '', lastName: '', fullName: '', role: '' });
@@ -55,6 +57,12 @@ export default function AssignRepairPage() {
             if (resResponse.ok) {
               const resData = await resResponse.json();
               setResidents(resData);
+              
+              // Check if residentId is in URL query params and pre-select that resident
+              const residentIdParam = searchParams.get('residentId');
+              if (residentIdParam) {
+                setSelectedResident(residentIdParam);
+              }
             }
 
             // Fetch user's assignments to check role
@@ -105,7 +113,7 @@ export default function AssignRepairPage() {
     };
 
     loadData();
-  }, []);
+  }, [searchParams]);
 
   const handleSubmit = async () => {
     if (!selectedResident || !infractionDate || !infractionBehavior || !repairLevel) {

@@ -303,7 +303,7 @@ export default function RepairsPage() {
                                   <i className="fa-solid fa-star text-success"></i>
                                   Points Management
                                 </button>
-                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push(`/dashboard/repairs/assign?residentId=${resident.id}`)}>
                                   <i className="fa-solid fa-exclamation-circle text-error"></i>
                                   Assign Repair
                                 </button>
