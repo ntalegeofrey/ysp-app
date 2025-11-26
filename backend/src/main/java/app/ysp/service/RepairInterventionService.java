@@ -117,24 +117,29 @@ public class RepairInterventionService {
         // Set repair duration and dates based on repair level
         LocalDate startDate = request.getRepairStartDate() != null ? request.getRepairStartDate() : LocalDate.now();
         int durationDays;
+        LocalDate endDate;
         
         switch (finalRepairLevel) {
             case "Repair 1":
-                durationDays = 0; // 1 shift (same day)
+                durationDays = 1; // 1 shift (same day)
+                endDate = startDate; // Same day
                 break;
             case "Repair 2":
                 durationDays = 1; // 1 day
+                endDate = startDate; // Same day (full day)
                 break;
             case "Repair 3":
                 durationDays = 3; // 3 days
+                endDate = startDate.plusDays(2); // Start + 2 = 3 total days
                 break;
             default:
-                durationDays = 0;
+                durationDays = 1;
+                endDate = startDate;
         }
         
         repair.setRepairDurationDays(durationDays);
         repair.setRepairStartDate(startDate);
-        repair.setRepairEndDate(startDate.plusDays(durationDays));
+        repair.setRepairEndDate(endDate);
         repair.setPointsSuspended(request.getPointsSuspended() != null ? request.getPointsSuspended() : true);
         
         // Set assigning staff info
