@@ -351,7 +351,7 @@ export default function AssignRepairPage() {
               }`}>
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-primary">Repair 1 {repairLevel === 'Repair 1' && '✓'}</h4>
-                <span className="text-xs font-medium text-primary bg-primary-lighter/30 px-2 py-1 rounded-full">1 Active Shift</span>
+                <span className="text-xs font-medium text-primary bg-primary-lighter/30 px-2 py-1 rounded-full">1 Shift</span>
               </div>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center"><input type="checkbox" className="h-4 w-4 text-primary focus:ring-primary mr-2" />Written apology</label>
@@ -373,7 +373,7 @@ export default function AssignRepairPage() {
               }`}>
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-yellow-700">Repair 2 {repairLevel === 'Repair 2' && '✓'}</h4>
-                <span className="text-xs font-medium text-yellow-700 bg-warning/20 px-2 py-1 rounded-full">1-3 Active Shifts</span>
+                <span className="text-xs font-medium text-yellow-700 bg-warning/20 px-2 py-1 rounded-full">1 Day</span>
               </div>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center"><input type="checkbox" className="h-4 w-4 text-primary focus:ring-primary mr-2" />Clean classrooms</label>
@@ -394,8 +394,8 @@ export default function AssignRepairPage() {
                   : 'border-error/50 bg-error/5 hover:border-error'
               }`}>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-error">Repair 3 / 3+ {repairLevel === 'Repair 3' && '✓'}</h4>
-                <span className="text-xs font-medium text-error bg-error/20 px-2 py-1 rounded-full">3-7+ Active Shifts</span>
+                <h4 className="font-bold text-error">Repair 3 {repairLevel === 'Repair 3' && '✓'}</h4>
+                <span className="text-xs font-medium text-error bg-error/20 px-2 py-1 rounded-full">3 Days</span>
               </div>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center"><input type="checkbox" className="h-4 w-4 text-primary focus:ring-primary mr-2" />DBT packet</label>

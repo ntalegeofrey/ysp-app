@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -73,19 +74,67 @@ public class RepairInterventionService {
         User assigningStaff = userRepo.findByEmailIgnoreCase(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Check for active repairs for this resident
+        List<RepairIntervention> activeRepairs = repairRepo.findActiveRepairsByResident(request.getResidentId());
+        
+        // Determine the repair level based on existing active repairs
+        String finalRepairLevel = request.getRepairLevel();
+        
+        if (!activeRepairs.isEmpty()) {
+            // Get the highest active repair level
+            RepairIntervention currentRepair = activeRepairs.get(0); // Most recent active repair
+            String currentLevel = currentRepair.getRepairLevel();
+            
+            // Escalate the repair level
+            if ("Repair 1".equals(currentLevel)) {
+                finalRepairLevel = "Repair 2";
+            } else if ("Repair 2".equals(currentLevel)) {
+                finalRepairLevel = "Repair 3";
+            } else {
+                finalRepairLevel = "Repair 3"; // Already at max, stays at R3
+            }
+            
+            // Mark all existing active repairs as superseded/completed
+            for (RepairIntervention activeRepair : activeRepairs) {
+                activeRepair.setStatus("superseded");
+                activeRepair.setRepairEndDate(LocalDate.now().minusDays(1)); // End yesterday
+                activeRepair.setUpdatedAt(Instant.now());
+                repairRepo.save(activeRepair);
+            }
+        }
+
         RepairIntervention repair = new RepairIntervention();
         repair.setProgram(program);
         repair.setResident(resident);
         repair.setInfractionDate(request.getInfractionDate());
         repair.setInfractionShift(request.getInfractionShift());
         repair.setInfractionBehavior(request.getInfractionBehavior());
-        repair.setRepairLevel(request.getRepairLevel());
+        repair.setRepairLevel(finalRepairLevel); // Use escalated level
         repair.setInterventionsJson(request.getInterventionsJson());
         repair.setComments(request.getComments());
         repair.setReviewDate(request.getReviewDate());
-        repair.setRepairDurationDays(request.getRepairDurationDays());
-        repair.setRepairStartDate(request.getRepairStartDate());
-        repair.setRepairEndDate(request.getRepairEndDate());
+        
+        // Set repair duration and dates based on repair level
+        LocalDate startDate = request.getRepairStartDate() != null ? request.getRepairStartDate() : LocalDate.now();
+        int durationDays;
+        
+        switch (finalRepairLevel) {
+            case "Repair 1":
+                durationDays = 0; // 1 shift (same day)
+                break;
+            case "Repair 2":
+                durationDays = 1; // 1 day
+                break;
+            case "Repair 3":
+                durationDays = 3; // 3 days
+                break;
+            default:
+                durationDays = 0;
+        }
+        
+        repair.setRepairDurationDays(durationDays);
+        repair.setRepairStartDate(startDate);
+        repair.setRepairEndDate(startDate.plusDays(durationDays));
         repair.setPointsSuspended(request.getPointsSuspended() != null ? request.getPointsSuspended() : true);
         
         // Set assigning staff info

@@ -481,6 +481,46 @@ export default function AwardPointsPage() {
     }
   }, [selectedResident, programId]);
 
+  // Auto-populate repair codes when active repairs are loaded
+  useEffect(() => {
+    if (activeRepairs.length === 0 || !diaryCard?.weekStartDate) return;
+
+    // Get all behavior keys
+    const allBehaviors = [
+      ...shift1Behaviors.map(b => b.key),
+      ...shift2Behaviors.map(b => b.key),
+      ...shift3Behaviors.map(b => b.key)
+    ];
+
+    // Auto-populate repair codes
+    const updatedPoints = { ...diaryPoints };
+    
+    for (let day = 0; day < 7; day++) {
+      for (let shiftNum = 1; shiftNum <= 3; shiftNum++) {
+        const repairLock = isRepairLockedCell(day, shiftNum, activeRepairs);
+        
+        if (repairLock.locked && repairLock.code) {
+          // Get behaviors for this shift
+          let shiftBehaviors: string[] = [];
+          if (shiftNum === 1) shiftBehaviors = shift1Behaviors.map(b => b.key);
+          else if (shiftNum === 2) shiftBehaviors = shift2Behaviors.map(b => b.key);
+          else if (shiftNum === 3) shiftBehaviors = shift3Behaviors.map(b => b.key);
+
+          // Auto-populate all behaviors in this shift with the repair code
+          shiftBehaviors.forEach(behavior => {
+            if (!updatedPoints[behavior]) updatedPoints[behavior] = {};
+            // Only auto-populate if the cell is empty (null or undefined)
+            if (updatedPoints[behavior][day] === null || updatedPoints[behavior][day] === undefined) {
+              updatedPoints[behavior][day] = repairLock.code;
+            }
+          });
+        }
+      }
+    }
+
+    setDiaryPoints(updatedPoints);
+  }, [activeRepairs, diaryCard]);
+
   const handleRedeem = async () => {
     if (!programId || !selectedResident) {
       addToast('Please select a resident', 'warning');
