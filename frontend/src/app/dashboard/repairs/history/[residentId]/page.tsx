@@ -52,16 +52,23 @@ export default function ResidentRepairHistoryPage() {
         setProgramId(program.id);
         setProgramName(program.programName || program.name);
 
-        // Fetch resident
-        const residentResponse = await fetch(`/api/programs/${program.id}/residents/${residentId}`, {
+        // Fetch all residents and find the one we need
+        const residentsResponse = await fetch(`/api/programs/${program.id}/residents`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (residentResponse.ok) {
-          const residentData = await residentResponse.json();
-          setResident(residentData);
+        if (residentsResponse.ok) {
+          const residentsData = await residentsResponse.json();
+          const foundResident = residentsData.find((r: any) => r.id.toString() === residentId);
+          
+          if (foundResident) {
+            setResident(foundResident);
+          } else {
+            addToast('Resident not found', 'error');
+            return;
+          }
         } else {
-          addToast('Failed to load resident', 'error');
+          addToast('Failed to load residents', 'error');
           return;
         }
 
