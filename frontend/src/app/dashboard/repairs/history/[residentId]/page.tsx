@@ -170,11 +170,17 @@ export default function ResidentRepairHistoryPage() {
     return 'bg-primary-alt';
   };
 
-  // Calculate duration
-  const calculateDuration = (startDate: string, endDate: string) => {
-    if (!startDate || !endDate) return 'N/A';
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  // Calculate duration based on repair level
+  const calculateDuration = (repair: any) => {
+    // Use repair level to determine duration (handles old records with incorrect dates)
+    if (repair.repairLevel === 'Repair 1') return '1 shift';
+    if (repair.repairLevel === 'Repair 2') return '1 day';
+    if (repair.repairLevel === 'Repair 3') return '3 days';
+    
+    // Fallback to date calculation if needed
+    if (!repair.repairStartDate || !repair.repairEndDate) return 'N/A';
+    const start = new Date(repair.repairStartDate);
+    const end = new Date(repair.repairEndDate);
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return days === 1 ? '1 day' : `${days} days`;
   };
@@ -380,7 +386,7 @@ export default function ResidentRepairHistoryPage() {
                         {repair.infractionBehavior}
                       </td>
                       <td className="p-3 text-sm text-font-detail">{repair.assignedByName || 'N/A'}</td>
-                      <td className="p-3 text-sm text-font-detail">{calculateDuration(repair.repairStartDate, repair.repairEndDate)}</td>
+                      <td className="p-3 text-sm text-font-detail">{calculateDuration(repair)}</td>
                       <td className="p-3">
                         <span className={`${getStatusColor(repair.status)} text-white px-2 py-1 rounded text-xs font-medium`}>
                           {repair.status}

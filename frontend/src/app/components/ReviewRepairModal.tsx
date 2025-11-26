@@ -70,7 +70,13 @@ export default function ReviewRepairModal({ repair, isOpen, onClose, onSubmit }:
               <div>
                 <p className="text-font-detail">Duration:</p>
                 <p className="font-medium text-font-base">
-                  {repair.repairDurationDays} {repair.repairDurationDays === 1 ? 'day' : 'days'}
+                  {(() => {
+                    // Calculate duration based on repair level (handles old records with incorrect stored values)
+                    if (repair.repairLevel === 'Repair 1') return '1 shift';
+                    if (repair.repairLevel === 'Repair 2') return '1 day';
+                    if (repair.repairLevel === 'Repair 3') return '3 days';
+                    return `${repair.repairDurationDays} ${repair.repairDurationDays === 1 ? 'day' : 'days'}`;
+                  })()}
                 </p>
               </div>
               <div className="col-span-2">
