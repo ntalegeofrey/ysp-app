@@ -43,7 +43,7 @@ const menuGroups = [
       { icon: 'fa-pills', label: 'Medication Count', href: '/dashboard/medication', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/medication/all-medication-records', title: 'All Medication Records', breadcrumb: 'All Records' }, { path: '/dashboard/medication/medication-sheet', title: 'Resident Med Sheet', breadcrumb: 'Resident Med Sheet' } ] },
       { icon: 'fa-phone', label: 'Visitation & Phone Log', href: '/dashboard/visitation', roles: ['admin', 'manager', 'staff'] },
       { icon: 'fa-bed', label: 'Sleep Log & Watch', href: '/dashboard/sleep-log', roles: ['admin', 'manager', 'staff'] },
-      { icon: 'fa-screwdriver-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' } ] },
+      { icon: 'fa-screwdriver-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' }, { path: '/dashboard/repairs/history', title: 'Repair History', breadcrumb: 'Repair History' } ] },
       { icon: 'fa-book', label: 'Log Book & Events', href: '/dashboard/logbook', roles: ['admin', 'manager', 'staff'] },
     ],
   },
