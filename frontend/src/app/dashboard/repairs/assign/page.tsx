@@ -7,6 +7,7 @@ export default function AssignRepairPage() {
   const searchParams = useSearchParams();
   const [residents, setResidents] = useState<any[]>([]);
   const [selectedResident, setSelectedResident] = useState('');
+  const [preSelectedResident, setPreSelectedResident] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState({ firstName: '', lastName: '', fullName: '', role: '' });
   const [programId, setProgramId] = useState<number | null>(null);
   const [userAssignments, setUserAssignments] = useState<any[]>([]);
@@ -63,6 +64,11 @@ export default function AssignRepairPage() {
               const residentIdParam = searchParams.get('residentId');
               if (residentIdParam) {
                 setSelectedResident(residentIdParam);
+                // Find and store the pre-selected resident to lock the field
+                const preSelected = resData.find((r: any) => r.id.toString() === residentIdParam);
+                if (preSelected) {
+                  setPreSelectedResident(preSelected);
+                }
               }
             }
 
@@ -219,19 +225,28 @@ export default function AssignRepairPage() {
               </label>
               <div className="relative">
                 <i className="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-font-medium z-10"></i>
-                <select
-                  id="resident-select"
-                  value={selectedResident}
-                  onChange={(e) => setSelectedResident(e.target.value)}
-                  className="w-full border border-bd rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                >
-                  <option value="">Select a resident...</option>
-                  {residents.map((resident) => (
-                    <option key={resident.id} value={resident.id}>
-                      {resident.firstName} {resident.lastName} {resident.residentId ? `(ID: ${resident.residentId})` : ''}
-                    </option>
-                  ))}
-                </select>
+                {preSelectedResident ? (
+                  <input
+                    type="text"
+                    value={`${preSelectedResident.firstName} ${preSelectedResident.lastName} (ID: ${preSelectedResident.residentId || '000001'})`}
+                    disabled
+                    className="w-full border border-bd rounded-lg pl-9 pr-4 py-2 text-sm bg-bg-subtle text-font-base cursor-not-allowed"
+                  />
+                ) : (
+                  <select
+                    id="resident-select"
+                    value={selectedResident}
+                    onChange={(e) => setSelectedResident(e.target.value)}
+                    className="w-full border border-bd rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                  >
+                    <option value="">Select a resident...</option>
+                    {residents.map((resident) => (
+                      <option key={resident.id} value={resident.id}>
+                        {resident.firstName} {resident.lastName} {resident.residentId ? `(ID: ${resident.residentId})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
             <div>
