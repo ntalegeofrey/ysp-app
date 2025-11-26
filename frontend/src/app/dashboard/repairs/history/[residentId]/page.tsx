@@ -202,80 +202,45 @@ export default function ResidentRepairHistoryPage() {
   }
 
   return (
-    <>
-      {/* App Bar with Back Button and Breadcrumb */}
-      <div className="bg-white border-b border-bd mb-6">
-        <div className="max-w-screen-2xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/dashboard/repairs')}
-                className="text-primary hover:text-primary-light transition-colors"
-              >
-                <i className="fa-solid fa-arrow-left text-xl"></i>
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-font-base">Repair History</h1>
-                <div className="flex items-center gap-2 text-sm text-font-detail mt-1">
-                  <span className="hover:text-primary cursor-pointer" onClick={() => router.push('/dashboard/repairs')}>Repairs</span>
-                  <i className="fa-solid fa-chevron-right text-xs"></i>
-                  <span>History</span>
-                  <i className="fa-solid fa-chevron-right text-xs"></i>
-                  <span className="text-font-base font-medium">{resident.firstName} {resident.lastName}</span>
-                </div>
+    <div className="space-y-6">
+
+      {/* Resident Info Header */}
+      <div className="bg-white rounded-lg border border-bd p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {resident.photoUrl && (
+              <img 
+                src={resident.photoUrl} 
+                alt={`${resident.firstName} ${resident.lastName}`} 
+                className="w-16 h-16 rounded-full border-2 border-primary object-cover" 
+              />
+            )}
+            <div>
+              <h2 className="text-2xl font-bold text-font-base">{resident.firstName} {resident.lastName}</h2>
+              <p className="text-font-detail">Resident ID: {resident.residentId}</p>
+              <p className="text-sm text-primary mt-1">
+                <i className="fa-solid fa-history mr-2"></i>
+                Total Repairs: {repairs.length}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="bg-bg-subtle p-3 rounded-lg">
+                <p className="text-xs text-font-detail">Active Repairs</p>
+                <p className="text-2xl font-bold text-error">{repairs.filter(r => r.status?.toLowerCase() === 'active' || r.status?.toLowerCase() === 'approved').length}</p>
+              </div>
+              <div className="bg-bg-subtle p-3 rounded-lg">
+                <p className="text-xs text-font-detail">Completed</p>
+                <p className="text-2xl font-bold text-success">{repairs.filter(r => r.status?.toLowerCase() === 'completed').length}</p>
               </div>
             </div>
-            <button
-              onClick={handlePrintFullReport}
-              disabled={filteredRepairs.length === 0}
-              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <i className="fa-solid fa-print"></i>
-              Print Full Report
-            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-screen-2xl mx-auto px-6 space-y-6">
-
-        {/* Resident Info Header */}
-        <div className="bg-white rounded-lg border border-bd p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {resident.photoUrl && (
-                <img 
-                  src={resident.photoUrl} 
-                  alt={`${resident.firstName} ${resident.lastName}`} 
-                  className="w-16 h-16 rounded-full border-2 border-primary object-cover" 
-                />
-              )}
-              <div>
-                <h2 className="text-2xl font-bold text-font-base">{resident.firstName} {resident.lastName}</h2>
-                <p className="text-font-detail">Resident ID: {resident.residentId}</p>
-                <p className="text-sm text-primary mt-1">
-                  <i className="fa-solid fa-history mr-2"></i>
-                  Total Repairs: {repairs.length}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="bg-bg-subtle p-3 rounded-lg">
-                  <p className="text-xs text-font-detail">Active Repairs</p>
-                  <p className="text-2xl font-bold text-error">{repairs.filter(r => r.status?.toLowerCase() === 'active' || r.status?.toLowerCase() === 'approved').length}</p>
-                </div>
-                <div className="bg-bg-subtle p-3 rounded-lg">
-                  <p className="text-xs text-font-detail">Completed</p>
-                  <p className="text-2xl font-bold text-success">{repairs.filter(r => r.status?.toLowerCase() === 'completed').length}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg border border-bd p-6">
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-bd p-6">
           <h3 className="text-lg font-semibold text-font-base mb-4">
             <i className="fa-solid fa-filter mr-2 text-primary"></i>
             Filter Repair History
@@ -359,10 +324,10 @@ export default function ResidentRepairHistoryPage() {
               </button>
             </div>
           )}
-        </div>
+      </div>
 
-        {/* Repair History Table */}
-        <div className="bg-white rounded-lg border border-bd">
+      {/* Repair History Table */}
+      <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-font-base">
@@ -386,12 +351,13 @@ export default function ResidentRepairHistoryPage() {
                   <th className="text-left p-3 font-medium text-font-base text-sm">Assigned By</th>
                   <th className="text-left p-3 font-medium text-font-base text-sm">Duration</th>
                   <th className="text-left p-3 font-medium text-font-base text-sm">Status</th>
+                  <th className="text-left p-3 font-medium text-font-base text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedRepairs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <i className="fa-solid fa-inbox text-4xl text-font-detail mb-3"></i>
                       <p className="text-font-detail">No repairs found</p>
                       <p className="text-sm text-font-detail mt-1">
@@ -419,6 +385,32 @@ export default function ResidentRepairHistoryPage() {
                         <span className={`${getStatusColor(repair.status)} text-white px-2 py-1 rounded text-xs font-medium`}>
                           {repair.status}
                         </span>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => {
+                            const reportData = {
+                              resident: {
+                                name: `${resident.firstName} ${resident.lastName}`,
+                                id: resident.residentId || resident.id
+                              },
+                              programName,
+                              repairs: [repair],
+                              reportPeriod: new Date(repair.repairStartDate).toLocaleDateString()
+                            };
+                            const htmlContent = generateRepairHistoryReportHTML(reportData);
+                            const printWindow = window.open('', '_blank');
+                            if (printWindow) {
+                              printWindow.document.write(htmlContent);
+                              printWindow.document.close();
+                              setTimeout(() => printWindow.print(), 250);
+                            }
+                          }}
+                          className="text-primary hover:text-primary-light text-sm font-medium flex items-center gap-1"
+                        >
+                          <i className="fa-solid fa-print"></i>
+                          Print
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -465,9 +457,8 @@ export default function ResidentRepairHistoryPage() {
               </button>
             </div>
           )}
-        </div>
       </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-    </>
+    </div>
   );
 }
