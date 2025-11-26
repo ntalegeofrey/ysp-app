@@ -103,11 +103,44 @@ export default function AwardPointsPage() {
         endDate.setHours(0, 0, 0, 0);
         
         if (checkDate >= startDate && checkDate <= endDate) {
-          return repair.repairLevel; // "Repair 1", "Repair 2", or "Repair 3"
+          return {
+            repairLevel: repair.repairLevel,
+            infractionShift: repair.infractionShift,
+            startDate: repair.repairStartDate
+          };
         }
       }
     }
     return null;
+  };
+
+  // Check if a specific cell should be auto-populated and locked due to repair
+  const isRepairLockedCell = (day: number, shiftNumber: number, repairs: any[]) => {
+    const repair = getRepairForDay(day, repairs);
+    if (!repair) return { locked: false, code: null };
+
+    const level = repair.repairLevel;
+    
+    // R3 (Repair 3) - Locks all shifts for 3 days
+    if (level === 'Repair 3') {
+      return { locked: true, code: 'R3' };
+    }
+    
+    // R2 (Repair 2) - Locks all shifts for the whole day
+    if (level === 'Repair 2') {
+      return { locked: true, code: 'R2' };
+    }
+    
+    // R1 (Repair 1) - Locks only the specific shift
+    if (level === 'Repair 1') {
+      // Extract shift number from infractionShift (e.g., "Shift 1" -> 1)
+      const repairShift = repair.infractionShift ? parseInt(repair.infractionShift.replace(/\D/g, '')) : 1;
+      if (shiftNumber === repairShift) {
+        return { locked: true, code: 'R1' };
+      }
+    }
+    
+    return { locked: false, code: null };
   };
 
   // Helper to update points for a behavior on a specific day
@@ -124,27 +157,22 @@ export default function AwardPointsPage() {
   // Helper to render a table cell (input) based on day status and repair level
   const renderTableCell = (behaviorKey: string, day: number, shiftNumber: number) => {
     const todayColumn = getTodayColumn();
-    const repairLevel = getRepairForDay(day, activeRepairs);
+    const repairInfo = getRepairForDay(day, activeRepairs);
+    const repairLock = isRepairLockedCell(day, shiftNumber, activeRepairs);
     const isToday = day === todayColumn;
     const isPast = day < todayColumn;
     const isFuture = day > todayColumn;
     const cellValue = diaryPoints[behaviorKey]?.[day];
     
-    // Determine if this cell should auto-show repair marker from active repairs
-    let autoRepair = false;
-    if (repairLevel === 'Repair 3') autoRepair = true;
-    if (repairLevel === 'Repair 2') autoRepair = true;
-    if (repairLevel === 'Repair 1' && shiftNumber === 1) autoRepair = true;
-    
     // Display value logic:
+    // - If cell is locked by repair, show the R code
     // - If cellValue exists (not null/undefined), use it
-    // - If auto repair is active, show R1/R2/R3
     // - Otherwise show blank (empty string)
     let displayValue = '';
-    if (cellValue !== null && cellValue !== undefined) {
+    if (repairLock.locked && repairLock.code) {
+      displayValue = repairLock.code;
+    } else if (cellValue !== null && cellValue !== undefined) {
       displayValue = cellValue.toString();
-    } else if (autoRepair) {
-      displayValue = repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1';
     }
     
     // Determine background color based on value
@@ -170,13 +198,21 @@ export default function AwardPointsPage() {
       textClass = 'text-blue-600 font-bold';
     }
     
-    // Allow editing only on TODAY
+    // Determine if cell should be disabled
+    // Lock if: repair-locked, not today, past, or future
+    const isDisabled = repairLock.locked || !isToday || isPast || isFuture;
+    const tooltipText = repairLock.locked ? 'Locked - Resident on repair' : '';
+    
+    // Allow editing only on TODAY and not repair-locked
     return (
-      <td key={day} className={`p-0 border border-bd ${bgClass}`}>
+      <td key={day} className={`p-0 border border-bd ${bgClass}`} title={tooltipText}>
         <input 
           type="text" 
           value={displayValue}
           onChange={(e) => {
+            // Don't allow changes if repair-locked
+            if (repairLock.locked) return;
+            
             const val = e.target.value.trim().toUpperCase();
             
             // Allow empty
@@ -206,9 +242,9 @@ export default function AwardPointsPage() {
             
             // If none of the above, don't update (ignore invalid input)
           }}
-          disabled={!isToday}
-          placeholder={isToday ? '0-2 or R1/R2/R3' : ''}
-          className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${textClass} ${!isToday ? 'cursor-not-allowed' : ''}`}
+          disabled={isDisabled}
+          placeholder={isToday && !repairLock.locked ? '0-2 or R1/R2/R3' : ''}
+          className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${textClass} ${isDisabled ? 'cursor-not-allowed' : ''}`}
         />
       </td>
     );
