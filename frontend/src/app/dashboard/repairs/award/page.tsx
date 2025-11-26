@@ -20,7 +20,7 @@ export default function AwardPointsPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [programId, setProgramId] = useState<number | null>(null);
-  const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number | string}}>({});
+  const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number | string | null}}>({});
   const [activeRepairs, setActiveRepairs] = useState<any[]>([]);
 
   // Define all behaviors with their keys and labels
@@ -49,7 +49,7 @@ export default function AwardPointsPage() {
     { key: 's3_disruptive', label: 'No Disruptive Behaviors (2pts)' }
   ];
 
-  // Helper function to initialize diary points with default values
+  // Helper function to initialize diary points with empty values
   const initializeDiaryPoints = () => {
     const behaviors = [
       's1_rule', 's1_directive', 's1_participate', 's1_hygiene', 's1_boundaries',
@@ -58,11 +58,12 @@ export default function AwardPointsPage() {
       's3_sleep', 's3_schedule', 's3_quiet', 's3_disruptive'
     ];
     
-    const initialPoints: {[key: string]: {[day: number]: number}} = {};
+    const initialPoints: {[key: string]: {[day: number]: string | number | null}} = {};
     behaviors.forEach(behavior => {
       initialPoints[behavior] = {};
+      // Initialize all days as null (blank)
       for (let day = 0; day < 7; day++) {
-        initialPoints[behavior][day] = 2; // Default 2 points
+        initialPoints[behavior][day] = null;
       }
     });
     setDiaryPoints(initialPoints);
@@ -109,7 +110,7 @@ export default function AwardPointsPage() {
   };
 
   // Helper to update points for a behavior on a specific day
-  const updatePoints = (behaviorKey: string, day: number, points: number) => {
+  const updatePoints = (behaviorKey: string, day: number, points: number | string | null) => {
     setDiaryPoints(prev => ({
       ...prev,
       [behaviorKey]: {
@@ -125,6 +126,7 @@ export default function AwardPointsPage() {
     const repairLevel = getRepairForDay(day, activeRepairs);
     const isToday = day === todayColumn;
     const isPast = day < todayColumn;
+    const isFuture = day > todayColumn;
     const cellValue = diaryPoints[behaviorKey]?.[day];
     
     // Determine if this cell should auto-show repair marker from active repairs
@@ -133,16 +135,31 @@ export default function AwardPointsPage() {
     if (repairLevel === 'Repair 2') autoRepair = true;
     if (repairLevel === 'Repair 1' && shiftNumber === 1) autoRepair = true;
     
-    // Display value - can be R1, R2, R3, or a number
-    const displayValue = cellValue !== undefined ? cellValue : (autoRepair ? (repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1') : 2);
+    // Display value logic:
+    // - If cellValue exists (not null/undefined), use it
+    // - If auto repair is active, show R1/R2/R3
+    // - Otherwise show blank (empty string)
+    let displayValue = '';
+    if (cellValue !== null && cellValue !== undefined) {
+      displayValue = cellValue.toString();
+    } else if (autoRepair) {
+      displayValue = repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1';
+    }
     
     // Determine background color based on value
-    let bgClass = isToday ? 'bg-primary-lightest/20' : isPast ? 'bg-bg-subtle' : 'bg-transparent';
-    let textClass = '';
+    let bgClass = '';
+    if (isFuture) {
+      bgClass = 'bg-gray-100'; // Locked future
+    } else if (isPast) {
+      bgClass = 'bg-bg-subtle'; // Locked past with data
+    } else if (isToday) {
+      bgClass = 'bg-primary-lightest/20'; // Editable current
+    }
     
+    let textClass = '';
     if (displayValue === 'R3' || displayValue === 'R2' || displayValue === 'R1') {
       bgClass = displayValue === 'R3' ? 'bg-error-lightest' : displayValue === 'R2' ? 'bg-highlight-lightest' : 'bg-primary-lightest';
-      textClass = displayValue === 'R3' ? 'text-error' : displayValue === 'R2' ? 'text-highlight' : 'text-primary';
+      textClass = displayValue === 'R3' ? 'text-error font-bold' : displayValue === 'R2' ? 'text-highlight font-bold' : 'text-primary font-bold';
     }
     
     // Allow editing only on TODAY
@@ -155,17 +172,18 @@ export default function AwardPointsPage() {
             const val = e.target.value.trim().toUpperCase();
             // Accept R1, R2, R3, or numbers
             if (val === 'R1' || val === 'R2' || val === 'R3') {
-              updatePoints(behaviorKey, day, val as any);
+              updatePoints(behaviorKey, day, val);
             } else if (val === '') {
-              updatePoints(behaviorKey, day, 0);
+              updatePoints(behaviorKey, day, null);
             } else {
               const num = parseInt(val);
-              if (!isNaN(num)) {
+              if (!isNaN(num) && num >= 0) {
                 updatePoints(behaviorKey, day, num);
               }
             }
           }}
           disabled={!isToday}
+          placeholder={isToday ? '0-2' : ''}
           className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${textClass} ${!isToday ? 'cursor-not-allowed' : ''}`}
         />
       </td>
@@ -178,13 +196,18 @@ export default function AwardPointsPage() {
     return shiftBehaviors.reduce((sum, behavior) => {
       const value = diaryPoints[behavior]?.[day];
       
+      // If value is null/undefined, treat as 0
+      if (value === null || value === undefined) {
+        return sum + 0;
+      }
+      
       // If value is R1, R2, or R3, it counts as 0 points
       if (value === 'R1' || value === 'R2' || value === 'R3') {
         return sum + 0;
       }
       
       // Otherwise add the numeric value
-      return sum + (typeof value === 'number' ? value : 0);
+      return sum + (typeof value === 'number' ? value : parseInt(value.toString()) || 0);
     }, 0);
   };
 
@@ -676,6 +699,24 @@ export default function AwardPointsPage() {
                   return (
                     <td key={`day-tot-${day}`} className="p-3 border border-bd text-center font-bold text-lg text-success">
                       {dayTotal}
+                    </td>
+                  );
+                })}
+              </tr>
+              
+              {/* Cumulative Total Row - Running total */}
+              <tr className="bg-primary text-white border-t-2 border-primary-dark">
+                <td className="p-3 border border-bd text-sm font-bold">CUMULATIVE TOTAL (Week Running Total)</td>
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  // Calculate cumulative total up to and including this day
+                  let cumulativeTotal = 0;
+                  for (let d = 0; d <= day; d++) {
+                    cumulativeTotal += calculateDayTotal(d);
+                  }
+                  
+                  return (
+                    <td key={`cum-tot-${day}`} className="p-3 border border-bd text-center font-bold text-xl">
+                      {cumulativeTotal}
                     </td>
                   );
                 })}
