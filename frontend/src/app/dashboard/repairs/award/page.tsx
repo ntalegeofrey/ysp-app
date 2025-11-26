@@ -23,6 +23,32 @@ export default function AwardPointsPage() {
   const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number}}>({});
   const [repairDays, setRepairDays] = useState<number[]>([]);
 
+  // Define all behaviors with their keys and labels
+  const shift1Behaviors = [
+    { key: 's1_rule', label: 'Follow Program Rules (2pts)' },
+    { key: 's1_directive', label: 'Follow Staff Directives (2pts)' },
+    { key: 's1_participate', label: 'Participates in Program Activities (2pts)' },
+    { key: 's1_hygiene', label: 'Maintain Hygiene (2pts)' },
+    { key: 's1_boundaries', label: 'Maintain Appropriate Boundaries (2pts)' },
+    { key: 's1_respectful', label: 'Respectful to Others (2pts)' },
+    { key: 's1_coping', label: 'Utilizing Coping Skills (2pts)' },
+    { key: 's1_interactions', label: 'Positive Interactions w/ Peers & Staff (2pts)' },
+    { key: 's1_beyond', label: 'Above and Beyond Expectations (2pts)' }
+  ];
+
+  const shift2Behaviors = [
+    { key: 's2_rule', label: 'Follow Program Rules (2pts)' },
+    { key: 's2_directive', label: 'Follow Staff Directives (2pts)' },
+    { key: 's2_participate', label: 'Participates in Program Activities (2pts)' }
+  ];
+
+  const shift3Behaviors = [
+    { key: 's3_sleep', label: 'Appropriate Sleep Behavior (2pts)' },
+    { key: 's3_schedule', label: 'Follows Sleep Schedule (2pts)' },
+    { key: 's3_quiet', label: 'Maintains Quiet Environment (2pts)' },
+    { key: 's3_disruptive', label: 'No Disruptive Behaviors (2pts)' }
+  ];
+
   // Helper function to initialize diary points with default values
   const initializeDiaryPoints = () => {
     const behaviors = [
@@ -66,6 +92,84 @@ export default function AwardPointsPage() {
     });
     
     return Array.from(new Set(rDays)); // Remove duplicates
+  };
+
+  // Helper to update points for a behavior on a specific day
+  const updatePoints = (behaviorKey: string, day: number, points: number) => {
+    setDiaryPoints(prev => ({
+      ...prev,
+      [behaviorKey]: {
+        ...prev[behaviorKey],
+        [day]: points
+      }
+    }));
+  };
+
+  // Helper to calculate total points for a shift on a specific day
+  const calculateShiftTotal = (shiftBehaviors: string[], day: number) => {
+    if (repairDays.includes(day)) return 0; // R3 days have 0 points
+    return shiftBehaviors.reduce((sum, behavior) => {
+      return sum + (diaryPoints[behavior]?.[day] || 0);
+    }, 0);
+  };
+
+  // Save diary card
+  const handleSaveDiary = async () => {
+    if (!programId || !selectedResident) {
+      addToast('Please select a resident', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        addToast('Not authenticated', 'error');
+        return;
+      }
+
+      // Calculate totals
+      const shift1Behaviors = ['s1_rule', 's1_directive', 's1_participate', 's1_hygiene', 's1_boundaries', 's1_respectful', 's1_coping', 's1_interactions', 's1_beyond'];
+      const shift2Behaviors = ['s2_rule', 's2_directive', 's2_participate'];
+      const shift3Behaviors = ['s3_sleep', 's3_schedule', 's3_quiet', 's3_disruptive'];
+      
+      const dailyTotals = [];
+      for (let day = 0; day < 7; day++) {
+        const shift1Total = calculateShiftTotal(shift1Behaviors, day);
+        const shift2Total = calculateShiftTotal(shift2Behaviors, day);
+        const shift3Total = calculateShiftTotal(shift3Behaviors, day);
+        dailyTotals.push(shift1Total + shift2Total + shift3Total);
+      }
+
+      const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}/diary`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          diaryData: JSON.stringify(diaryPoints),
+          dailyTotals,
+          weekStartDate: diaryCard?.weekStartDate,
+          weekEndDate: diaryCard?.weekEndDate
+        })
+      });
+
+      if (response.ok) {
+        addToast('Diary card saved successfully!', 'success');
+        // Reload diary card
+        const newData = await response.json();
+        setDiaryCard(newData);
+      } else {
+        const error = await response.text();
+        addToast(`Error: ${error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error saving diary:', error);
+      addToast('Failed to save diary card', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Fetch residents on mount
@@ -536,14 +640,12 @@ export default function AwardPointsPage() {
               <span>Save changes to update the resident's diary card</span>
             </div>
             <button
-              onClick={() => {
-                // TODO: Implement save diary functionality with backend API
-                addToast('Diary card saved successfully!', 'success');
-              }}
-              className="bg-success text-white px-6 py-3 rounded-lg font-medium hover:bg-success/90 transition-colors flex items-center gap-2 shadow-sm"
+              onClick={handleSaveDiary}
+              disabled={submitting || !selectedResident}
+              className="bg-success text-white px-6 py-3 rounded-lg font-medium hover:bg-success/90 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <i className="fa-solid fa-save"></i>
-              Save Diary Card
+              <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-save'}`}></i>
+              {submitting ? 'Saving...' : 'Save Diary Card'}
             </button>
           </div>
         </div>
