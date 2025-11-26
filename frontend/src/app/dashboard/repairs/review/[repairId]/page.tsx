@@ -2,11 +2,14 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
 
 export default function RepairReviewPage() {
   const router = useRouter();
   const params = useParams();
   const repairId = params.repairId as string;
+  const { toasts, addToast, removeToast } = useToast();
   
   const [repair, setRepair] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -108,15 +111,15 @@ export default function RepairReviewPage() {
       });
 
       if (response.ok) {
-        alert(approved ? 'Repair approved by PD!' : 'Repair disapproved by PD');
-        router.push('/dashboard/repairs');
+        addToast(approved ? 'Repair approved by PD!' : 'Repair disapproved by PD', 'success');
+        setTimeout(() => router.push('/dashboard/repairs'), 1500);
       } else {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        addToast(`Error: ${error}`, 'error');
       }
     } catch (error) {
       console.error('Error submitting PD review:', error);
-      alert('Failed to submit review');
+      addToast('Failed to submit review', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -143,15 +146,15 @@ export default function RepairReviewPage() {
       });
 
       if (response.ok) {
-        alert(approved ? 'Repair approved by Clinical!' : 'Repair disapproved by Clinical');
-        router.push('/dashboard/repairs');
+        addToast(approved ? 'Repair approved by Clinical!' : 'Repair disapproved by Clinical', 'success');
+        setTimeout(() => router.push('/dashboard/repairs'), 1500);
       } else {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        addToast(`Error: ${error}`, 'error');
       }
     } catch (error) {
       console.error('Error submitting Clinical review:', error);
-      alert('Failed to submit review');
+      addToast('Failed to submit review', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -374,6 +377,7 @@ export default function RepairReviewPage() {
           <p className="text-sm text-font-detail mt-2">This repair has been approved by the Program Director and is awaiting clinical review.</p>
         </div>
       )}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
 
 export default function AssignRepairPage() {
   const searchParams = useSearchParams();
+  const { toasts, addToast, removeToast } = useToast();
   const [residents, setResidents] = useState<any[]>([]);
   const [selectedResident, setSelectedResident] = useState('');
   const [preSelectedResident, setPreSelectedResident] = useState<any>(null);
@@ -127,12 +130,12 @@ export default function AssignRepairPage() {
     const finalBehavior = infractionBehavior === 'Other' ? otherBehavior : infractionBehavior;
     
     if (!selectedResident || !infractionDate || !finalBehavior || !repairLevel) {
-      alert('Please fill in all required fields');
+      addToast('Please fill in all required fields', 'warning');
       return;
     }
 
     if (!programId) {
-      alert('No program selected');
+      addToast('No program selected', 'error');
       return;
     }
 
@@ -140,7 +143,7 @@ export default function AssignRepairPage() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       if (!token) {
-        alert('Not authenticated');
+        addToast('Not authenticated', 'error');
         return;
       }
 
@@ -165,7 +168,7 @@ export default function AssignRepairPage() {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Repair created successfully! ID: ${data.id}`);
+        addToast(`Repair #${data.id} created successfully!`, 'success');
         // Reset form
         setSelectedResident('');
         setInfractionDate('');
@@ -179,11 +182,11 @@ export default function AssignRepairPage() {
         setReviewDate('');
       } else {
         const error = await response.text();
-        alert(`Error creating repair: ${error}`);
+        addToast(`Error: ${error}`, 'error');
       }
     } catch (error) {
       console.error('Error submitting repair:', error);
-      alert('Failed to create repair');
+      addToast('Failed to create repair', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -441,6 +444,7 @@ export default function AssignRepairPage() {
           </div>
         </section>
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
