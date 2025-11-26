@@ -240,13 +240,15 @@ export default function RepairsPage() {
                         >
                           View Details
                         </button>
-                        <button 
-                          onClick={() => router.push(`/dashboard/repairs/review/${repair.id}`)}
-                          className="bg-warning text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
-                        >
-                          <i className="fa-solid fa-clipboard-check mr-1"></i>
-                          Review
-                        </button>
+                        {canReview() && (
+                          <button 
+                            onClick={() => setReviewModal({open: true, repair})}
+                            className="bg-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
+                          >
+                            <i className="fa-solid fa-gavel mr-1"></i>
+                            Review
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
