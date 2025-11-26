@@ -98,14 +98,24 @@ export default function AwardPointsPage() {
     for (const repair of repairs) {
       // Only show repairs that are active (pending_review or approved, not revoked/superseded)
       const isActive = repair.status === 'approved' || repair.status === 'pending_review';
-      if (isActive && repair.repairStartDate && repair.repairEndDate) {
+      if (isActive && repair.repairStartDate) {
         const startDate = new Date(repair.repairStartDate);
         startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(repair.repairEndDate);
-        endDate.setHours(0, 0, 0, 0);
+        
+        // Calculate correct end date based on repair level (ignores stored endDate for old records)
+        let correctEndDate = new Date(startDate);
+        if (repair.repairLevel === 'Repair 1' || repair.repairLevel === 'Repair 2') {
+          // R1 and R2: same day only
+          correctEndDate = new Date(startDate);
+        } else if (repair.repairLevel === 'Repair 3') {
+          // R3: 3 days (start + 2)
+          correctEndDate = new Date(startDate);
+          correctEndDate.setDate(startDate.getDate() + 2);
+        }
+        correctEndDate.setHours(0, 0, 0, 0);
         
         // Check if repair is active and is within date range
-        if (checkDate >= startDate && checkDate <= endDate) {
+        if (checkDate >= startDate && checkDate <= correctEndDate) {
           return {
             repairLevel: repair.repairLevel,
             infractionShift: repair.infractionShift,
