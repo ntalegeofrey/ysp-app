@@ -183,7 +183,7 @@ export default function AwardPointsPage() {
             }
           }}
           disabled={!isToday}
-          placeholder={isToday ? '0-2' : ''}
+          placeholder={isToday ? '0-2 or R1/R2/R3' : ''}
           className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${textClass} ${!isToday ? 'cursor-not-allowed' : ''}`}
         />
       </td>
