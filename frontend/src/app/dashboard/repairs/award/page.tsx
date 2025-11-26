@@ -134,13 +134,20 @@ export default function AwardPointsPage() {
     if (repairLevel === 'Repair 1' && shiftNumber === 1) showRepair = true; // R1 blocks shift 1 only
     
     if (showRepair) {
+      // Determine repair colors
+      const repairColors = repairLevel === 'Repair 3' 
+        ? { bg: 'bg-error-lightest', text: 'text-error', label: 'R3' }
+        : repairLevel === 'Repair 2' 
+        ? { bg: 'bg-highlight-lightest', text: 'text-highlight', label: 'R2' }
+        : { bg: 'bg-primary-lightest', text: 'text-primary', label: 'R1' };
+      
       return (
-        <td key={day} className="p-0 border border-bd bg-error-lightest">
+        <td key={day} className={`p-0 border border-bd ${repairColors.bg}`}>
           <input 
             type="text" 
-            value={repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1'}
+            value={repairColors.label}
             disabled 
-            className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold text-error"
+            className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${repairColors.text}`}
           />
         </td>
       );
@@ -582,43 +589,25 @@ export default function AwardPointsPage() {
                   First Shift (7AM - 3PM)
                 </td>
               </tr>
-              {[
-                'Follow Program Rules (2pts)',
-                'Follow Staff Directives (2pts)',
-                'Participates in Program Activities (2pts)',
-                'Maintain Hygiene (2pts)',
-                'Maintain Appropriate Boundaries (2pts)',
-                'Respectful to Others (2pts)',
-                'Utilizing Coping Skills (2pts)',
-                'Positive Interactions w/ Peers & Staff (2pts)',
-                'Above and Beyond Expectations (2pts)'
-              ].map((label, idx) => (
+              {shift1Behaviors.map((behavior, idx) => (
                 <tr key={`s1-${idx}`} className="hover:bg-primary-lightest/30">
-                  <td className="p-2 border border-bd text-sm">{label}</td>
-                  {[0, 1, 2].map((i) => (
-                    <td key={`s1a-${idx}-${i}`} className="p-0 border border-bd bg-error-lightest">
-                      <input type="text" defaultValue="R3" disabled className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" />
-                    </td>
-                  ))}
-                  {[0, 1, 2, 3].map((i) => (
-                    <td key={`s1b-${idx}-${i}`} className="p-0 border border-bd">
-                      <input type="number" defaultValue={idx === 2 && i === 0 ? 1 : idx === 4 && i === 1 ? 1 : idx === 8 && i === 0 ? 0 : 2} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" />
-                    </td>
-                  ))}
+                  <td className="p-2 border border-bd text-sm">{behavior.label}</td>
+                  {[0, 1, 2, 3, 4, 5, 6].map((day) => renderTableCell(behavior.key, day, 1))}
                 </tr>
               ))}
               <tr className="bg-primary-lightest">
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 1)</td>
-                {[0, 1, 2].map((i) => (
-                  <td key={`s1-tot-a-${i}`} className="p-2 border border-bd text-center font-bold text-error">
-                    0
-                  </td>
-                ))}
-                {['13', '15', '16', '19'].map((v, i) => (
-                  <td key={`s1-tot-b-${i}`} className="p-2 border border-bd text-center font-bold text-primary">
-                    {v}
-                  </td>
-                ))}
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  const total = calculateShiftTotal(shift1Behaviors.map(b => b.key), day, 1);
+                  const repairLevel = getRepairForDay(day, activeRepairs);
+                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2' || repairLevel === 'Repair 1');
+                  
+                  return (
+                    <td key={`s1-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                      {total}
+                    </td>
+                  );
+                })}
               </tr>
 
               <tr>
@@ -626,36 +615,25 @@ export default function AwardPointsPage() {
                   Second Shift (3PM - 11PM)
                 </td>
               </tr>
-              {[
-                'Follow Program Rules (2pts)',
-                'Follow Staff Directives (2pts)',
-                'Participates in Program Activities (2pts)'
-              ].map((label, idx) => (
+              {shift2Behaviors.map((behavior, idx) => (
                 <tr key={`s2-${idx}`} className="hover:bg-primary-lightest/30">
-                  <td className="p-2 border border-bd text-sm">{label}</td>
-                  {[0, 1, 2].map((i) => (
-                    <td key={`s2a-${idx}-${i}`} className="p-0 border border-bd bg-error-lightest">
-                      <input type="text" defaultValue="R3" disabled className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" />
-                    </td>
-                  ))}
-                  <td className="p-0 border border-bd"><input type="number" defaultValue={2} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" /></td>
-                  <td className="p-0 border border-bd"><input type="number" defaultValue={2} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" /></td>
-                  <td className="p-0 border border-bd"><input type="number" defaultValue={idx === 2 ? 0 : 1} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" /></td>
-                  <td className="p-0 border border-bd"><input type="number" defaultValue={2} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" /></td>
+                  <td className="p-2 border border-bd text-sm">{behavior.label}</td>
+                  {[0, 1, 2, 3, 4, 5, 6].map((day) => renderTableCell(behavior.key, day, 2))}
                 </tr>
               ))}
               <tr className="bg-primary-lightest">
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 2)</td>
-                {[0, 1, 2].map((i) => (
-                  <td key={`s2-tot-a-${i}`} className="p-2 border border-bd text-center font-bold text-error">
-                    0
-                  </td>
-                ))}
-                {['6', '6', '3', '7'].map((v, i) => (
-                  <td key={`s2-tot-b-${i}`} className="p-2 border border-bd text-center font-bold text-primary">
-                    {v}
-                  </td>
-                ))}
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  const total = calculateShiftTotal(shift2Behaviors.map(b => b.key), day, 2);
+                  const repairLevel = getRepairForDay(day, activeRepairs);
+                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2');
+                  
+                  return (
+                    <td key={`s2-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                      {total}
+                    </td>
+                  );
+                })}
               </tr>
 
               <tr>
@@ -663,38 +641,25 @@ export default function AwardPointsPage() {
                   Third Shift (11PM - 7AM)
                 </td>
               </tr>
-              {[
-                'Appropriate Sleep Behavior (2pts)',
-                'Follows Sleep Schedule (2pts)',
-                'Maintains Quiet Environment (2pts)',
-                'No Disruptive Behaviors (2pts)'
-              ].map((label, idx) => (
+              {shift3Behaviors.map((behavior, idx) => (
                 <tr key={`s3-${idx}`} className="hover:bg-primary-lightest/30">
-                  <td className="p-2 border border-bd text-sm">{label}</td>
-                  {[0, 1, 2].map((i) => (
-                    <td key={`s3a-${idx}-${i}`} className="p-0 border border-bd bg-error-lightest">
-                      <input type="text" defaultValue="R3" disabled className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" />
-                    </td>
-                  ))}
-                  {[0, 1, 2, 3].map((i) => (
-                    <td key={`s3b-${idx}-${i}`} className="p-0 border border-bd">
-                      <input type="number" defaultValue={2} min={0} max={10} className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm" />
-                    </td>
-                  ))}
+                  <td className="p-2 border border-bd text-sm">{behavior.label}</td>
+                  {[0, 1, 2, 3, 4, 5, 6].map((day) => renderTableCell(behavior.key, day, 3))}
                 </tr>
               ))}
               <tr className="bg-primary-lightest">
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 3)</td>
-                {[0, 1, 2].map((i) => (
-                  <td key={`s3-tot-a-${i}`} className="p-2 border border-bd text-center font-bold text-error">
-                    0
-                  </td>
-                ))}
-                {['8', '8', '8', '8'].map((v, i) => (
-                  <td key={`s3-tot-b-${i}`} className="p-2 border border-bd text-center font-bold text-primary">
-                    {v}
-                  </td>
-                ))}
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  const total = calculateShiftTotal(shift3Behaviors.map(b => b.key), day, 3);
+                  const repairLevel = getRepairForDay(day, activeRepairs);
+                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2');
+                  
+                  return (
+                    <td key={`s3-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                      {total}
+                    </td>
+                  );
+                })}
               </tr>
             </tbody>
           </table>
