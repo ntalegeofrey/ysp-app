@@ -1,34 +1,135 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AwardPointsPage() {
   const [redeemPoints, setRedeemPoints] = useState('');
   const [redeemItem, setRedeemItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [customPoints, setCustomPoints] = useState('');
-  
-  // Mock weekly data - will be replaced with API
-  const weekData = {
-    startingPoints: 213,
-    currentBalance: 245,
-    weekEnding: '2025-11-30',
-    dailyPoints: [0, 0, 0, 13, 15, 16, 19], // SUN-SAT
-    repairDays: [true, true, true, false, false, false, false] // Days with repairs
-  };
+  const [residents, setResidents] = useState<any[]>([]);
+  const [selectedResident, setSelectedResident] = useState('');
+  const [diaryCard, setDiaryCard] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [programId, setProgramId] = useState<number | null>(null);
 
-  const handleRedeem = () => {
-    if (redeemItem === 'Other') {
-      if (customItem && customPoints) {
-        alert(`Redeeming ${customPoints} points for: ${customItem}`);
+  // Fetch residents on mount
+  useEffect(() => {
+    const loadResidents = async () => {
+      try {
+        const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+        if (!programData) return;
+        
+        const program = JSON.parse(programData);
+        setProgramId(program.id);
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) return;
+
+        const response = await fetch(`/api/programs/${program.id}/residents`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setResidents(data);
+          if (data.length > 0) {
+            setSelectedResident(data[0].id.toString());
+          }
+        }
+      } catch (error) {
+        console.error('Error loading residents:', error);
+      }
+    };
+
+    loadResidents();
+  }, []);
+
+  // Fetch diary card when resident changes
+  useEffect(() => {
+    if (!selectedResident || !programId) return;
+
+    const loadDiaryCard = async () => {
+      setLoading(true);
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) return;
+
+        const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}/current`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDiaryCard(data);
+        } else {
+          setDiaryCard(null);
+        }
+      } catch (error) {
+        console.error('Error loading diary card:', error);
+        setDiaryCard(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDiaryCard();
+  }, [selectedResident, programId]);
+
+  const handleRedeem = async () => {
+    if (!programId || !selectedResident) {
+      alert('Please select a resident');
+      return;
+    }
+
+    const pointsToRedeem = redeemItem === 'Other' ? parseInt(customPoints) : parseInt(redeemPoints);
+    const itemName = redeemItem === 'Other' ? customItem : redeemItem;
+
+    if (!pointsToRedeem || !itemName) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
+
+      const response = await fetch(`/api/programs/${programId}/redemptions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          residentId: parseInt(selectedResident),
+          redemptionDate: new Date().toISOString().split('T')[0],
+          pointsRedeemed: pointsToRedeem,
+          rewardItem: itemName,
+          customItem: redeemItem === 'Other'
+        })
+      });
+
+      if (response.ok) {
+        alert(`Redemption submitted successfully! Awaiting approval.`);
         setRedeemItem('');
+        setRedeemPoints('');
         setCustomItem('');
         setCustomPoints('');
+        // Reload diary card
+        const currentResident = selectedResident;
+        setSelectedResident('');
+        setTimeout(() => setSelectedResident(currentResident), 100);
+      } else {
+        const error = await response.text();
+        alert(`Error: ${error}`);
       }
-    } else if (redeemPoints && redeemItem) {
-      alert(`Redeeming ${redeemPoints} points for: ${redeemItem}`);
-      setRedeemPoints('');
-      setRedeemItem('');
+    } catch (error) {
+      console.error('Error submitting redemption:', error);
+      alert('Failed to submit redemption');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -37,28 +138,25 @@ export default function AwardPointsPage() {
       {/* Resident header card */}
       <div className="bg-white p-6 rounded-lg border border-bd">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <img
-              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg"
-              alt="Resident"
-              className="w-16 h-16 rounded-full mr-4"
-            />
-            <div>
-              <h3 className="text-xl font-bold text-font-base">Marcus Johnson</h3>
-              <p className="text-font-detail">ID: 2847</p>
-              <span className="mt-1 inline-block bg-error text-white px-3 py-1 rounded-full text-xs font-semibold">
-                Active R3 Repair
-              </span>
-            </div>
+          <div className="flex items-center gap-4">
+            <select
+              value={selectedResident}
+              onChange={(e) => setSelectedResident(e.target.value)}
+              className="border border-bd rounded-lg px-3 py-2 text-sm"
+            >
+              {residents.map(r => (
+                <option key={r.id} value={r.id}>{r.firstName} {r.lastName} ({r.residentId})</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center space-x-8 text-center">
             <div>
               <p className="text-font-detail text-sm">Week Starting Points</p>
-              <p className="text-2xl font-bold text-primary">213</p>
+              <p className="text-2xl font-bold text-primary">{diaryCard?.startingPoints || 0}</p>
             </div>
             <div>
               <p className="text-font-detail text-sm">Current Week Balance</p>
-              <p className="text-2xl font-bold text-success">245</p>
+              <p className="text-2xl font-bold text-success">{diaryCard?.currentBalance || 0}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -68,8 +166,9 @@ export default function AwardPointsPage() {
             <input
               type="date"
               id="week-ending"
-              defaultValue="2025-10-31"
-              className="border border-bd rounded-lg px-3 py-2 text-sm"
+              value={diaryCard?.weekEndDate || ''}
+              readOnly
+              className="border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle"
             />
           </div>
         </div>
@@ -90,7 +189,7 @@ export default function AwardPointsPage() {
             </div>
             <div className="text-right">
               <p className="text-sm text-primary-lightest">Available Points</p>
-              <p className="text-3xl font-bold">{weekData.currentBalance}</p>
+              <p className="text-3xl font-bold">{diaryCard?.currentBalance || 0}</p>
             </div>
           </div>
         </div>
@@ -147,11 +246,11 @@ export default function AwardPointsPage() {
                   onChange={(e) => setCustomPoints(e.target.value)}
                   placeholder="Enter points..."
                   min="0"
-                  max={weekData.currentBalance}
+                  max={diaryCard?.currentBalance || 0}
                   className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
                 <p className="mt-1 text-xs text-font-detail">
-                  Maximum: {weekData.currentBalance} points
+                  Maximum: {diaryCard?.currentBalance || 0} points
                 </p>
               </div>
             </div>
@@ -167,11 +266,11 @@ export default function AwardPointsPage() {
                 onChange={(e) => setRedeemPoints(e.target.value)}
                 placeholder="Enter points amount..."
                 min="0"
-                max={weekData.currentBalance}
+                max={diaryCard?.currentBalance || 0}
                 className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
               <p className="mt-1 text-xs text-font-detail">
-                Maximum: {weekData.currentBalance} points
+                Maximum: {diaryCard?.currentBalance || 0} points
               </p>
             </div>
           ) : null}
@@ -184,14 +283,16 @@ export default function AwardPointsPage() {
             <button
               onClick={handleRedeem}
               disabled={
-                redeemItem === 'Other' 
-                  ? (!customItem || !customPoints)
-                  : (!redeemPoints || !redeemItem)
+                submitting || (
+                  redeemItem === 'Other' 
+                    ? (!customItem || !customPoints)
+                    : (!redeemPoints || !redeemItem)
+                )
               }
               className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               <i className="fa-solid fa-check-circle"></i>
-              Redeem Points
+              {submitting ? 'Submitting...' : 'Redeem Points'}
             </button>
           </div>
         </div>
