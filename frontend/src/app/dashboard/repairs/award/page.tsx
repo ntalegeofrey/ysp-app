@@ -119,6 +119,51 @@ export default function AwardPointsPage() {
     }));
   };
 
+  // Helper to render a table cell (input) based on day status and repair level
+  const renderTableCell = (behaviorKey: string, day: number, shiftNumber: number) => {
+    const todayColumn = getTodayColumn();
+    const repairLevel = getRepairForDay(day, activeRepairs);
+    const isToday = day === todayColumn;
+    const isPast = day < todayColumn;
+    const value = diaryPoints[behaviorKey]?.[day] || 0;
+    
+    // Check if this cell should show repair marker
+    let showRepair = false;
+    if (repairLevel === 'Repair 3') showRepair = true; // R3 blocks all
+    if (repairLevel === 'Repair 2') showRepair = true; // R2 blocks all day
+    if (repairLevel === 'Repair 1' && shiftNumber === 1) showRepair = true; // R1 blocks shift 1 only
+    
+    if (showRepair) {
+      return (
+        <td key={day} className="p-0 border border-bd bg-error-lightest">
+          <input 
+            type="text" 
+            value={repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1'}
+            disabled 
+            className="w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold text-error"
+          />
+        </td>
+      );
+    }
+    
+    // Normal input - editable only if TODAY
+    return (
+      <td key={day} className="p-0 border border-bd">
+        <input 
+          type="number" 
+          value={value}
+          onChange={(e) => updatePoints(behaviorKey, day, parseInt(e.target.value) || 0)}
+          disabled={!isToday}
+          min={0}
+          max={10}
+          className={`w-full h-full text-center border-none ${
+            isToday ? 'bg-primary-lightest/20' : isPast ? 'bg-bg-subtle' : 'bg-transparent'
+          } px-1.5 py-2 text-sm ${!isToday ? 'cursor-not-allowed' : ''}`}
+        />
+      </td>
+    );
+  };
+
   // Helper to calculate total points for a shift on a specific day
   const calculateShiftTotal = (shiftBehaviors: string[], day: number, shiftNumber: number) => {
     const repairLevel = getRepairForDay(day, activeRepairs);
