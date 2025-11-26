@@ -8,12 +8,19 @@ export default function RepairsPage() {
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [detailsModal, setDetailsModal] = useState<any>(null);
   const [repairs, setRepairs] = useState<any[]>([]);
+  const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [programId, setProgramId] = useState<number | null>(null);
+  
+  // Pagination & Filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [filterStatus, setFilterStatus] = useState('All Residents');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch repairs from API
+  // Fetch repairs and residents from API
   useEffect(() => {
-    const loadRepairs = async () => {
+    const loadData = async () => {
       try {
         // Get selected program
         const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
@@ -22,27 +29,57 @@ export default function RepairsPage() {
         const program = JSON.parse(programData);
         setProgramId(program.id);
 
-        // Fetch repairs
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         if (!token) return;
 
-        const response = await fetch(`/api/programs/${program.id}/repairs/interventions`, {
+        // Fetch repairs
+        const repairsResponse = await fetch(`/api/programs/${program.id}/repairs/interventions`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (repairsResponse.ok) {
+          const repairsData = await repairsResponse.json();
+          setRepairs(repairsData);
+        }
 
-        if (response.ok) {
-          const data = await response.json();
-          setRepairs(data);
+        // Fetch residents
+        const residentsResponse = await fetch(`/api/programs/${program.id}/residents`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (residentsResponse.ok) {
+          const residentsData = await residentsResponse.json();
+          setResidents(residentsData);
         }
       } catch (error) {
-        console.error('Error loading repairs:', error);
+        console.error('Error loading data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadRepairs();
+    loadData();
   }, []);
+
+  // Filter and search residents
+  const filteredResidents = residents.filter(resident => {
+    const matchesSearch = searchQuery === '' ||
+      resident.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      resident.residentId?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const residentRepairs = repairs.filter(r => r.residentId === resident.id);
+    const hasActiveRepair = residentRepairs.some(r => r.status === 'pending_review' || r.status === 'approved');
+    
+    if (filterStatus === 'Active Repairs') {
+      return matchesSearch && hasActiveRepair;
+    }
+    return matchesSearch;
+  });
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentResidents = filteredResidents.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredResidents.length / itemsPerPage);
   
   return (
     <div className="space-y-6">
@@ -52,7 +89,7 @@ export default function RepairsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-font-detail text-sm">Total Residents</p>
-              <p className="text-2xl font-bold text-primary">47</p>
+              <p className="text-2xl font-bold text-primary">{loading ? '-' : residents.length}</p>
             </div>
             <div className="bg-primary bg-opacity-10 p-3 rounded-lg">
               <i className="fa-solid fa-users text-primary text-xl"></i>
@@ -73,22 +110,26 @@ export default function RepairsPage() {
         <div className="bg-white p-6 rounded-lg border border-bd">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-font-detail text-sm">Points Awarded Today</p>
-              <p className="text-2xl font-bold text-success">324</p>
+              <p className="text-font-detail text-sm">Residents with Repairs</p>
+              <p className="text-2xl font-bold text-success">
+                {loading ? '-' : residents.filter(r => repairs.some(rep => rep.residentId === r.id)).length}
+              </p>
             </div>
             <div className="bg-success bg-opacity-10 p-3 rounded-lg">
-              <i className="fa-solid fa-star text-success text-xl"></i>
+              <i className="fa-solid fa-user-check text-success text-xl"></i>
             </div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg border border-bd">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-font-detail text-sm">Average Score</p>
-              <p className="text-2xl font-bold text-highlight">78</p>
+              <p className="text-font-detail text-sm">Pending Reviews</p>
+              <p className="text-2xl font-bold text-highlight">
+                {loading ? '-' : repairs.filter(r => r.status === 'pending_review').length}
+              </p>
             </div>
             <div className="bg-highlight bg-opacity-10 p-3 rounded-lg">
-              <i className="fa-solid fa-chart-line text-highlight text-xl"></i>
+              <i className="fa-solid fa-clock text-highlight text-xl"></i>
             </div>
           </div>
         </div>
@@ -152,13 +193,27 @@ export default function RepairsPage() {
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-font-base">Resident Overview</h3>
               <div className="flex items-center space-x-4">
-                <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                <select 
+                  value={filterStatus}
+                  onChange={(e) => {
+                    setFilterStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="border border-bd rounded-lg px-3 py-2 text-sm"
+                >
                   <option>All Residents</option>
                   <option>Active Repairs</option>
-                  <option>High Performers</option>
-                  <option>Needs Attention</option>
                 </select>
-                <input type="text" placeholder="Search residents..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
+                <input 
+                  type="text" 
+                  placeholder="Search residents..." 
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="border border-bd rounded-lg px-3 py-2 text-sm w-48" 
+                />
               </div>
             </div>
           </div>
@@ -167,188 +222,130 @@ export default function RepairsPage() {
               <thead className="bg-bg-subtle">
                 <tr>
                   <th className="text-left p-3 font-medium text-font-base text-sm">Resident</th>
-                  <th className="text-left p-3 font-medium text-font-base text-sm">Current Points</th>
-                  <th className="text-left p-3 font-medium text-font-base text-sm">Weekly Change</th>
+                  <th className="text-left p-3 font-medium text-font-base text-sm">ID</th>
+                  <th className="text-left p-3 font-medium text-font-base text-sm">Room</th>
                   <th className="text-left p-3 font-medium text-font-base text-sm">Status</th>
-                  <th className="text-left p-3 font-medium text-font-base text-sm">Last Activity</th>
+                  <th className="text-left p-3 font-medium text-font-base text-sm">Repair Status</th>
                   <th className="text-left p-3 font-medium text-font-base text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-bd hover:bg-primary-lightest/30">
-                  <td className="p-3">
-                    <div className="flex items-center">
-                      <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg" alt="Resident" className="w-8 h-8 rounded-full mr-3" />
-                      <div>
-                        <p className="text-sm font-medium">Marcus Johnson</p>
-                        <p className="text-xs text-font-detail">ID: 2847</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm font-bold text-success">245</td>
-                  <td className="p-3 text-sm text-success">+32</td>
-                  <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">R3 Repair</span></td>
-                  <td className="p-3 text-sm text-font-detail">2 hours ago</td>
-                  <td className="p-3">
-                    <div className="relative inline-block text-left">
-                      <button
-                        className="p-2 rounded hover:bg-bg-subtle"
-                        onClick={() => setOpenMenuIndex(openMenuIndex === 0 ? null : 0)}
-                      >
-                        <i className="fa-solid fa-ellipsis-vertical"></i>
-                      </button>
-                      {openMenuIndex === 0 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2847')}>
-                            <i className="fa-solid fa-history text-primary"></i>
-                            View Repairs
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
-                            <i className="fa-solid fa-star text-success"></i>
-                            Points Management
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
-                            <i className="fa-solid fa-exclamation-circle text-error"></i>
-                            Assign Repair
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-primary-lightest/30">
-                  <td className="p-3">
-                    <div className="flex items-center">
-                      <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg" alt="Resident" className="w-8 h-8 rounded-full mr-3" />
-                      <div>
-                        <p className="text-sm font-medium">David Chen</p>
-                        <p className="text-xs text-font-detail">ID: 2851</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm font-bold text-highlight">189</td>
-                  <td className="p-3 text-sm text-error">-15</td>
-                  <td className="p-3"><span className="bg-highlight text-white px-2 py-1 rounded text-xs">R2 Repair</span></td>
-                  <td className="p-3 text-sm text-font-detail">4 hours ago</td>
-                  <td className="p-3">
-                    <div className="relative inline-block text-left">
-                      <button
-                        className="p-2 rounded hover:bg-bg-subtle"
-                        onClick={() => setOpenMenuIndex(openMenuIndex === 1 ? null : 1)}
-                      >
-                        <i className="fa-solid fa-ellipsis-vertical"></i>
-                      </button>
-                      {openMenuIndex === 1 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2851')}>
-                            <i className="fa-solid fa-history text-primary"></i>
-                            View Repairs
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
-                            <i className="fa-solid fa-star text-success"></i>
-                            Points Management
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
-                            <i className="fa-solid fa-exclamation-circle text-error"></i>
-                            Assign Repair
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-primary-lightest/30">
-                  <td className="p-3">
-                    <div className="flex items-center">
-                      <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Resident" className="w-8 h-8 rounded-full mr-3" />
-                      <div>
-                        <p className="text-sm font-medium">Alex Rodriguez</p>
-                        <p className="text-xs text-font-detail">ID: 2849</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm font-bold text-success">312</td>
-                  <td className="p-3 text-sm text-success">+45</td>
-                  <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">R1 Repair</span></td>
-                  <td className="p-3 text-sm text-font-detail">1 hour ago</td>
-                  <td className="p-3">
-                    <div className="relative inline-block text-left">
-                      <button
-                        className="p-2 rounded hover:bg-bg-subtle"
-                        onClick={() => setOpenMenuIndex(openMenuIndex === 2 ? null : 2)}
-                      >
-                        <i className="fa-solid fa-ellipsis-vertical"></i>
-                      </button>
-                      {openMenuIndex === 2 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2849')}>
-                            <i className="fa-solid fa-history text-primary"></i>
-                            View Repairs
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
-                            <i className="fa-solid fa-star text-success"></i>
-                            Points Management
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
-                            <i className="fa-solid fa-exclamation-circle text-error"></i>
-                            Assign Repair
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-primary-lightest/30">
-                  <td className="p-3">
-                    <div className="flex items-center">
-                      <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-9.jpg" alt="Resident" className="w-8 h-8 rounded-full mr-3" />
-                      <div>
-                        <p className="text-sm font-medium">James Wilson</p>
-                        <p className="text-xs text-font-detail">ID: 2852</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm font-bold text-success">428</td>
-                  <td className="p-3 text-sm text-success">+67</td>
-                  <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Active</span></td>
-                  <td className="p-3 text-sm text-font-detail">30 min ago</td>
-                  <td className="p-3">
-                    <div className="relative inline-block text-left">
-                      <button
-                        className="p-2 rounded hover:bg-bg-subtle"
-                        onClick={() => setOpenMenuIndex(openMenuIndex === 3 ? null : 3)}
-                      >
-                        <i className="fa-solid fa-ellipsis-vertical"></i>
-                      </button>
-                      {openMenuIndex === 3 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/history/2852')}>
-                            <i className="fa-solid fa-history text-primary"></i>
-                            View Repairs
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
-                            <i className="fa-solid fa-star text-success"></i>
-                            Points Management
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
-                            <i className="fa-solid fa-exclamation-circle text-error"></i>
-                            Assign Repair
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-font-detail">
+                      <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                      Loading residents...
+                    </td>
+                  </tr>
+                ) : currentResidents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-font-detail">
+                      <i className="fa-solid fa-users text-4xl text-font-medium mb-4"></i>
+                      <p className="text-lg font-medium text-font-base mb-2">No residents found</p>
+                      <p className="text-sm">Try adjusting your search or filters</p>
+                    </td>
+                  </tr>
+                ) : (
+                  currentResidents.map((resident: any, index: number) => {
+                    const residentRepairs = repairs.filter(r => r.residentId === resident.id);
+                    const activeRepair = residentRepairs.find(r => r.status === 'pending_review' || r.status === 'approved');
+                    
+                    return (
+                      <tr key={resident.id} className="border-b border-bd hover:bg-primary-lightest/30">
+                        <td className="p-3">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center mr-3 text-sm font-bold">
+                              {resident.firstName?.[0]}{resident.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{resident.firstName} {resident.lastName}</p>
+                              <p className="text-xs text-font-detail">Admitted: {resident.admissionDate ? new Date(resident.admissionDate).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 text-sm font-medium">{resident.residentId || 'N/A'}</td>
+                        <td className="p-3 text-sm">{resident.room || 'N/A'}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            resident.status === 'Active' ? 'bg-success text-white' : 'bg-font-detail text-white'
+                          }`}>
+                            {resident.status || 'Active'}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {activeRepair ? (
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              activeRepair.repairLevel === 'Repair 3' ? 'bg-error text-white' :
+                              activeRepair.repairLevel === 'Repair 2' ? 'bg-highlight text-white' :
+                              'bg-primary text-white'
+                            }`}>
+                              {activeRepair.repairLevel}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-font-detail">No active repairs</span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="relative inline-block text-left">
+                            <button
+                              className="p-2 rounded hover:bg-bg-subtle"
+                              onClick={() => setOpenMenuIndex(openMenuIndex === indexOfFirstItem + index ? null : indexOfFirstItem + index)}
+                            >
+                              <i className="fa-solid fa-ellipsis-vertical"></i>
+                            </button>
+                            {openMenuIndex === indexOfFirstItem + index && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push(`/dashboard/repairs/history/${resident.id}`)}>
+                                  <i className="fa-solid fa-history text-primary"></i>
+                                  View Repairs
+                                </button>
+                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
+                                  <i className="fa-solid fa-star text-success"></i>
+                                  Points Management
+                                </button>
+                                <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/assign')}>
+                                  <i className="fa-solid fa-exclamation-circle text-error"></i>
+                                  Assign Repair
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-            <p className="text-sm text-font-detail">Showing 4 of 47 residents</p>
-            <button className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
-              View All Residents
-              <i className="fa-solid fa-arrow-right ml-2"></i>
-            </button>
-          </div>
+          
+          {/* Pagination */}
+          {!loading && filteredResidents.length > 0 && (
+            <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
+              <p className="text-sm text-font-detail">
+                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredResidents.length)} of {filteredResidents.length} residents
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-bd rounded text-sm hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className="fa-solid fa-chevron-left"></i>
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-bd rounded text-sm hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
