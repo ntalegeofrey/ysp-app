@@ -147,7 +147,16 @@ export default function RepairsPage() {
             ) : repairs.length === 0 ? (
               <div className="text-center text-font-detail py-8">No active repairs found</div>
             ) : (
-              repairs.map((repair: any) => {
+              repairs.filter((repair: any) => {
+                // Filter out expired repairs
+                if (repair.repairEndDate) {
+                  const endDate = new Date(repair.repairEndDate);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return endDate >= today;
+                }
+                return true;
+              }).map((repair: any) => {
                 const levelColors = {
                   'Repair 1': { bg: 'bg-primary-lightest', border: 'border-primary', text: 'text-primary', button: 'bg-primary' },
                   'Repair 2': { bg: 'bg-highlight-lightest', border: 'border-highlight', text: 'text-highlight', button: 'bg-highlight' },
@@ -176,15 +185,13 @@ export default function RepairsPage() {
                         >
                           View Details
                         </button>
-                        {repair.status === 'pending_review' && (
-                          <button 
-                            onClick={() => router.push(`/dashboard/repairs/review/${repair.id}`)}
-                            className="bg-warning text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
-                          >
-                            <i className="fa-solid fa-clipboard-check mr-1"></i>
-                            Review
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => router.push(`/dashboard/repairs/review/${repair.id}`)}
+                          className="bg-warning text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
+                        >
+                          <i className="fa-solid fa-clipboard-check mr-1"></i>
+                          Review
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -259,7 +266,20 @@ export default function RepairsPage() {
                 ) : (
                   currentResidents.map((resident: any, index: number) => {
                     const residentRepairs = repairs.filter(r => r.residentId === resident.id);
-                    const activeRepairs = residentRepairs.filter(r => r.status === 'pending_review' || r.status === 'approved');
+                    // Filter for active AND non-expired repairs
+                    const activeRepairs = residentRepairs.filter(r => {
+                      const isActive = r.status === 'pending_review' || r.status === 'approved';
+                      if (!isActive) return false;
+                      
+                      // Check if repair is not expired
+                      if (r.repairEndDate) {
+                        const endDate = new Date(r.repairEndDate);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return endDate >= today;
+                      }
+                      return true;
+                    });
                     
                     return (
                       <tr key={resident.id} className="border-b border-bd hover:bg-primary-lightest/30">
