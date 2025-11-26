@@ -18,6 +18,7 @@ export default function AssignRepairPage() {
   // Form fields
   const [infractionDate, setInfractionDate] = useState('');
   const [infractionBehavior, setInfractionBehavior] = useState('');
+  const [otherBehavior, setOtherBehavior] = useState('');
   const [repairLevel, setRepairLevel] = useState('');
   const [interventions, setInterventions] = useState<string[]>([]);
   const [comments, setComments] = useState('');
@@ -116,7 +117,10 @@ export default function AssignRepairPage() {
   }, [searchParams]);
 
   const handleSubmit = async () => {
-    if (!selectedResident || !infractionDate || !infractionBehavior || !repairLevel) {
+    // Validate behavior field
+    const finalBehavior = infractionBehavior === 'Other' ? otherBehavior : infractionBehavior;
+    
+    if (!selectedResident || !infractionDate || !finalBehavior || !repairLevel) {
       alert('Please fill in all required fields');
       return;
     }
@@ -144,7 +148,7 @@ export default function AssignRepairPage() {
           residentId: parseInt(selectedResident),
           infractionDate,
           infractionShift: selectedShift === 'Other' ? otherShift : selectedShift,
-          infractionBehavior,
+          infractionBehavior: finalBehavior,
           repairLevel,
           interventionsJson: JSON.stringify(interventions),
           comments,
@@ -160,7 +164,9 @@ export default function AssignRepairPage() {
         setSelectedResident('');
         setInfractionDate('');
         setSelectedShift('');
+        setOtherShift('');
         setInfractionBehavior('');
+        setOtherBehavior('');
         setRepairLevel('');
         setInterventions([]);
         setComments('');
@@ -281,7 +287,17 @@ export default function AssignRepairPage() {
                 <option value="Fighting">Fighting</option>
                 <option value="Contraband">Contraband</option>
                 <option value="Refusal to Follow Directives">Refusal to Follow Directives</option>
+                <option value="Other">Other (Specify)</option>
               </select>
+              {infractionBehavior === 'Other' && (
+                <input
+                  type="text"
+                  placeholder="Specify behavior..."
+                  value={otherBehavior}
+                  onChange={(e) => setOtherBehavior(e.target.value)}
+                  className="mt-2 w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                />
+              )}
             </div>
             <div>
               <label htmlFor="assigning-staff" className="block text-sm font-medium text-font-detail mb-1">
