@@ -67,10 +67,10 @@ export default function RepairsPage() {
       resident.residentId?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const residentRepairs = repairs.filter(r => r.residentId === resident.id);
-    const hasActiveRepair = residentRepairs.some(r => r.status === 'pending_review' || r.status === 'approved');
+    const hasActiveRepairs = residentRepairs.some(r => r.status === 'pending_review' || r.status === 'approved');
     
     if (filterStatus === 'Active Repairs') {
-      return matchesSearch && hasActiveRepair;
+      return matchesSearch && hasActiveRepairs;
     }
     return matchesSearch;
   });
@@ -259,7 +259,7 @@ export default function RepairsPage() {
                 ) : (
                   currentResidents.map((resident: any, index: number) => {
                     const residentRepairs = repairs.filter(r => r.residentId === resident.id);
-                    const activeRepair = residentRepairs.find(r => r.status === 'pending_review' || r.status === 'approved');
+                    const activeRepairs = residentRepairs.filter(r => r.status === 'pending_review' || r.status === 'approved');
                     
                     return (
                       <tr key={resident.id} className="border-b border-bd hover:bg-primary-lightest/30">
@@ -284,14 +284,21 @@ export default function RepairsPage() {
                           </span>
                         </td>
                         <td className="p-3">
-                          {activeRepair ? (
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              activeRepair.repairLevel === 'Repair 3' ? 'bg-error text-white' :
-                              activeRepair.repairLevel === 'Repair 2' ? 'bg-highlight text-white' :
-                              'bg-primary text-white'
-                            }`}>
-                              {activeRepair.repairLevel}
-                            </span>
+                          {activeRepairs.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {activeRepairs.map((repair: any, idx: number) => (
+                                <span 
+                                  key={idx}
+                                  className={`px-2 py-1 rounded text-xs ${
+                                    repair.repairLevel === 'Repair 3' ? 'bg-error text-white' :
+                                    repair.repairLevel === 'Repair 2' ? 'bg-highlight text-white' :
+                                    'bg-primary text-white'
+                                  }`}
+                                >
+                                  {repair.repairLevel}
+                                </span>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-sm text-font-detail">No active repairs</span>
                           )}
