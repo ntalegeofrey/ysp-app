@@ -50,6 +50,14 @@ public class RepairInterventionService {
         return repairRepo.findById(id).map(this::toResponse);
     }
 
+    public List<RepairInterventionResponse> getRepairInterventionsByResident(Long programId, Long residentId) {
+        // Get all repairs for this resident in this program, regardless of review status
+        return repairRepo.findByProgram_IdAndResident_IdOrderByInfractionDateDesc(programId, residentId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public RepairInterventionResponse createRepairIntervention(
             Long programId,

@@ -49,6 +49,15 @@ public class RepairInterventionController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/interventions/resident/{residentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<RepairInterventionResponse>> getRepairInterventionsByResident(
+            @PathVariable Long programId,
+            @PathVariable Long residentId) {
+        List<RepairInterventionResponse> repairs = repairService.getRepairInterventionsByResident(programId, residentId);
+        return ResponseEntity.ok(repairs);
+    }
+
     @PostMapping("/interventions")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createRepairIntervention(
