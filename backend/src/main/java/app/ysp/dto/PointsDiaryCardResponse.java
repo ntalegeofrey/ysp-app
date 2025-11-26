@@ -45,6 +45,10 @@ public class PointsDiaryCardResponse {
 
     public String getDailyPointsJson() { return dailyPointsJson; }
     public void setDailyPointsJson(String dailyPointsJson) { this.dailyPointsJson = dailyPointsJson; }
+    
+    // Alias for frontend compatibility
+    public String getDiaryData() { return dailyPointsJson; }
+    public void setDiaryData(String diaryData) { this.dailyPointsJson = diaryData; }
 
     public Integer getTotalPointsEarned() { return totalPointsEarned; }
     public void setTotalPointsEarned(Integer totalPointsEarned) { this.totalPointsEarned = totalPointsEarned; }

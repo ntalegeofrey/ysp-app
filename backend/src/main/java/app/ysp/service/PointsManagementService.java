@@ -150,21 +150,45 @@ public class PointsManagementService {
         }
 
         try {
-            var dailyData = JsonUtil.toMap(dailyPointsJson);
+            // Parse the diary points JSON
+            // Format: { "s1_rule": {"0": 2, "1": "R1", ...}, "s1_directive": {...}, ... }
+            var diaryPoints = JsonUtil.toMap(dailyPointsJson);
             int total = 0;
             
-            for (var entry : dailyData.entrySet()) {
-                var dayData = (java.util.Map<String, Object>) entry.getValue();
-                if (dayData.containsKey("total")) {
-                    Object totalValue = dayData.get("total");
-                    if (totalValue instanceof Number) {
-                        total += ((Number) totalValue).intValue();
+            for (var behaviorEntry : diaryPoints.entrySet()) {
+                var dayValues = (java.util.Map<String, Object>) behaviorEntry.getValue();
+                
+                // Iterate through each day (0-6)
+                for (var dayEntry : dayValues.entrySet()) {
+                    Object value = dayEntry.getValue();
+                    
+                    if (value == null) {
+                        continue;
+                    }
+                    
+                    // If value is R, R1, R2, or R3, it counts as 0 points
+                    String strValue = value.toString();
+                    if (strValue.equals("R") || strValue.equals("R1") || 
+                        strValue.equals("R2") || strValue.equals("R3")) {
+                        continue; // 0 points
+                    }
+                    
+                    // Otherwise, parse as integer and add
+                    if (value instanceof Number) {
+                        total += ((Number) value).intValue();
+                    } else {
+                        try {
+                            total += Integer.parseInt(strValue);
+                        } catch (NumberFormatException e) {
+                            // Skip non-numeric values
+                        }
                     }
                 }
             }
             
             return total;
         } catch (Exception e) {
+            System.err.println("Error calculating points from JSON: " + e.getMessage());
             return 0;
         }
     }

@@ -259,41 +259,29 @@ export default function AwardPointsPage() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       if (!token) {
         addToast('Not authenticated', 'error');
+        setSubmitting(false);
         return;
       }
 
-      // Calculate totals
-      const shift1BehaviorKeys = shift1Behaviors.map(b => b.key);
-      const shift2BehaviorKeys = shift2Behaviors.map(b => b.key);
-      const shift3BehaviorKeys = shift3Behaviors.map(b => b.key);
-      
-      const dailyTotals = [];
-      for (let day = 0; day < 7; day++) {
-        const shift1Total = calculateShiftTotal(shift1BehaviorKeys, day, 1);
-        const shift2Total = calculateShiftTotal(shift2BehaviorKeys, day, 2);
-        const shift3Total = calculateShiftTotal(shift3BehaviorKeys, day, 3);
-        dailyTotals.push(shift1Total + shift2Total + shift3Total);
-      }
-
-      const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}/diary`, {
+      // Format data for backend - store the diary points as JSON
+      const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          diaryData: JSON.stringify(diaryPoints),
-          dailyTotals,
+          residentId: parseInt(selectedResident),
           weekStartDate: diaryCard?.weekStartDate,
-          weekEndDate: diaryCard?.weekEndDate
+          weekEndDate: diaryCard?.weekEndDate,
+          dailyPointsJson: JSON.stringify(diaryPoints)
         })
       });
 
       if (response.ok) {
-        addToast('Diary card saved successfully!', 'success');
-        // Reload diary card
         const newData = await response.json();
         setDiaryCard(newData);
+        addToast('Diary card saved successfully!', 'success');
       } else {
         const error = await response.text();
         addToast(`Error: ${error}`, 'error');
@@ -348,55 +336,87 @@ export default function AwardPointsPage() {
     loadResidents();
   }, [searchParams]);
 
-  // Fetch diary card when resident changes
-  useEffect(() => {
-    if (!selectedResident || !programId) return;
+  // Function to load diary card for a resident
+  const loadDiaryCardForResident = async (residentId: string) => {
+    if (!residentId || !programId) return;
 
-    const loadDiaryCard = async () => {
-      setLoading(true);
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        if (!token) return;
+    setLoading(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
 
-        const response = await fetch(`/api/programs/${programId}/points/resident/${selectedResident}/current`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+      const response = await fetch(`/api/programs/${programId}/points/resident/${residentId}/current`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          setDiaryCard(data);
-          
-          // Load existing diary points if available
-          if (data.diaryData) {
-            setDiaryPoints(JSON.parse(data.diaryData));
-          } else {
-            // Initialize with default 2 points for all behaviors
+      if (response.ok) {
+        const data = await response.json();
+        setDiaryCard(data);
+        
+        // Load existing diary points if available
+        if (data.dailyPointsJson) {
+          try {
+            setDiaryPoints(JSON.parse(data.dailyPointsJson));
+          } catch (e) {
+            console.error('Error parsing diary points:', e);
             initializeDiaryPoints();
           }
+        } else {
+          // Initialize with empty points
+          initializeDiaryPoints();
         }
-        
-        // Fetch repairs to mark repair days
-        const repairsResponse = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${selectedResident}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+      } else {
+        // No diary card exists yet - initialize empty
+        setDiaryCard({
+          weekStartDate: getMonday(new Date()).toISOString().split('T')[0],
+          weekEndDate: getSunday(new Date()).toISOString().split('T')[0],
+          startingPoints: 0,
+          currentBalance: 0,
+          totalPointsEarned: 0
         });
-        
-        if (repairsResponse.ok) {
-          const repairs = await repairsResponse.json();
-          setActiveRepairs(repairs);
-        }
-      } catch (error) {
-        console.error('Error loading diary card:', error);
-      } finally {
-        setLoading(false);
+        initializeDiaryPoints();
       }
-    };
+      
+      // Fetch repairs to mark repair days
+      const repairsResponse = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${residentId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (repairsResponse.ok) {
+        const repairs = await repairsResponse.json();
+        setActiveRepairs(repairs);
+      }
+    } catch (error) {
+      console.error('Error loading diary card:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadDiaryCard();
+  // Helper to get Monday of current week
+  const getMonday = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  };
+
+  // Helper to get Sunday of current week
+  const getSunday = (date: Date) => {
+    const monday = getMonday(date);
+    return new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000);
+  };
+
+  // Fetch diary card when resident changes
+  useEffect(() => {
+    if (selectedResident && programId) {
+      loadDiaryCardForResident(selectedResident);
+    }
   }, [selectedResident, programId]);
 
   const handleRedeem = async () => {
     if (!programId || !selectedResident) {
-      alert('Please select a resident');
+      addToast('Please select a resident', 'warning');
       return;
     }
 
@@ -404,14 +424,24 @@ export default function AwardPointsPage() {
     const itemName = redeemItem === 'Other' ? customItem : redeemItem;
 
     if (!pointsToRedeem || !itemName) {
-      alert('Please fill in all fields');
+      addToast('Please fill in all fields', 'warning');
+      return;
+    }
+
+    // Check if sufficient balance
+    if (pointsToRedeem > (diaryCard?.currentBalance || 0)) {
+      addToast('Insufficient points balance', 'error');
       return;
     }
 
     setSubmitting(true);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!token) return;
+      if (!token) {
+        addToast('Not authenticated', 'error');
+        setSubmitting(false);
+        return;
+      }
 
       const response = await fetch(`/api/programs/${programId}/redemptions`, {
         method: 'POST',
@@ -429,22 +459,20 @@ export default function AwardPointsPage() {
       });
 
       if (response.ok) {
-        alert(`Redemption submitted successfully! Awaiting approval.`);
+        addToast('Redemption submitted successfully! Awaiting approval.', 'success');
         setRedeemItem('');
         setRedeemPoints('');
         setCustomItem('');
         setCustomPoints('');
-        // Reload diary card
-        const currentResident = selectedResident;
-        setSelectedResident('');
-        setTimeout(() => setSelectedResident(currentResident), 100);
+        // Reload diary card to update balance
+        loadDiaryCardForResident(selectedResident);
       } else {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        addToast(`Error: ${error}`, 'error');
       }
     } catch (error) {
       console.error('Error submitting redemption:', error);
-      alert('Failed to submit redemption');
+      addToast('Failed to submit redemption', 'error');
     } finally {
       setSubmitting(false);
     }
