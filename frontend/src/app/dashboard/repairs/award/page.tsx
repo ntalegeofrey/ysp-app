@@ -630,7 +630,7 @@ export default function AwardPointsPage() {
             </div>
             <div className="text-right">
               <p className="text-sm text-primary-lightest">Available Points</p>
-              <p className="text-3xl font-bold">{diaryCard?.currentBalance || 0}</p>
+              <p className="text-3xl font-bold">{calculateCurrentWeekBalance()}</p>
             </div>
           </div>
         </div>
@@ -687,11 +687,11 @@ export default function AwardPointsPage() {
                   onChange={(e) => setCustomPoints(e.target.value)}
                   placeholder="Enter points..."
                   min="0"
-                  max={diaryCard?.currentBalance || 0}
+                  max={calculateCurrentWeekBalance()}
                   className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
                 <p className="mt-1 text-xs text-font-detail">
-                  Maximum: {diaryCard?.currentBalance || 0} points
+                  Maximum: {calculateCurrentWeekBalance()} points
                 </p>
               </div>
             </div>
@@ -707,11 +707,11 @@ export default function AwardPointsPage() {
                 onChange={(e) => setRedeemPoints(e.target.value)}
                 placeholder="Enter points amount..."
                 min="0"
-                max={diaryCard?.currentBalance || 0}
+                max={calculateCurrentWeekBalance()}
                 className="w-full border border-bd rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
               <p className="mt-1 text-xs text-font-detail">
-                Maximum: {diaryCard?.currentBalance || 0} points
+                Maximum: {calculateCurrentWeekBalance()} points
               </p>
             </div>
           ) : null}
