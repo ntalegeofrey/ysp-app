@@ -294,7 +294,7 @@ export default function RepairsPage() {
                               <i className="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                             {openMenuIndex === indexOfFirstItem + index && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow z-10">
+                              <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow-lg z-50">
                                 <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push(`/dashboard/repairs/history/${resident.id}`)}>
                                   <i className="fa-solid fa-history text-primary"></i>
                                   View Repairs
