@@ -20,7 +20,7 @@ export default function AwardPointsPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [programId, setProgramId] = useState<number | null>(null);
-  const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number}}>({});
+  const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number | string}}>({});
   const [activeRepairs, setActiveRepairs] = useState<any[]>([]);
 
   // Define all behaviors with their keys and labels
@@ -125,47 +125,48 @@ export default function AwardPointsPage() {
     const repairLevel = getRepairForDay(day, activeRepairs);
     const isToday = day === todayColumn;
     const isPast = day < todayColumn;
-    const value = diaryPoints[behaviorKey]?.[day] || 0;
+    const cellValue = diaryPoints[behaviorKey]?.[day];
     
-    // Check if this cell should show repair marker
-    let showRepair = false;
-    if (repairLevel === 'Repair 3') showRepair = true; // R3 blocks all
-    if (repairLevel === 'Repair 2') showRepair = true; // R2 blocks all day
-    if (repairLevel === 'Repair 1' && shiftNumber === 1) showRepair = true; // R1 blocks shift 1 only
+    // Determine if this cell should auto-show repair marker from active repairs
+    let autoRepair = false;
+    if (repairLevel === 'Repair 3') autoRepair = true;
+    if (repairLevel === 'Repair 2') autoRepair = true;
+    if (repairLevel === 'Repair 1' && shiftNumber === 1) autoRepair = true;
     
-    if (showRepair) {
-      // Determine repair colors
-      const repairColors = repairLevel === 'Repair 3' 
-        ? { bg: 'bg-error-lightest', text: 'text-error', label: 'R3' }
-        : repairLevel === 'Repair 2' 
-        ? { bg: 'bg-highlight-lightest', text: 'text-highlight', label: 'R2' }
-        : { bg: 'bg-primary-lightest', text: 'text-primary', label: 'R1' };
-      
-      return (
-        <td key={day} className={`p-0 border border-bd ${repairColors.bg}`}>
-          <input 
-            type="text" 
-            value={repairColors.label}
-            disabled 
-            className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${repairColors.text}`}
-          />
-        </td>
-      );
+    // Display value - can be R1, R2, R3, or a number
+    const displayValue = cellValue !== undefined ? cellValue : (autoRepair ? (repairLevel === 'Repair 3' ? 'R3' : repairLevel === 'Repair 2' ? 'R2' : 'R1') : 2);
+    
+    // Determine background color based on value
+    let bgClass = isToday ? 'bg-primary-lightest/20' : isPast ? 'bg-bg-subtle' : 'bg-transparent';
+    let textClass = '';
+    
+    if (displayValue === 'R3' || displayValue === 'R2' || displayValue === 'R1') {
+      bgClass = displayValue === 'R3' ? 'bg-error-lightest' : displayValue === 'R2' ? 'bg-highlight-lightest' : 'bg-primary-lightest';
+      textClass = displayValue === 'R3' ? 'text-error' : displayValue === 'R2' ? 'text-highlight' : 'text-primary';
     }
     
-    // Normal input - editable only if TODAY
+    // Allow editing only on TODAY
     return (
-      <td key={day} className="p-0 border border-bd">
+      <td key={day} className={`p-0 border border-bd ${bgClass}`}>
         <input 
-          type="number" 
-          value={value}
-          onChange={(e) => updatePoints(behaviorKey, day, parseInt(e.target.value) || 0)}
+          type="text" 
+          value={displayValue}
+          onChange={(e) => {
+            const val = e.target.value.trim().toUpperCase();
+            // Accept R1, R2, R3, or numbers
+            if (val === 'R1' || val === 'R2' || val === 'R3') {
+              updatePoints(behaviorKey, day, val as any);
+            } else if (val === '') {
+              updatePoints(behaviorKey, day, 0);
+            } else {
+              const num = parseInt(val);
+              if (!isNaN(num)) {
+                updatePoints(behaviorKey, day, num);
+              }
+            }
+          }}
           disabled={!isToday}
-          min={0}
-          max={10}
-          className={`w-full h-full text-center border-none ${
-            isToday ? 'bg-primary-lightest/20' : isPast ? 'bg-bg-subtle' : 'bg-transparent'
-          } px-1.5 py-2 text-sm ${!isToday ? 'cursor-not-allowed' : ''}`}
+          className={`w-full h-full text-center border-none bg-transparent px-1.5 py-2 text-sm font-semibold ${textClass} ${!isToday ? 'cursor-not-allowed' : ''}`}
         />
       </td>
     );
@@ -173,21 +174,31 @@ export default function AwardPointsPage() {
 
   // Helper to calculate total points for a shift on a specific day
   const calculateShiftTotal = (shiftBehaviors: string[], day: number, shiftNumber: number) => {
-    const repairLevel = getRepairForDay(day, activeRepairs);
-    
-    // R1: Blocks specific shift
-    if (repairLevel === 'Repair 1' && shiftNumber === 1) return 0;
-    
-    // R2: Blocks entire day (all shifts)
-    if (repairLevel === 'Repair 2') return 0;
-    
-    // R3: Blocks 3 days (checked in getRepairForDay)
-    if (repairLevel === 'Repair 3') return 0;
-    
     // Calculate sum of all behaviors in this shift
     return shiftBehaviors.reduce((sum, behavior) => {
-      return sum + (diaryPoints[behavior]?.[day] || 0);
+      const value = diaryPoints[behavior]?.[day];
+      
+      // If value is R1, R2, or R3, it counts as 0 points
+      if (value === 'R1' || value === 'R2' || value === 'R3') {
+        return sum + 0;
+      }
+      
+      // Otherwise add the numeric value
+      return sum + (typeof value === 'number' ? value : 0);
     }, 0);
+  };
+
+  // Helper to calculate total points for a day (all shifts combined)
+  const calculateDayTotal = (day: number) => {
+    const shift1BehaviorKeys = shift1Behaviors.map(b => b.key);
+    const shift2BehaviorKeys = shift2Behaviors.map(b => b.key);
+    const shift3BehaviorKeys = shift3Behaviors.map(b => b.key);
+    
+    const shift1 = calculateShiftTotal(shift1BehaviorKeys, day, 1);
+    const shift2 = calculateShiftTotal(shift2BehaviorKeys, day, 2);
+    const shift3 = calculateShiftTotal(shift3BehaviorKeys, day, 3);
+    
+    return shift1 + shift2 + shift3;
   };
 
   // Save diary card
@@ -599,11 +610,9 @@ export default function AwardPointsPage() {
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 1)</td>
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => {
                   const total = calculateShiftTotal(shift1Behaviors.map(b => b.key), day, 1);
-                  const repairLevel = getRepairForDay(day, activeRepairs);
-                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2' || repairLevel === 'Repair 1');
                   
                   return (
-                    <td key={`s1-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                    <td key={`s1-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${total === 0 ? 'text-error' : 'text-primary'}`}>
                       {total}
                     </td>
                   );
@@ -625,11 +634,9 @@ export default function AwardPointsPage() {
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 2)</td>
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => {
                   const total = calculateShiftTotal(shift2Behaviors.map(b => b.key), day, 2);
-                  const repairLevel = getRepairForDay(day, activeRepairs);
-                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2');
                   
                   return (
-                    <td key={`s2-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                    <td key={`s2-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${total === 0 ? 'text-error' : 'text-primary'}`}>
                       {total}
                     </td>
                   );
@@ -651,12 +658,24 @@ export default function AwardPointsPage() {
                 <td className="p-2 border border-bd text-sm font-semibold">Points Earned (Shift 3)</td>
                 {[0, 1, 2, 3, 4, 5, 6].map((day) => {
                   const total = calculateShiftTotal(shift3Behaviors.map(b => b.key), day, 3);
-                  const repairLevel = getRepairForDay(day, activeRepairs);
-                  const isRepairDay = repairLevel && (repairLevel === 'Repair 3' || repairLevel === 'Repair 2');
                   
                   return (
-                    <td key={`s3-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${isRepairDay ? 'text-error' : 'text-primary'}`}>
+                    <td key={`s3-tot-${day}`} className={`p-2 border border-bd text-center font-bold ${total === 0 ? 'text-error' : 'text-primary'}`}>
                       {total}
+                    </td>
+                  );
+                })}
+              </tr>
+
+              {/* Daily Total Row - Sum of all shifts */}
+              <tr className="bg-success-lightest border-t-2 border-success">
+                <td className="p-3 border border-bd text-sm font-bold text-success">DAILY TOTAL (All Shifts)</td>
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                  const dayTotal = calculateDayTotal(day);
+                  
+                  return (
+                    <td key={`day-tot-${day}`} className="p-3 border border-bd text-center font-bold text-lg text-success">
+                      {dayTotal}
                     </td>
                   );
                 })}
