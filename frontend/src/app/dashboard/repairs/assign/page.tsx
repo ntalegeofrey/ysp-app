@@ -97,7 +97,9 @@ export default function AssignRepairPage() {
                 setIsProgramDirector(
                   roleType === 'PROGRAM_DIRECTOR' || 
                   roleType === 'ASSISTANT_DIRECTOR' ||
-                  roleType === 'REGIONAL_ADMIN'
+                  roleType === 'REGIONAL_ADMIN' ||
+                  roleType === 'ADMINISTRATOR' ||
+                  roleType === 'ADMIN'
                 );
                 
                 // Check if user is clinical - check multiple fields

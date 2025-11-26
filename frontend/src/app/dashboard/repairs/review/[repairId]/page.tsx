@@ -64,7 +64,9 @@ export default function RepairReviewPage() {
             setIsProgramDirector(
               roleType === 'PROGRAM_DIRECTOR' || 
               roleType === 'ASSISTANT_DIRECTOR' ||
-              roleType === 'REGIONAL_ADMIN'
+              roleType === 'REGIONAL_ADMIN' ||
+              roleType === 'ADMINISTRATOR' ||
+              roleType === 'ADMIN'
             );
             
             const isClinicalRole = 
