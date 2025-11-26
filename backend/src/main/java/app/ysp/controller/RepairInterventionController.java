@@ -106,6 +106,25 @@ public class RepairInterventionController {
         }
     }
 
+    @PostMapping("/interventions/{id}/review")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRATOR', 'ROLE_ADMIN', 'ROLE_CLINICAL', 'ROLE_PROGRAM_DIRECTOR', 'ROLE_ASSISTANT_PROGRAM_DIRECTOR')")
+    public ResponseEntity<?> reviewRepair(
+            @PathVariable Long programId,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request,
+            Authentication auth) {
+        try {
+            String userEmail = auth.getName();
+            String action = request.get("action"); // "revoke" or "affirm"
+            String comments = request.get("comments");
+            
+            RepairInterventionResponse response = repairService.reviewRepair(id, action, comments, userEmail);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // Get staff by role type for approval sections
     @GetMapping("/staff-by-role/{roleType}")
     @PreAuthorize("isAuthenticated()")

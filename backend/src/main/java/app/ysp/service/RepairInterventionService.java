@@ -132,6 +132,31 @@ public class RepairInterventionService {
     }
 
     @Transactional
+    public RepairInterventionResponse reviewRepair(Long id, String action, String comments, String userEmail) {
+        RepairIntervention repair = repairRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Repair not found"));
+
+        User reviewer = userRepo.findByEmailIgnoreCase(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if ("revoke".equalsIgnoreCase(action)) {
+            // Revoke the repair - set end date to today
+            repair.setRepairEndDate(java.time.LocalDate.now().minusDays(1)); // End yesterday
+            repair.setStatus("revoked");
+        } else if ("affirm".equalsIgnoreCase(action)) {
+            // Affirm the repair - keep it active
+            repair.setStatus("approved");
+        } else {
+            throw new IllegalArgumentException("Invalid action: " + action);
+        }
+
+        repair.setUpdatedAt(java.time.Instant.now());
+        
+        RepairIntervention saved = repairRepo.save(repair);
+        return toResponse(saved);
+    }
+
+    @Transactional
     public RepairInterventionResponse approveClinical(Long id, RepairReviewRequest request, String userEmail) {
         RepairIntervention repair = repairRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Repair intervention not found"));

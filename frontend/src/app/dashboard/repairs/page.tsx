@@ -2,15 +2,21 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
+import ReviewRepairModal from '@/app/components/ReviewRepairModal';
 
 export default function RepairsPage() {
   const router = useRouter();
+  const { toasts, addToast, removeToast } = useToast();
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [detailsModal, setDetailsModal] = useState<any>(null);
   const [repairs, setRepairs] = useState<any[]>([]);
   const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [programId, setProgramId] = useState<number | null>(null);
+  const [reviewModal, setReviewModal] = useState<{open: boolean, repair: any | null}>({open: false, repair: null});
+  const [userRole, setUserRole] = useState('');
   
   // Pagination & Filters
   const [currentPage, setCurrentPage] = useState(1);
@@ -22,6 +28,13 @@ export default function RepairsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Get user role
+        const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        if (userData) {
+          const user = JSON.parse(userData);
+          setUserRole(user.role || '');
+        }
+
         // Get selected program
         const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
         if (!programData) return;
@@ -58,6 +71,48 @@ export default function RepairsPage() {
 
     loadData();
   }, []);
+
+  // Check if user can review repairs
+  const canReview = () => {
+    const reviewRoles = ['ROLE_ADMINISTRATOR', 'ROLE_ADMIN', 'ROLE_CLINICAL', 'ROLE_PROGRAM_DIRECTOR', 'ROLE_ASSISTANT_PROGRAM_DIRECTOR'];
+    return reviewRoles.some(role => userRole.toUpperCase().includes(role.replace('ROLE_', '')));
+  };
+
+  // Handle repair review
+  const handleReviewSubmit = async (action: 'revoke' | 'affirm', comments: string) => {
+    if (!reviewModal.repair || !programId) return;
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
+
+      const response = await fetch(`/api/programs/${programId}/repairs/interventions/${reviewModal.repair.id}/review`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action, comments })
+      });
+
+      if (response.ok) {
+        addToast(`Repair ${action === 'revoke' ? 'revoked' : 'affirmed'} successfully`, 'success');
+        // Reload repairs
+        const repairsResponse = await fetch(`/api/programs/${programId}/repairs/interventions`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (repairsResponse.ok) {
+          const repairsData = await repairsResponse.json();
+          setRepairs(repairsData);
+        }
+      } else {
+        addToast('Failed to review repair', 'error');
+      }
+    } catch (error) {
+      console.error('Error reviewing repair:', error);
+      addToast('Error reviewing repair', 'error');
+    }
+  };
 
   // Filter and search residents
   const filteredResidents = residents.filter(resident => {
@@ -345,6 +400,24 @@ export default function RepairsPage() {
                                   <i className="fa-solid fa-exclamation-circle text-error"></i>
                                   Assign Repair
                                 </button>
+                                {canReview() && activeRepairs.length > 0 && (
+                                  <>
+                                    <div className="border-t border-bd"></div>
+                                    {activeRepairs.map((repair: any, idx: number) => (
+                                      <button 
+                                        key={idx}
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2"
+                                        onClick={() => {
+                                          setReviewModal({open: true, repair});
+                                          setOpenMenuIndex(null);
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-gavel text-primary"></i>
+                                        Review {repair.repairLevel}
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -527,6 +600,18 @@ export default function RepairsPage() {
           </div>
         </div>
       )}
+
+      {/* Review Repair Modal */}
+      <ReviewRepairModal
+        repair={reviewModal.repair}
+        isOpen={reviewModal.open}
+        onClose={() => setReviewModal({open: false, repair: null})}
+        onSubmit={handleReviewSubmit}
+      />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
     </div>
   );
 }

@@ -96,12 +96,14 @@ export default function AwardPointsPage() {
     checkDate.setHours(0, 0, 0, 0);
     
     for (const repair of repairs) {
+      // Only show repairs that are approved (not revoked)
       if (repair.status === 'approved' && repair.repairStartDate && repair.repairEndDate) {
         const startDate = new Date(repair.repairStartDate);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(repair.repairEndDate);
         endDate.setHours(0, 0, 0, 0);
         
+        // Check if repair is not revoked and is within date range
         if (checkDate >= startDate && checkDate <= endDate) {
           return {
             repairLevel: repair.repairLevel,
