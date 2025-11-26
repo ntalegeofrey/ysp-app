@@ -20,6 +20,53 @@ export default function AwardPointsPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [programId, setProgramId] = useState<number | null>(null);
+  const [diaryPoints, setDiaryPoints] = useState<{[key: string]: {[day: number]: number}}>({});
+  const [repairDays, setRepairDays] = useState<number[]>([]);
+
+  // Helper function to initialize diary points with default values
+  const initializeDiaryPoints = () => {
+    const behaviors = [
+      's1_rule', 's1_directive', 's1_participate', 's1_hygiene', 's1_boundaries',
+      's1_respectful', 's1_coping', 's1_interactions', 's1_beyond',
+      's2_rule', 's2_directive', 's2_participate',
+      's3_sleep', 's3_schedule', 's3_quiet', 's3_disruptive'
+    ];
+    
+    const initialPoints: {[key: string]: {[day: number]: number}} = {};
+    behaviors.forEach(behavior => {
+      initialPoints[behavior] = {};
+      for (let day = 0; day < 7; day++) {
+        initialPoints[behavior][day] = 2; // Default 2 points
+      }
+    });
+    setDiaryPoints(initialPoints);
+  };
+
+  // Helper function to calculate which days have active repairs
+  const calculateRepairDays = (repairs: any[]) => {
+    const today = new Date();
+    const rDays: number[] = [];
+    
+    repairs.forEach(repair => {
+      if (repair.status === 'approved' && repair.repairStartDate && repair.repairEndDate) {
+        const startDate = new Date(repair.repairStartDate);
+        const endDate = new Date(repair.repairEndDate);
+        
+        // Check each day of the current week
+        const weekStart = new Date(diaryCard?.weekStartDate || today);
+        for (let i = 0; i < 7; i++) {
+          const checkDate = new Date(weekStart);
+          checkDate.setDate(weekStart.getDate() + i);
+          
+          if (checkDate >= startDate && checkDate <= endDate) {
+            rDays.push(i);
+          }
+        }
+      }
+    });
+    
+    return Array.from(new Set(rDays)); // Remove duplicates
+  };
 
   // Fetch residents on mount
   useEffect(() => {
@@ -80,12 +127,29 @@ export default function AwardPointsPage() {
         if (response.ok) {
           const data = await response.json();
           setDiaryCard(data);
-        } else {
-          setDiaryCard(null);
+          
+          // Load existing diary points if available
+          if (data.diaryData) {
+            setDiaryPoints(JSON.parse(data.diaryData));
+          } else {
+            // Initialize with default 2 points for all behaviors
+            initializeDiaryPoints();
+          }
+        }
+        
+        // Fetch repairs to mark R3 days
+        const repairsResponse = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${selectedResident}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (repairsResponse.ok) {
+          const repairs = await repairsResponse.json();
+          // Calculate which days have active repairs
+          const rDays = calculateRepairDays(repairs);
+          setRepairDays(rDays);
         }
       } catch (error) {
         console.error('Error loading diary card:', error);
-        setDiaryCard(null);
       } finally {
         setLoading(false);
       }
