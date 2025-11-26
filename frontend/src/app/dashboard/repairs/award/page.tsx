@@ -248,6 +248,21 @@ export default function AwardPointsPage() {
     return shift1 + shift2 + shift3;
   };
 
+  // Helper to calculate current week balance (up to today only)
+  const calculateCurrentWeekBalance = () => {
+    const todayColumn = getTodayColumn();
+    if (todayColumn < 0) return diaryCard?.startingPoints || 0;
+
+    let balance = diaryCard?.startingPoints || 0;
+    // Add points earned from day 0 up to and including today
+    for (let d = 0; d <= todayColumn; d++) {
+      balance += calculateDayTotal(d);
+      balance -= (dailyRedemptions[d] || 0);
+    }
+    
+    return balance;
+  };
+
   // Save diary card
   const handleSaveDiary = async () => {
     if (!programId || !selectedResident) {
@@ -581,7 +596,8 @@ export default function AwardPointsPage() {
             </div>
             <div>
               <p className="text-font-detail text-sm">Current Week Balance</p>
-              <p className="text-2xl font-bold text-success">{diaryCard?.currentBalance || 0}</p>
+              <p className="text-2xl font-bold text-success">{calculateCurrentWeekBalance()}</p>
+              <p className="text-xs text-font-detail mt-1">As of today</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
