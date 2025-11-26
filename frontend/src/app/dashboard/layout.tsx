@@ -157,6 +157,11 @@ function HeaderWithParams({
     breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
   }
 
+  // Show back button for repairs history dynamic route
+  if (pathname.startsWith('/dashboard/repairs/history/')) {
+    showBackButton = true;
+  }
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('selectedProgram');
