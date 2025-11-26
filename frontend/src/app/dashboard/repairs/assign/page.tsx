@@ -407,73 +407,21 @@ export default function AssignRepairPage() {
                 placeholder="Provide a detailed description of the incident and behavior..."
               />
             </div>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="review-date" className="block text-sm font-medium text-font-detail mb-1">
-                  Review Date
-                </label>
-                <input
-                  type="date"
-                  id="review-date"
-                  value={reviewDate}
-                  onChange={(e) => setReviewDate(e.target.value)}
-                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-detail mb-2">
-                  Program Director/AD Review
-                </label>
-                {isProgramDirector ? (
-                  <div className="space-y-3">
-                    <textarea
-                      placeholder="Add review comments (optional)..."
-                      rows={3}
-                      className="w-full border border-bd rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                    ></textarea>
-                    <div className="flex gap-2">
-                      <button className="flex-1 px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors">
-                        <i className="fa-solid fa-check mr-2"></i>
-                        Approve
-                      </button>
-                      <button className="flex-1 px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors">
-                        <i className="fa-solid fa-times mr-2"></i>
-                        Disapprove
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Pending Review"
-                    disabled
-                    className="w-full bg-bg-subtle border border-bd rounded-lg px-3 py-2 text-sm text-font-medium cursor-not-allowed"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-detail mb-2">
-                  Clinical Review
-                </label>
-                {/* Temporarily showing for all users to test */}
-                <div className="space-y-3">
-                  <textarea
-                    placeholder="Add review comments (optional)..."
-                    rows={3}
-                    className="w-full border border-bd rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                  ></textarea>
-                  <div className="flex gap-2">
-                    <button className="flex-1 px-4 py-2 bg-success text-white rounded-lg text-sm font-medium hover:bg-success/90 transition-colors">
-                      <i className="fa-solid fa-check mr-2"></i>
-                      Approve
-                    </button>
-                    <button className="flex-1 px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors">
-                      <i className="fa-solid fa-times mr-2"></i>
-                      Disapprove
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <div>
+              <label htmlFor="review-date" className="block text-sm font-medium text-font-detail mb-1">
+                Review Date
+              </label>
+              <input
+                type="date"
+                id="review-date"
+                value={reviewDate}
+                onChange={(e) => setReviewDate(e.target.value)}
+                className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+              <p className="text-xs text-font-detail mt-2">
+                <i className="fa-solid fa-info-circle mr-1"></i>
+                After submission, this repair will be sent for Program Director and Clinical review.
+              </p>
             </div>
           </div>
         </section>

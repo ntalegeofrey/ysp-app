@@ -169,12 +169,23 @@ export default function RepairsPage() {
                           <p className={`text-xs ${colors.text} mt-2`}>Point accrual suspended</p>
                         )}
                       </div>
-                      <button 
-                        onClick={() => setDetailsModal(repair)}
-                        className={`${colors.button} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors`}
-                      >
-                        View Details
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setDetailsModal(repair)}
+                          className={`${colors.button} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors`}
+                        >
+                          View Details
+                        </button>
+                        {repair.status === 'pending_review' && (
+                          <button 
+                            onClick={() => router.push(`/dashboard/repairs/review/${repair.id}`)}
+                            className="bg-warning text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
+                          >
+                            <i className="fa-solid fa-clipboard-check mr-1"></i>
+                            Review
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -297,7 +308,7 @@ export default function RepairsPage() {
                               <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow-lg z-50">
                                 <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push(`/dashboard/repairs/history/${resident.id}`)}>
                                   <i className="fa-solid fa-history text-primary"></i>
-                                  View Repairs
+                                  Repair History
                                 </button>
                                 <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2" onClick={() => router.push('/dashboard/repairs/award')}>
                                   <i className="fa-solid fa-star text-success"></i>
