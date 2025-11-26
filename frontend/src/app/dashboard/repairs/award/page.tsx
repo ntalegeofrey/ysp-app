@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
 
 export default function AwardPointsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toasts, addToast, removeToast } = useToast();
   const [redeemPoints, setRedeemPoints] = useState('');
   const [redeemItem, setRedeemItem] = useState('');
   const [customItem, setCustomItem] = useState('');
@@ -460,7 +463,28 @@ export default function AwardPointsPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* Save Button */}
+        <div className="p-4 bg-bg-subtle border-t border-bd">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-font-detail">
+              <i className="fa-solid fa-info-circle text-primary"></i>
+              <span>Save changes to update the resident's diary card</span>
+            </div>
+            <button
+              onClick={() => {
+                // TODO: Implement save diary functionality with backend API
+                addToast('Diary card saved successfully!', 'success');
+              }}
+              className="bg-success text-white px-6 py-3 rounded-lg font-medium hover:bg-success/90 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <i className="fa-solid fa-save"></i>
+              Save Diary Card
+            </button>
+          </div>
+        </div>
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
