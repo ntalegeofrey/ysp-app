@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
 
@@ -19,9 +19,12 @@ interface WatchAssignment {
   room: string;
   watchType: string;
   startDateTime: string;
+  endDateTime?: string;
   clinicalReason: string;
   status: string;
   totalLogEntries: number;
+  duration?: string;
+  outcome?: string;
 }
 
 interface LogEntry {
@@ -68,18 +71,35 @@ export default function SleepLogPage() {
   const [otherRiskDescription, setOtherRiskDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
+  // Archive filters and pagination
+  const [archiveSearch, setArchiveSearch] = useState('');
+  const [archiveWatchType, setArchiveWatchType] = useState('');
+  const [archiveStartDate, setArchiveStartDate] = useState('');
+  const [archiveEndDate, setArchiveEndDate] = useState('');
+  const [archiveOutcome, setArchiveOutcome] = useState('');
+  const [archivePage, setArchivePage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  
   // Get program and token
   const programId = typeof window !== 'undefined' ? sessionStorage.getItem('activeProgramId') : null;
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   // Fetch data on load
   useEffect(() => {
-    if (programId && token) {
+    if (programId) {
+      console.log('Fetching data for program:', programId);
       fetchStats();
       fetchActiveWatches();
       fetchResidents();
     }
-  }, [programId, token]);
+  }, [programId]);
+
+  // Fetch archived watches when archive tab is active
+  useEffect(() => {
+    if (activeTab === 'archive' && programId && token) {
+      fetchArchivedWatches();
+    }
+  }, [activeTab, programId, token]);
 
   // SSE for real-time updates
   useEffect(() => {
@@ -102,36 +122,38 @@ export default function SleepLogPage() {
   }, [programId]);
 
   const fetchStats = async () => {
+    if (!programId) return;
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/programs/${programId}/watches/statistics`, {
         credentials: 'include',
-        headers: { 
+        headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
+      if (!res.ok) return;
+      const data = await res.json();
+      setStats(data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
   };
 
   const fetchActiveWatches = async () => {
+    if (!programId) return;
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/programs/${programId}/watches/active`, {
         credentials: 'include',
-        headers: { 
+        headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveWatches(data);
-      }
+      if (!res.ok) return;
+      const data = await res.json();
+      setActiveWatches(data);
     } catch (error) {
       console.error('Failed to fetch active watches:', error);
     } finally {
@@ -140,8 +162,32 @@ export default function SleepLogPage() {
   };
 
   const fetchResidents = async () => {
+    if (!programId) return;
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (!res.ok) {
+        console.error('Failed to fetch residents - status:', res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log('Fetched residents:', data);
+      setResidents(data);
+    } catch (error) {
+      console.error('Failed to fetch residents:', error);
+    }
+  };
+
+  const fetchArchivedWatches = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/programs/${programId}/watches/archive`, {
         credentials: 'include',
         headers: { 
           'Accept': 'application/json',
@@ -150,12 +196,68 @@ export default function SleepLogPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setResidents(data);
+        setArchivedWatches(data);
       }
     } catch (error) {
-      console.error('Failed to fetch residents:', error);
+      console.error('Failed to fetch archived watches:', error);
+      addToast('Failed to load archive', 'error');
+    } finally {
+      setLoading(false);
     }
   };
+
+  const formatDateTime = (dateTime: string) => {
+    return new Date(dateTime).toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getWatchTypeColor = (type: string) => {
+    switch (type) {
+      case 'ELEVATED': return 'error';
+      case 'ALERT': return 'warning';
+      case 'GENERAL': return 'success';
+      default: return 'primary';
+    }
+  };
+
+  const getWatchTypeBadge = (type: string) => {
+    switch (type) {
+      case 'ELEVATED': return 'Elevated';
+      case 'ALERT': return 'Alert';
+      case 'GENERAL': return 'General';
+      default: return type;
+    }
+  };
+
+  const handlePrintWatch = (watchId: number) => {
+    // Print functionality will be implemented
+    console.log('Print watch:', watchId);
+    addToast('Print feature coming soon', 'info');
+  };
+
+  // Filter and paginate archived watches using useMemo
+  const filteredArchive = useMemo(() => {
+    return archivedWatches.filter(watch => {
+      if (archiveSearch && !watch.residentName.toLowerCase().includes(archiveSearch.toLowerCase())) return false;
+      if (archiveWatchType && watch.watchType !== archiveWatchType) return false;
+      if (archiveStartDate && new Date(watch.startDateTime) < new Date(archiveStartDate)) return false;
+      if (archiveEndDate && watch.endDateTime && new Date(watch.endDateTime) > new Date(archiveEndDate + 'T23:59:59')) return false;
+      if (archiveOutcome && watch.status !== archiveOutcome) return false;
+      return true;
+    });
+  }, [archivedWatches, archiveSearch, archiveWatchType, archiveStartDate, archiveEndDate, archiveOutcome]);
+
+  const paginatedArchive = useMemo(() => {
+    return filteredArchive.slice(0, archivePage * ITEMS_PER_PAGE);
+  }, [filteredArchive, archivePage]);
+
+  const hasMoreArchive = filteredArchive.length > paginatedArchive.length;
 
   const handleCreateWatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,6 +274,8 @@ export default function SleepLogPage() {
 
     setSubmitting(true);
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
       // Append other risk description to clinical reason if provided
       const fullClinicalReason = riskAssessment.other && otherRiskDescription
         ? `${clinicalReason}\n\nOther Risk Assessment: ${otherRiskDescription}`
@@ -182,8 +286,8 @@ export default function SleepLogPage() {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           residentId: parseInt(selectedResident),
@@ -496,6 +600,14 @@ export default function SleepLogPage() {
               Add Resident to Watch (Clinician Only)
             </h3>
             <p className="text-sm text-font-detail mt-1">Complete this form to place a resident under watch supervision</p>
+            {/* Debug info - remove after testing */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                <strong>Debug:</strong> Program ID: {programId || 'NOT SET'} | 
+                Residents loaded: {residents.length} | 
+                Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'Present' : 'Missing'}
+              </div>
+            )}
           </div>
           <form onSubmit={handleCreateWatch} className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -509,12 +621,16 @@ export default function SleepLogPage() {
                       required
                       className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
-                      <option value="">Select Resident...</option>
-                      {residents.map(resident => (
-                        <option key={resident.id} value={resident.id}>
-                          {resident.firstName} {resident.lastName} - {resident.residentId}
-                        </option>
-                      ))}
+                      <option value="">Select Resident... ({residents.length} available)</option>
+                      {residents.length === 0 ? (
+                        <option disabled>Loading residents...</option>
+                      ) : (
+                        residents.map(resident => (
+                          <option key={resident.id} value={resident.id}>
+                            {resident.firstName} {resident.lastName} - {resident.residentId}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div>
@@ -677,21 +793,47 @@ export default function SleepLogPage() {
               Watch Archive
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <input type="text" placeholder="Search resident..." className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-              <select className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                <option>All Watch Types</option>
-                <option>Elevated Watch</option>
-                <option>Alert Watch</option>
-                <option>General Watch</option>
+              <input 
+                type="text" 
+                placeholder="Search resident..." 
+                value={archiveSearch}
+                onChange={(e) => setArchiveSearch(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+              />
+              <select 
+                value={archiveWatchType}
+                onChange={(e) => setArchiveWatchType(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Watch Types</option>
+                <option value="ELEVATED">Elevated Watch</option>
+                <option value="ALERT">Alert Watch</option>
+                <option value="GENERAL">General Watch</option>
               </select>
-              <input type="date" className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-              <input type="date" className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-              <select className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                <option>All Outcomes</option>
-                <option>Completed Successfully</option>
-                <option>Escalated</option>
-                <option>Transferred</option>
-                <option>Discontinued</option>
+              <input 
+                type="date" 
+                value={archiveStartDate}
+                onChange={(e) => setArchiveStartDate(e.target.value)}
+                placeholder="Start Date"
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+              />
+              <input 
+                type="date" 
+                value={archiveEndDate}
+                onChange={(e) => setArchiveEndDate(e.target.value)}
+                placeholder="End Date"
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+              />
+              <select 
+                value={archiveOutcome}
+                onChange={(e) => setArchiveOutcome(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Outcomes</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="ESCALATED">Escalated</option>
+                <option value="TRANSFERRED">Transferred</option>
+                <option value="DISCONTINUED">Discontinued</option>
               </select>
             </div>
           </div>
@@ -710,57 +852,67 @@ export default function SleepLogPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-bd hover:bg-bg-subtle">
-                  <td className="p-4 font-medium">Michael Rodriguez</td>
-                  <td className="p-4"><span className="bg-error text-white px-2 py-1 rounded text-sm">Critical</span></td>
-                  <td className="p-4">10/23/2024 2:00 PM</td>
-                  <td className="p-4">10/24/2024 8:00 AM</td>
-                  <td className="p-4">18h 00m</td>
-                  <td className="p-4"><span className="bg-success text-white px-2 py-1 rounded text-sm">Completed</span></td>
-                  <td className="p-4">18</td>
-                  <td className="p-4"><button className="text-primary hover:underline mr-3">View Log</button><button className="text-success hover:underline">Print</button></td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-bg-subtle">
-                  <td className="p-4 font-medium">Sarah Johnson</td>
-                  <td className="p-4"><span className="bg-warning text-white px-2 py-1 rounded text-sm">Elevated</span></td>
-                  <td className="p-4">10/22/2024 10:00 PM</td>
-                  <td className="p-4">10/23/2024 6:00 AM</td>
-                  <td className="p-4">8h 00m</td>
-                  <td className="p-4"><span className="bg-success text-white px-2 py-1 rounded text-sm">Completed</span></td>
-                  <td className="p-4">8</td>
-                  <td className="p-4"><button className="text-primary hover:underline mr-3">View Log</button><button className="text-success hover:underline">Print</button></td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-bg-subtle">
-                  <td className="p-4 font-medium">Alex Thompson</td>
-                  <td className="p-4"><span className="bg-primary-light text-white px-2 py-1 rounded text-sm">Alert</span></td>
-                  <td className="p-4">10/21/2024 6:00 PM</td>
-                  <td className="p-4">10/22/2024 12:00 PM</td>
-                  <td className="p-4">18h 00m</td>
-                  <td className="p-4"><span className="bg-warning text-white px-2 py-1 rounded text-sm">Escalated</span></td>
-                  <td className="p-4">18</td>
-                  <td className="p-4"><button className="text-primary hover:underline mr-3">View Log</button><button className="text-success hover:underline">Print</button></td>
-                </tr>
-                <tr className="border-b border-bd hover:bg-bg-subtle">
-                  <td className="p-4 font-medium">Jordan Martinez</td>
-                  <td className="p-4"><span className="bg-success text-white px-2 py-1 rounded text-sm">General</span></td>
-                  <td className="p-4">10/20/2024 11:00 PM</td>
-                  <td className="p-4">10/21/2024 7:00 AM</td>
-                  <td className="p-4">8h 00m</td>
-                  <td className="p-4"><span className="bg-success text-white px-2 py-1 rounded text-sm">Completed</span></td>
-                  <td className="p-4">8</td>
-                  <td className="p-4"><button className="text-primary hover:underline mr-3">View Log</button><button className="text-success hover:underline">Print</button></td>
-                </tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center">
+                      <i className="fa-solid fa-spinner fa-spin text-primary text-2xl"></i>
+                      <p className="text-font-detail mt-2">Loading archive...</p>
+                    </td>
+                  </tr>
+                ) : paginatedArchive.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center">
+                      <i className="fa-solid fa-archive text-font-detail text-4xl mb-3"></i>
+                      <p className="text-font-base font-medium">No archived watches found</p>
+                      <p className="text-font-detail text-sm mt-1">Try adjusting your filters</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedArchive.map((watch) => (
+                    <tr key={watch.id} className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-4 font-medium">{watch.residentName}</td>
+                      <td className="p-4">
+                        <span className={`bg-${getWatchTypeColor(watch.watchType)} text-white px-2 py-1 rounded text-sm`}>
+                          {getWatchTypeBadge(watch.watchType)}
+                        </span>
+                      </td>
+                      <td className="p-4">{formatDateTime(watch.startDateTime)}</td>
+                      <td className="p-4">{watch.endDateTime ? formatDateTime(watch.endDateTime) : '-'}</td>
+                      <td className="p-4">{watch.duration || '-'}</td>
+                      <td className="p-4">
+                        <span className={`${watch.status === 'COMPLETED' ? 'bg-success' : watch.status === 'ESCALATED' ? 'bg-warning' : 'bg-primary'} text-white px-2 py-1 rounded text-sm`}>
+                          {watch.status}
+                        </span>
+                      </td>
+                      <td className="p-4">{watch.totalLogEntries}</td>
+                      <td className="p-4">
+                        <button 
+                          onClick={() => handlePrintWatch(watch.id)}
+                          className="text-primary hover:text-primary-light transition-colors"
+                          title="Print Watch Report"
+                        >
+                          <i className="fa-solid fa-print"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-          <div className="p-6 border-t border-bd">
-            <div className="flex justify-center">
-              <button className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light">
-                <i className="fa-solid fa-arrow-down mr-2"></i>
-                Load More
-              </button>
+          {hasMoreArchive && (
+            <div className="p-6 border-t border-bd">
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => setArchivePage(archivePage + 1)}
+                  className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-light"
+                >
+                  <i className="fa-solid fa-arrow-down mr-2"></i>
+                  Load More ({filteredArchive.length - paginatedArchive.length} remaining)
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
