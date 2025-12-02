@@ -642,143 +642,197 @@ export default function SleepLogPage() {
 
       {/* Add to Watch */}
       {activeTab === 'add' && (
-        <div className="bg-white rounded-lg border border-bd">
-          <div className="p-6 border-b border-bd">
-            <h3 className="text-lg font-semibold text-font-base flex items-center">
-              <i className="fa-solid fa-user-plus text-primary mr-3"></i>
-              Add Resident to Watch (Clinician Only)
+        <div className="bg-white rounded-lg border border-bd shadow-sm">
+          <div className="p-6 border-b border-bd bg-gradient-to-r from-primary/5 to-transparent">
+            <h3 className="text-xl font-bold text-font-base flex items-center">
+              <div className="bg-primary p-2 rounded-lg mr-3">
+                <i className="fa-solid fa-user-plus text-white"></i>
+              </div>
+              Add Resident to Watch
             </h3>
-            <p className="text-sm text-font-detail mt-1">Complete this form to place a resident under watch supervision</p>
+            <p className="text-sm text-font-detail mt-2 ml-11">Complete this form to place a resident under watch supervision</p>
             {/* Debug info - remove after testing */}
             {process.env.NODE_ENV === 'development' && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+              <div className="mt-4 ml-11 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
                 <strong>Debug:</strong> Program ID: {programId || 'NOT SET'} | 
                 Residents loaded: {residents.length} | 
                 Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'Present' : 'Missing'}
               </div>
             )}
           </div>
-          <form onSubmit={handleCreateWatch} className="p-6">
+          <form onSubmit={handleCreateWatch} className="p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Resident & Watch Details */}
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Resident Name *</label>
-                    <select 
-                      value={selectedResident}
-                      onChange={(e) => setSelectedResident(e.target.value)}
-                      required
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="">Select Resident... ({residents.length} available)</option>
-                      {residents.length === 0 ? (
-                        <option disabled>Loading residents...</option>
-                      ) : (
-                        residents.map(resident => (
-                          <option key={resident.id} value={resident.id}>
+                <div className="bg-bg-subtle/50 p-5 rounded-lg border border-bd/50">
+                  <h4 className="text-sm font-semibold text-primary mb-4 flex items-center">
+                    <i className="fa-solid fa-user-circle mr-2"></i>
+                    Resident Information
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-font-base mb-2">
+                        Resident Name <span className="text-error">*</span>
+                      </label>
+                      <select 
+                        value={selectedResident}
+                        onChange={(e) => setSelectedResident(e.target.value)}
+                        required
+                        className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all hover:border-primary/50 cursor-pointer"
+                      >
+                        <option value="" className="text-font-detail">
+                          {residents.length === 0 ? 'Loading residents...' : `Select Resident... (${residents.length} available)`}
+                        </option>
+                        {residents.map(resident => (
+                          <option key={resident.id} value={resident.id} className="py-2">
                             {resident.firstName} {resident.lastName} - {resident.residentId}
                           </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Room Number</label>
-                    <input 
-                      type="text" 
-                      value={residents.find(r => r.id === parseInt(selectedResident))?.room || ''}
-                      readOnly
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle" 
-                      placeholder="Auto-filled" 
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Watch Type *</label>
-                    <select 
-                      value={watchType}
-                      onChange={(e) => setWatchType(e.target.value)}
-                      required
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="GENERAL">General Watch</option>
-                      <option value="ALERT">Alert Watch</option>
-                      <option value="ELEVATED">Elevated Watch</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Start Date & Time *</label>
-                    <input 
-                      type="datetime-local" 
-                      value={startDateTime}
-                      onChange={(e) => setStartDateTime(e.target.value)}
-                      required
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
-                    />
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-font-base mb-2">
+                        Room Number
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={residents.find(r => r.id === parseInt(selectedResident))?.room || ''}
+                          readOnly
+                          className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-detail bg-bg-subtle/70" 
+                          placeholder="Will auto-fill after selecting resident" 
+                        />
+                        <i className="fa-solid fa-door-open absolute right-4 top-1/2 -translate-y-1/2 text-font-detail"></i>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <div className="bg-bg-subtle/50 p-5 rounded-lg border border-bd/50">
+                  <h4 className="text-sm font-semibold text-primary mb-4 flex items-center">
+                    <i className="fa-solid fa-shield-halved mr-2"></i>
+                    Watch Configuration
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-font-base mb-2">
+                        Watch Type <span className="text-error">*</span>
+                      </label>
+                      <select 
+                        value={watchType}
+                        onChange={(e) => setWatchType(e.target.value)}
+                        required
+                        className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all hover:border-primary/50 cursor-pointer"
+                      >
+                        <option value="GENERAL" className="py-2">🟢 General Watch</option>
+                        <option value="ALERT" className="py-2">🟡 Alert Watch</option>
+                        <option value="ELEVATED" className="py-2">🔴 Elevated Watch</option>
+                      </select>
+                      <p className="text-xs text-font-detail mt-2">
+                        {watchType === 'GENERAL' && '• Standard monitoring for general concerns'}
+                        {watchType === 'ALERT' && '• Increased monitoring for moderate risk situations'}
+                        {watchType === 'ELEVATED' && '• Maximum monitoring for critical situations'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-font-base mb-2">
+                        Start Date & Time <span className="text-error">*</span>
+                      </label>
+                      <input 
+                        type="datetime-local" 
+                        value={startDateTime}
+                        onChange={(e) => setStartDateTime(e.target.value)}
+                        required
+                        className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Clinical Reason *</label>
+                  <label className="block text-sm font-semibold text-font-base mb-2">
+                    Clinical Reason <span className="text-error">*</span>
+                  </label>
                   <textarea 
                     value={clinicalReason}
                     onChange={(e) => setClinicalReason(e.target.value)}
                     required
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" 
-                    placeholder="Enter clinical justification for watch placement..."
+                    className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none" 
+                    placeholder="Enter detailed clinical justification for watch placement..."
+                    rows={4}
                   />
                 </div>
               </div>
+
+              {/* Right Column - Risk Assessment */}
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Risk Assessment</label>
+                <div className="bg-bg-subtle/50 p-5 rounded-lg border border-bd/50">
+                  <h4 className="text-sm font-semibold text-primary mb-4 flex items-center">
+                    <i className="fa-solid fa-clipboard-check mr-2"></i>
+                    Risk Assessment
+                  </h4>
                   <div className="space-y-3">
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.selfHarmRisk}
                         onChange={(e) => setRiskAssessment({...riskAssessment, selfHarmRisk: e.target.checked})}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Self-harm risk</span>
+                      <div>
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Self-harm risk</span>
+                        <p className="text-xs text-font-detail mt-1">Resident has expressed or shown intent to harm themselves</p>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.suicidalIdeation}
                         onChange={(e) => setRiskAssessment({...riskAssessment, suicidalIdeation: e.target.checked})}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Suicidal ideation</span>
+                      <div>
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Suicidal ideation</span>
+                        <p className="text-xs text-font-detail mt-1">Resident has expressed thoughts of suicide</p>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.aggressiveBehavior}
                         onChange={(e) => setRiskAssessment({...riskAssessment, aggressiveBehavior: e.target.checked})}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Aggressive behavior</span>
+                      <div>
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Aggressive behavior</span>
+                        <p className="text-xs text-font-detail mt-1">Risk of harm to others or property damage</p>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.sleepDisturbance}
                         onChange={(e) => setRiskAssessment({...riskAssessment, sleepDisturbance: e.target.checked})}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Sleep disturbance</span>
+                      <div>
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Sleep disturbance</span>
+                        <p className="text-xs text-font-detail mt-1">Severe insomnia or irregular sleep patterns</p>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.medicalConcern}
                         onChange={(e) => setRiskAssessment({...riskAssessment, medicalConcern: e.target.checked})}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Medical concern</span>
+                      <div>
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Medical concern</span>
+                        <p className="text-xs text-font-detail mt-1">Health-related monitoring required</p>
+                      </div>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-start p-3 rounded-lg hover:bg-white transition-colors cursor-pointer group">
                       <input 
                         type="checkbox" 
                         checked={riskAssessment.other}
@@ -786,48 +840,68 @@ export default function SleepLogPage() {
                           setRiskAssessment({...riskAssessment, other: e.target.checked});
                           if (!e.target.checked) setOtherRiskDescription('');
                         }}
-                        className="mr-3 text-primary focus:ring-primary" 
+                        className="mt-1 mr-3 w-4 h-4 text-primary focus:ring-primary rounded cursor-pointer" 
                       />
-                      <span className="text-sm">Other</span>
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-font-base group-hover:text-primary transition-colors">Other</span>
+                        <p className="text-xs text-font-detail mt-1">Specify additional concerns below</p>
+                      </div>
                     </label>
                     {riskAssessment.other && (
-                      <div className="ml-8 mt-2">
+                      <div className="ml-7 mt-2 animate-in slide-in-from-top-2 duration-200">
                         <textarea
                           value={otherRiskDescription}
                           onChange={(e) => setOtherRiskDescription(e.target.value)}
-                          placeholder="Describe the other risk assessment..."
+                          placeholder="Describe the other risk assessment in detail..."
                           required={riskAssessment.other}
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary"
+                          className="w-full border-2 border-primary/30 rounded-lg px-4 py-3 text-sm text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none"
+                          rows={3}
                         />
                       </div>
                     )}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Clinician Authorization</label>
-                  <input type="text" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Dr. Smith (auto-filled)" readOnly />
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <button 
-                    type="submit" 
-                    disabled={submitting}
-                    className="flex-1 bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Adding...</>
-                    ) : (
-                      <><i className="fa-solid fa-plus mr-2"></i>Add to Watch</>
-                    )}
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setActiveTab('active')}
-                    className="px-6 py-3 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
-                  >
-                    Cancel
-                  </button>
+
+                <div className="bg-gradient-to-br from-primary/5 to-primary/10 p-5 rounded-lg border-2 border-primary/20">
+                  <label className="block text-sm font-semibold text-font-base mb-2 flex items-center">
+                    <i className="fa-solid fa-user-md mr-2 text-primary"></i>
+                    Clinician Authorization
+                  </label>
+                  <input 
+                    type="text" 
+                    className="w-full border-2 border-primary/30 rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white/80 cursor-not-allowed" 
+                    placeholder="Your name (auto-filled from login)" 
+                    readOnly 
+                  />
+                  <p className="text-xs text-font-detail mt-2 flex items-center">
+                    <i className="fa-solid fa-info-circle mr-1"></i>
+                    Your credentials will be recorded with this watch assignment
+                  </p>
                 </div>
               </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-4 mt-8 pt-6 border-t border-bd">
+              <button 
+                type="submit" 
+                disabled={submitting}
+                className="flex-1 bg-primary text-white py-4 rounded-lg font-semibold hover:bg-primary-light transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                {submitting ? (
+                  <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Adding to Watch...</>
+                ) : (
+                  <><i className="fa-solid fa-check-circle mr-2"></i>Add to Watch</>
+                )}
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('active')}
+                className="px-8 py-4 border-2 border-bd rounded-lg font-semibold text-font-base hover:bg-bg-subtle hover:border-font-detail transition-all"
+              >
+                <i className="fa-solid fa-times mr-2"></i>
+                Cancel
+              </button>
             </div>
           </form>
         </div>
