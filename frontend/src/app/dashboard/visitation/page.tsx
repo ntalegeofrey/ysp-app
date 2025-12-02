@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { generateVisitationReportHTML } from '../pdfReports/visitationReportTemplate';
 
 export default function VisitationPage() {
   const router = useRouter();
@@ -11,10 +12,21 @@ export default function VisitationPage() {
   // Data state
   const [residents, setResidents] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
-  const [todaysVisitations, setTodaysVisitations] = useState<any[]>([]);
+  const [scheduledVisitations, setScheduledVisitations] = useState<any[]>([]);
   const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
   const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Historical records filters
+  const [recordsFilter, setRecordsFilter] = useState({
+    dateRange: '30',
+    recordType: 'all',
+    residentId: '',
+    page: 0,
+    size: 10
+  });
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [displayedRecords, setDisplayedRecords] = useState<any[]>([]);
   
   // Form state for Schedule Visitation
   const [visitForm, setVisitForm] = useState({
@@ -110,12 +122,12 @@ export default function VisitationPage() {
     }
   };
   
-  // Fetch today's visitations
-  const fetchTodaysVisitations = async () => {
+  // Fetch scheduled visitations
+  const fetchScheduledVisitations = async () => {
     if (!programId) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/visitations/today`, {
+      const res = await fetch(`/api/programs/${programId}/visitations/upcoming`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -124,7 +136,7 @@ export default function VisitationPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setTodaysVisitations(data);
+        setScheduledVisitations(data);
       }
     } catch (err) {
       console.error('Failed to fetch visitations:', err);
@@ -132,31 +144,75 @@ export default function VisitationPage() {
   };
   
   // Fetch historical records
-  const fetchHistoricalRecords = async () => {
+  const fetchHistoricalRecords = async (append = false) => {
     if (!programId) return;
     try {
       const token = localStorage.getItem('token');
-      const [visitationsRes, phoneLogsRes] = await Promise.all([
-        fetch(`/api/programs/${programId}/visitations?page=0&size=20`, {
+      
+      // Build query params based on filters
+      const params = new URLSearchParams();
+      params.append('page', String(recordsFilter.page));
+      params.append('size', String(recordsFilter.size));
+      
+      // Add date filter
+      if (recordsFilter.dateRange !== 'all') {
+        const days = parseInt(recordsFilter.dateRange);
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        params.append('startDate', startDate.toISOString());
+      }
+      
+      // Add resident filter
+      if (recordsFilter.residentId) {
+        params.append('residentId', recordsFilter.residentId);
+      }
+      
+      let records: any[] = [];
+      let total = 0;
+      
+      if (recordsFilter.recordType === 'all' || recordsFilter.recordType === 'visitations') {
+        const visitationsRes = await fetch(`/api/programs/${programId}/visitations?${params}`, {
           credentials: 'include',
           headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-        }),
-        fetch(`/api/programs/${programId}/phone-logs?page=0&size=20`, {
+        });
+        
+        if (visitationsRes.ok) {
+          const data = await visitationsRes.json();
+          const visitations = data.visitations || [];
+          records.push(...visitations.map((v: any) => ({ ...v, type: 'visitation' })));
+          total += data.totalElements || 0;
+        }
+      }
+      
+      if (recordsFilter.recordType === 'all' || recordsFilter.recordType === 'phone') {
+        const phoneLogsRes = await fetch(`/api/programs/${programId}/phone-logs?${params}`, {
           credentials: 'include',
           headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-        })
-      ]);
+        });
+        
+        if (phoneLogsRes.ok) {
+          const data = await phoneLogsRes.json();
+          const phoneLogs = data.phoneLogs || [];
+          records.push(...phoneLogs.map((p: any) => ({ ...p, type: 'phone' })));
+          total += data.totalElements || 0;
+        }
+      }
       
-      const visitations = visitationsRes.ok ? (await visitationsRes.json()).visitations || [] : [];
-      const phoneLogs = phoneLogsRes.ok ? (await phoneLogsRes.json()).phoneLogs || [] : [];
+      // Sort by date
+      records.sort((a, b) => {
+        const dateA = new Date(a.scheduledDate || a.callDateTime || a.createdAt).getTime();
+        const dateB = new Date(b.scheduledDate || b.callDateTime || b.createdAt).getTime();
+        return dateB - dateA;
+      });
       
-      // Combine and sort by date
-      const combined = [
-        ...visitations.map((v: any) => ({ ...v, type: 'visitation' })),
-        ...phoneLogs.map((p: any) => ({ ...p, type: 'phone' }))
-      ].sort((a, b) => new Date(b.createdAt || b.callDateTime).getTime() - new Date(a.createdAt || a.callDateTime).getTime());
+      if (append) {
+        setDisplayedRecords(prev => [...prev, ...records]);
+      } else {
+        setDisplayedRecords(records);
+      }
       
-      setHistoricalRecords(combined);
+      setTotalRecords(total);
+      setHistoricalRecords(records);
     } catch (err) {
       console.error('Failed to fetch historical records:', err);
     }
@@ -167,10 +223,18 @@ export default function VisitationPage() {
     if (programId) {
       fetchResidents();
       fetchStaff();
-      if (activeTab === 'todays') fetchTodaysVisitations();
+      if (activeTab === 'visits') fetchScheduledVisitations();
       if (activeTab === 'archive') fetchHistoricalRecords();
     }
   }, [programId, activeTab]);
+  
+  // Watch for filter changes
+  useEffect(() => {
+    if (activeTab === 'archive' && programId) {
+      setRecordsFilter(prev => ({ ...prev, page: 0 }));
+      fetchHistoricalRecords(false);
+    }
+  }, [recordsFilter.dateRange, recordsFilter.recordType, recordsFilter.residentId]);
   
   // Handle schedule visitation form submission
   const handleScheduleVisitation = async (e: React.FormEvent) => {
@@ -252,9 +316,9 @@ export default function VisitationPage() {
           supervisingStaffId: '',
           approvalStatus: 'PENDING'
         });
-        // Switch to today's tab
-        setActiveTab('todays');
-        fetchTodaysVisitations();
+        // Switch to visits tab
+        setActiveTab('visits');
+        fetchScheduledVisitations();
       } else {
         let errorMsg = 'Failed to schedule visitation';
         try {
@@ -379,6 +443,130 @@ export default function VisitationPage() {
     } catch (err) {
       console.error('Error logging phone call:', err);
       addToast('Failed to log phone call', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle start visit
+  const handleStartVisit = async (visitId: number) => {
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/visitations/${visitId}/status`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status: 'IN_PROGRESS' })
+      });
+      
+      if (res.ok) {
+        addToast('Visit started successfully', 'success');
+        fetchScheduledVisitations();
+      } else {
+        addToast('Failed to start visit', 'error');
+      }
+    } catch (err) {
+      addToast('Failed to start visit', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Generate PDF report for resident visits
+  const generatePDF = async (residentId: number, residentName: string) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      // Fetch all visits for this resident
+      const res = await fetch(`/api/programs/${programId}/visitations/resident/${residentId}`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      
+      if (!res.ok) {
+        addToast('Failed to fetch resident visits', 'error');
+        return;
+      }
+      
+      const visits = await res.json();
+      const resident = residents.find(r => r.id === residentId) || { 
+        firstName: residentName.split(' ')[0], 
+        lastName: residentName.split(' ')[1] || '',
+        residentId: `R${residentId}`,
+        room: 'N/A'
+      };
+      
+      // Generate HTML content
+      const htmlContent = generateVisitationReportHTML(resident, visits);
+      
+      // Open in new window for printing
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Trigger print dialog after a short delay
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+      }
+      
+      addToast('Report generated successfully', 'success');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      addToast('Failed to generate report', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle complete visit
+  const handleCompleteVisit = async (visitId: number) => {
+    const visitNotes = prompt('Enter visit notes (optional):');
+    const incidentOccurred = confirm('Did any incidents occur during the visit?');
+    
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        visitNotes: visitNotes || '',
+        incidentOccurred: incidentOccurred,
+        incidentDetails: incidentOccurred ? prompt('Describe the incident:') : ''
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/visitations/${visitId}/complete`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Visit completed successfully', 'success');
+        fetchScheduledVisitations();
+      } else {
+        addToast('Failed to complete visit', 'error');
+      }
+    } catch (err) {
+      addToast('Failed to complete visit', 'error');
     } finally {
       setLoading(false);
     }
@@ -650,85 +838,163 @@ export default function VisitationPage() {
         </div>
       )}
 
-      {/* Today's Schedule */}
-      {activeTab === 'todays' && (
+      {/* Scheduled Visits */}
+      {activeTab === 'visits' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
-            <h3 className="text-lg font-semibold text-font-base flex items-center">
-              <i className="fa-solid fa-calendar-day text-primary mr-3"></i>
-              Today's Scheduled Visitations
-            </h3>
-            <div className="mt-2 text-sm text-font-detail">All approved visitations scheduled for today's shift</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-font-base flex items-center">
+                  <i className="fa-solid fa-calendar-check text-primary mr-3"></i>
+                  Scheduled Visits
+                </h3>
+                <div className="mt-2 text-sm text-font-detail">All upcoming and today's visitations</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-font-detail">
+                  Total: {scheduledVisitations.length} visits
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="p-6 space-y-4">
-            <div className="border border-bd rounded-lg p-4 bg-success-lightest">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center"><span className="font-semibold text-success">10:00 AM - 11:30 AM</span><span className="bg-success text-white px-2 py-1 rounded text-xs ml-3">Completed</span></div>
-                <button className="text-primary hover:text-primary-light"><i className="fa-solid fa-edit mr-1"></i>Log Visit</button>
+          <div className="p-6">
+            {scheduledVisitations.length === 0 ? (
+              <div className="text-center py-12">
+                <i className="fa-solid fa-calendar-xmark text-6xl text-gray-300 mb-4"></i>
+                <p className="text-font-detail">No scheduled visits at this time</p>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div>
-                  <h4 className="font-medium text-font-base">Resident C01 - Brown, Anthony</h4>
-                  <p className="text-sm text-font-detail">Father - Robert Brown</p>
-                  <p className="text-xs text-font-detail">Relationship: Parent</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Assignment</h5>
-                  <p className="text-sm text-font-detail">Staff: L. Davis</p>
-                  <p className="text-xs text-font-detail">Room: Visitation A</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Status</h5>
-                  <p className="text-xs text-font-detail">Visit completed successfully</p>
-                </div>
+            ) : (
+              <div className="space-y-4">
+                {scheduledVisitations.map((visit: any) => {
+                  const isToday = new Date(visit.scheduledDate).toDateString() === new Date().toDateString();
+                  const visitDate = new Date(visit.scheduledDate);
+                  const startTime = formatTime(visit.scheduledStartTime);
+                  const endTime = formatTime(visit.scheduledEndTime);
+                  
+                  // Determine status color
+                  let statusColor = 'bg-primary-lightest border-primary/20';
+                  let statusTextColor = 'text-primary';
+                  let statusBadgeColor = 'bg-primary';
+                  
+                  if (visit.status === 'COMPLETED') {
+                    statusColor = 'bg-success-lightest border-success/20';
+                    statusTextColor = 'text-success';
+                    statusBadgeColor = 'bg-success';
+                  } else if (visit.status === 'IN_PROGRESS') {
+                    statusColor = 'bg-warning-lightest border-warning/20';
+                    statusTextColor = 'text-warning';
+                    statusBadgeColor = 'bg-warning';
+                  } else if (visit.status === 'CANCELLED') {
+                    statusColor = 'bg-error-lightest border-error/20';
+                    statusTextColor = 'text-error';
+                    statusBadgeColor = 'bg-error';
+                  }
+                  
+                  return (
+                    <div key={visit.id} className={`border rounded-lg p-5 transition-all hover:shadow-md ${statusColor}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-3">
+                          {/* Header Row */}
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <i className={`fa-solid fa-clock text-sm ${statusTextColor}`}></i>
+                              <span className={`font-semibold ${statusTextColor}`}>
+                                {startTime} - {endTime}
+                              </span>
+                            </div>
+                            <span className={`${statusBadgeColor} text-white px-3 py-1 rounded-full text-xs font-medium`}>
+                              {visit.status}
+                            </span>
+                            {isToday && (
+                              <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                                TODAY
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Content Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {/* Resident Info */}
+                            <div>
+                              <p className="text-xs text-font-detail uppercase tracking-wider mb-1">Resident</p>
+                              <p className="font-medium text-font-base">
+                                {visit.residentName || 'Unknown'}
+                              </p>
+                              <p className="text-sm text-font-detail">
+                                {visit.residentNumber || 'No ID'}
+                              </p>
+                            </div>
+                            
+                            {/* Visitor Info */}
+                            <div>
+                              <p className="text-xs text-font-detail uppercase tracking-wider mb-1">Visitor</p>
+                              <p className="font-medium text-font-base">
+                                {visit.visitorInfo?.[0]?.name || 'Unknown'}
+                              </p>
+                              <p className="text-sm text-font-detail">
+                                {visit.visitorInfo?.[0]?.relationship || 'No relationship'}
+                              </p>
+                            </div>
+                            
+                            {/* Visit Details */}
+                            <div>
+                              <p className="text-xs text-font-detail uppercase tracking-wider mb-1">Details</p>
+                              <p className="text-sm font-medium text-font-base">
+                                <i className="fa-solid fa-video text-xs mr-1 text-font-detail"></i>
+                                {visit.visitType?.replace('_', ' ') || 'In-Person'}
+                              </p>
+                              <p className="text-sm text-font-detail">
+                                <i className="fa-solid fa-door-open text-xs mr-1"></i>
+                                {visit.visitationRoom || 'No room assigned'}
+                              </p>
+                            </div>
+                            
+                            {/* Date & Staff */}
+                            <div>
+                              <p className="text-xs text-font-detail uppercase tracking-wider mb-1">Schedule</p>
+                              <p className="text-sm font-medium text-font-base">
+                                {formatDate(visit.scheduledDate)}
+                              </p>
+                              <p className="text-sm text-font-detail">
+                                Staff: {visit.supervisingStaffName || visit.scheduledByStaffName || 'TBD'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Special Instructions */}
+                          {visit.specialInstructions && (
+                            <div className="mt-3 pt-3 border-t border-bd">
+                              <p className="text-xs text-font-detail uppercase tracking-wider mb-1">Special Instructions</p>
+                              <p className="text-sm text-font-base">{visit.specialInstructions}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action Button */}
+                        <div className="ml-4">
+                          {isToday && visit.status === 'SCHEDULED' && (
+                            <button 
+                              onClick={() => handleStartVisit(visit.id)}
+                              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark text-sm font-medium transition-colors">
+                              <i className="fa-solid fa-play mr-2"></i>
+                              Start Visit
+                            </button>
+                          )}
+                          {visit.status === 'IN_PROGRESS' && (
+                            <button 
+                              onClick={() => handleCompleteVisit(visit.id)}
+                              className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success-dark text-sm font-medium transition-colors">
+                              <i className="fa-solid fa-check mr-2"></i>
+                              Complete Visit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-
-            <div className="border border-bd rounded-lg p-4 bg-primary-lightest">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center"><span className="font-semibold text-primary">2:00 PM - 3:30 PM</span><span className="bg-primary text-white px-2 py-1 rounded text-xs ml-3">Scheduled</span></div>
-                <button className="text-primary hover:text-primary-light"><i className="fa-solid fa-eye mr-1"></i>View Details</button>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div>
-                  <h4 className="font-medium text-font-base">Resident A01 - Johnson, Michael</h4>
-                  <p className="text-sm text-font-detail">Mother & Sister</p>
-                  <p className="text-xs text-font-detail">Sarah Johnson, Emily Johnson</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Assignment</h5>
-                  <p className="text-sm text-font-detail">Staff: R. Martinez</p>
-                  <p className="text-xs text-font-detail">Room: Visitation B</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Special Notes</h5>
-                  <p className="text-xs text-font-detail">Birthday visit - cake pre-approved</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-bd rounded-lg p-4 bg-warning-lightest">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center"><span className="font-semibold text-warning">4:00 PM - 5:30 PM</span><span className="bg-warning text-white px-2 py-1 rounded text-xs ml-3">Pending Staff</span></div>
-                <button className="text-primary hover:text-primary-light"><i className="fa-solid fa-user-plus mr-1"></i>Assign Staff</button>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div>
-                  <h4 className="font-medium text-font-base">Resident B01 - Williams, David</h4>
-                  <p className="text-sm text-font-detail">Grandmother - Maria Williams</p>
-                  <p className="text-xs text-font-detail">Relationship: Grandparent</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Assignment</h5>
-                  <p className="text-sm text-error">No staff assigned</p>
-                  <p className="text-xs text-font-detail">Room: Visitation A</p>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-font-base">Action Required</h5>
-                  <p className="text-xs text-font-detail">Assign supervising staff member</p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -949,43 +1215,52 @@ export default function VisitationPage() {
               <i className="fa-solid fa-archive text-primary mr-3"></i>
               Historical Records Archive
             </h3>
-            <div className="mt-2 text-sm text-font-detail">Complete historical records of all visitations and phone calls with advanced filtering</div>
+            <div className="mt-2 text-sm text-font-detail">Complete historical records of all visitations and phone calls</div>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+            {/* Filters */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Date Range</label>
-                <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                  <option>Last 7 days</option>
-                  <option>Last 30 days</option>
-                  <option>Last 90 days</option>
-                  <option>Custom range</option>
+                <select 
+                  value={recordsFilter.dateRange}
+                  onChange={(e) => setRecordsFilter({...recordsFilter, dateRange: e.target.value})}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="365">Last year</option>
+                  <option value="all">All time</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Record Type</label>
-                <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                  <option>All Records</option>
-                  <option>Visitations Only</option>
-                  <option>Phone Calls Only</option>
+                <select 
+                  value={recordsFilter.recordType}
+                  onChange={(e) => setRecordsFilter({...recordsFilter, recordType: e.target.value})}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                  <option value="all">All Records</option>
+                  <option value="visitations">Visitations Only</option>
+                  <option value="phone">Phone Calls Only</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Resident</label>
-                <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                  <option>All Residents</option>
-                  <option>Resident A01 - Johnson</option>
-                  <option>Resident A02 - Rodriguez</option>
-                  <option>Resident B01 - Williams</option>
+                <select 
+                  value={recordsFilter.residentId}
+                  onChange={(e) => setRecordsFilter({...recordsFilter, residentId: e.target.value})}
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                  <option value="">All Residents</option>
+                  {residents.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.residentId} - {r.lastName}, {r.firstName}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <div className="flex items-end">
-                <button className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary-light font-medium">
-                  <i className="fa-solid fa-search mr-2"></i>
-                  Filter Records
-                </button>
-              </div>
             </div>
+            
+            {/* Records Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-bg-subtle border-b border-bd">
@@ -993,36 +1268,99 @@ export default function VisitationPage() {
                     <th className="text-left p-3 font-medium text-font-base">Date/Time</th>
                     <th className="text-left p-3 font-medium text-font-base">Type</th>
                     <th className="text-left p-3 font-medium text-font-base">Resident</th>
-                    <th className="text-left p-3 font-medium text-font-base">Contact</th>
+                    <th className="text-left p-3 font-medium text-font-base">Contact/Visitor</th>
                     <th className="text-left p-3 font-medium text-font-base">Staff</th>
                     <th className="text-left p-3 font-medium text-font-base">Status</th>
-                    <th className="text-left p-3 font-medium text-font-base">Actions</th>
+                    <th className="text-center p-3 font-medium text-font-base">Print</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-bd">
-                  <tr className="hover:bg-bg-subtle">
-                    <td className="p-3">Nov 15, 2024 10:00 AM</td>
-                    <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Visitation</span></td>
-                    <td className="p-3">C01 - Brown, Anthony</td>
-                    <td className="p-3">Father - Robert Brown</td>
-                    <td className="p-3">L. Davis</td>
-                    <td className="p-3"><span className="text-success">Completed</span></td>
-                    <td className="p-3"><button className="text-primary hover:text-primary-light mr-2"><i className="fa-solid fa-eye"></i></button><button className="text-primary hover:text-primary-light"><i className="fa-solid fa-download"></i></button></td>
-                  </tr>
-                  <tr className="hover:bg-bg-subtle">
-                    <td className="p-3">Nov 14, 2024 3:15 PM</td>
-                    <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Phone Call</span></td>
-                    <td className="p-3">A01 - Johnson, Michael</td>
-                    <td className="p-3">Mother - Sarah Johnson</td>
-                    <td className="p-3">R. Martinez</td>
-                    <td className="p-3"><span className="text-success">Completed</span></td>
-                    <td className="p-3"><button className="text-primary hover:text-primary-light mr-2"><i className="fa-solid fa-eye"></i></button><button className="text-primary hover:text-primary-light"><i className="fa-solid fa-download"></i></button></td>
-                  </tr>
+                  {displayedRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-font-detail">
+                        No records found for the selected filters
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedRecords.map((record: any) => {
+                      const isVisitation = record.type === 'visitation';
+                      const recordDate = isVisitation ? record.scheduledDate : record.callDateTime;
+                      const recordTime = isVisitation 
+                        ? `${formatTime(record.scheduledStartTime)} - ${formatTime(record.scheduledEndTime)}`
+                        : formatTime(record.callDateTime);
+                      const contactInfo = isVisitation 
+                        ? `${record.visitorInfo?.[0]?.name || 'N/A'} (${record.visitorInfo?.[0]?.relationship || 'N/A'})`
+                        : `${record.contactName || 'N/A'} (${record.contactRelationship?.replace(/_/g, ' ') || 'N/A'})`;
+                      const staffInfo = isVisitation
+                        ? record.supervisingStaffName || record.scheduledByStaffName
+                        : record.authorizingStaffName || record.loggedByStaffName;
+                      
+                      return (
+                        <tr key={`${record.type}-${record.id}`} className="hover:bg-bg-subtle">
+                          <td className="p-3">
+                            <div>
+                              <div className="font-medium">{formatDate(recordDate)}</div>
+                              <div className="text-xs text-font-detail">{recordTime}</div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className={`${isVisitation ? 'bg-primary' : 'bg-success'} text-white px-2 py-1 rounded text-xs`}>
+                              {isVisitation ? 'Visitation' : 'Phone Call'}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <div>
+                              <div className="font-medium">{record.residentName}</div>
+                              <div className="text-xs text-font-detail">{record.residentNumber || record.residentId}</div>
+                            </div>
+                          </td>
+                          <td className="p-3">{contactInfo}</td>
+                          <td className="p-3">{staffInfo || 'N/A'}</td>
+                          <td className="p-3">
+                            <span className={`${
+                              record.status === 'COMPLETED' ? 'text-success' :
+                              record.status === 'CANCELLED' ? 'text-error' :
+                              record.status === 'IN_PROGRESS' ? 'text-warning' :
+                              'text-primary'
+                            } font-medium`}>
+                              {record.status || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button 
+                              onClick={() => generatePDF(record.residentId, record.residentName)}
+                              className="text-primary hover:text-primary-dark transition-colors"
+                              title="Print resident visit report">
+                              <i className="fa-solid fa-print text-lg"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-            <div className="mt-6 flex justify-center">
-              <button className="bg-bd text-font-base px-6 py-2 rounded-lg hover:bg-primary hover:text-white font-medium">Load More Records</button>
+            
+            {/* Load More Button */}
+            {displayedRecords.length < totalRecords && (
+              <div className="mt-6 flex justify-center">
+                <button 
+                  onClick={() => {
+                    setRecordsFilter(prev => ({ ...prev, page: prev.page + 1 }));
+                    fetchHistoricalRecords(true);
+                  }}
+                  disabled={loading}
+                  className="bg-bd text-font-base px-6 py-2 rounded-lg hover:bg-primary hover:text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i className="fa-solid fa-arrow-down mr-2"></i>
+                  {loading ? 'Loading...' : 'Load More Records'}
+                </button>
+              </div>
+            )}
+            
+            {/* Records Count */}
+            <div className="mt-4 text-center text-sm text-font-detail">
+              Showing {displayedRecords.length} of {totalRecords} records
             </div>
           </div>
         </div>
