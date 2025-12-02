@@ -25,6 +25,12 @@ interface WatchAssignment {
   totalLogEntries: number;
   duration?: string;
   outcome?: string;
+  // Risk assessment fields
+  selfHarmRisk?: boolean;
+  suicidalIdeation?: boolean;
+  aggressiveBehavior?: boolean;
+  sleepDisturbance?: boolean;
+  medicalConcern?: boolean;
 }
 
 interface LogEntry {
@@ -55,6 +61,12 @@ export default function SleepLogPage() {
   const [watchLogs, setWatchLogs] = useState<{ [key: number]: LogEntry[] }>({});
   const { toasts, addToast, removeToast } = useToast();
   const [currentUser, setCurrentUser] = useState({ fullName: '', firstName: '', lastName: '' });
+  const [viewHistoryWatch, setViewHistoryWatch] = useState<WatchAssignment | null>(null);
+  const [endWatchModal, setEndWatchModal] = useState<WatchAssignment | null>(null);
+  const [endWatchForm, setEndWatchForm] = useState({
+    outcome: '',
+    endNotes: ''
+  });
   
   // Form states for Add to Watch
   const [selectedResident, setSelectedResident] = useState('');
@@ -71,6 +83,15 @@ export default function SleepLogPage() {
   });
   const [otherRiskDescription, setOtherRiskDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Log entry form states (one per watch)
+  const [logEntryForms, setLogEntryForms] = useState<{ [watchId: number]: {
+    time: string;
+    status: string;
+    activity: string;
+    otherActivity: string;
+    notes: string;
+  } }>({});
   
   // Archive filters and pagination
   const [archiveSearch, setArchiveSearch] = useState('');
@@ -301,6 +322,48 @@ export default function SleepLogPage() {
     addToast('Print feature coming soon', 'info');
   };
 
+  // Handle ending a watch assignment
+  const handleEndWatch = async () => {
+    if (!endWatchModal) return;
+    
+    if (!endWatchForm.outcome || !endWatchForm.endNotes.trim()) {
+      addToast('Please provide outcome and notes', 'warning');
+      return;
+    }
+    
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/watches/${endWatchModal.id}/end`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          endDateTime: new Date().toISOString(),
+          status: endWatchForm.outcome,
+          endNotes: endWatchForm.endNotes.trim()
+        })
+      });
+      
+      if (res.ok) {
+        addToast('Watch assignment ended successfully', 'success');
+        setEndWatchModal(null);
+        setEndWatchForm({ outcome: '', endNotes: '' });
+        fetchStats();
+        fetchActiveWatches();
+      } else {
+        const error = await res.text();
+        addToast(error || 'Failed to end watch', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to end watch:', error);
+      addToast('Failed to end watch', 'error');
+    }
+  };
+
   // Filter and paginate archived watches using useMemo
   const filteredArchive = useMemo(() => {
     return archivedWatches.filter(watch => {
@@ -318,6 +381,114 @@ export default function SleepLogPage() {
   }, [filteredArchive, archivePage]);
 
   const hasMoreArchive = filteredArchive.length > paginatedArchive.length;
+
+  // Helper to get log entry form data for a watch
+  const getLogFormData = (watchId: number) => {
+    return logEntryForms[watchId] || {
+      time: new Date().toTimeString().slice(0, 5),
+      status: 'NORMAL',
+      activity: 'SLEEPING',
+      otherActivity: '',
+      notes: ''
+    };
+  };
+
+  // Helper to update log entry form field
+  const updateLogFormField = (watchId: number, field: string, value: string) => {
+    const currentData = getLogFormData(watchId);
+    setLogEntryForms(prev => ({
+      ...prev,
+      [watchId]: { ...currentData, [field]: value }
+    }));
+  };
+
+  // Fetch recent log entries for a watch
+  const fetchWatchLogs = async (watchId: number) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/watches/${watchId}/log-entries/recent`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWatchLogs(prev => ({ ...prev, [watchId]: data }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch watch logs:', error);
+    }
+  };
+
+  // Handle log entry submission
+  const handleSubmitLogEntry = async (watchId: number) => {
+    const formData = getLogFormData(watchId);
+    
+    if (!formData.time || !formData.status || !formData.activity || !formData.notes) {
+      addToast('Please fill all required fields', 'warning');
+      return;
+    }
+    
+    if (formData.activity === 'OTHER') {
+      const words = formData.otherActivity.trim().split(/\s+/);
+      if (words.length > 3 || !formData.otherActivity.trim()) {
+        addToast('Other activity must be 1-3 words', 'warning');
+        return;
+      }
+    }
+    
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const now = new Date();
+      const [hours, minutes] = formData.time.split(':');
+      now.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const payload = {
+        observationTime: now.toISOString(),
+        observationStatus: formData.status,
+        activity: formData.activity === 'OTHER' ? formData.otherActivity.trim().toUpperCase().replace(/\s+/g, '_') : formData.activity,
+        notes: formData.notes.trim()
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/watches/${watchId}/log-entries`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Log entry added successfully!', 'success');
+        // Reset the form for this watch
+        const resetForm = {
+          time: new Date().toTimeString().slice(0, 5),
+          status: 'NORMAL',
+          activity: 'SLEEPING',
+          otherActivity: '',
+          notes: ''
+        };
+        setLogEntryForms(prev => {
+          const updated = { ...prev };
+          updated[watchId] = resetForm;
+          return updated;
+        });
+        // Refresh log entries
+        fetchWatchLogs(watchId);
+      } else {
+        const error = await res.text();
+        addToast(error || 'Failed to add log entry', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to submit log entry:', error);
+      addToast('Failed to add log entry', 'error');
+    }
+  };
 
   const handleCreateWatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,6 +580,176 @@ export default function SleepLogPage() {
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      
+      {/* View History Modal */}
+      {viewHistoryWatch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-bd bg-gradient-to-r from-primary/5 to-transparent">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-font-base flex items-center">
+                    <i className="fa-solid fa-history text-primary mr-3"></i>
+                    Watch History - {viewHistoryWatch.residentName}
+                  </h3>
+                  <p className="text-sm text-font-detail mt-1">
+                    {getWatchTypeBadge(viewHistoryWatch.watchType)} • Started: {formatDateTime(viewHistoryWatch.startDateTime)}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setViewHistoryWatch(null)}
+                  className="text-font-detail hover:text-font-base transition-colors"
+                >
+                  <i className="fa-solid fa-times text-2xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {(!watchLogs[viewHistoryWatch.id] || watchLogs[viewHistoryWatch.id].length === 0) ? (
+                <div className="text-center py-12 text-font-detail">
+                  <i className="fa-solid fa-clipboard-list text-5xl mb-4 text-font-detail"></i>
+                  <p className="text-lg font-medium">No log entries found</p>
+                  <p className="text-sm mt-2">This watch has no recorded observations yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-bg-subtle sticky top-0">
+                      <tr>
+                        <th className="text-left p-3 font-semibold text-font-base">Date & Time</th>
+                        <th className="text-left p-3 font-semibold text-font-base">Status</th>
+                        <th className="text-left p-3 font-semibold text-font-base">Activity</th>
+                        <th className="text-left p-3 font-semibold text-font-base">Notes</th>
+                        <th className="text-left p-3 font-semibold text-font-base">Logged By</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {watchLogs[viewHistoryWatch.id].map((entry, index) => {
+                        const statusColor = entry.observationStatus === 'CRITICAL' ? 'error' : 
+                                           entry.observationStatus === 'HIGH' ? 'warning' : 'success';
+                        return (
+                          <tr key={entry.id} className={`border-b border-bd ${index % 2 === 0 ? 'bg-white' : 'bg-bg-subtle/30'} hover:bg-primary/5 transition-colors`}>
+                            <td className="p-3 text-sm font-medium text-font-base whitespace-nowrap">
+                              {formatDateTime(entry.observationTime)}
+                            </td>
+                            <td className="p-3">
+                              <span className={`bg-${statusColor} text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap`}>
+                                {entry.observationStatus}
+                              </span>
+                            </td>
+                            <td className="p-3 text-sm text-font-base">
+                              {entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                            </td>
+                            <td className="p-3 text-sm text-font-detail max-w-md">
+                              {entry.notes}
+                            </td>
+                            <td className="p-3 text-sm text-font-detail whitespace-nowrap">
+                              {entry.loggedByStaffName}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Watch Confirmation Modal */}
+      {endWatchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="p-6 border-b border-bd bg-gradient-to-r from-error/5 to-transparent">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-font-base flex items-center">
+                  <i className="fa-solid fa-stop-circle text-error mr-3"></i>
+                  End Watch Assignment
+                </h3>
+                <button 
+                  onClick={() => {
+                    setEndWatchModal(null);
+                    setEndWatchForm({ outcome: '', endNotes: '' });
+                  }}
+                  className="text-font-detail hover:text-font-base transition-colors"
+                >
+                  <i className="fa-solid fa-times text-2xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <i className="fa-solid fa-exclamation-triangle text-warning text-xl mr-3 mt-1"></i>
+                  <div>
+                    <p className="font-semibold text-font-base">Discontinue Watch for {endWatchModal.residentName}?</p>
+                    <p className="text-sm text-font-detail mt-1">
+                      This will end the active watch assignment. The resident will be moved to the archive, 
+                      but all data and log entries will be preserved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-font-base mb-2">
+                  Outcome <span className="text-error">*</span>
+                </label>
+                <select
+                  value={endWatchForm.outcome}
+                  onChange={(e) => setEndWatchForm(prev => ({ ...prev, outcome: e.target.value }))}
+                  className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Select outcome...</option>
+                  <option value="COMPLETED">Completed - Condition resolved</option>
+                  <option value="ESCALATED">Escalated - Transferred to higher level of care</option>
+                  <option value="TRANSFERRED">Transferred - Moved to different facility</option>
+                  <option value="DISCONTINUED">Discontinued - No longer clinically necessary</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-font-base mb-2">
+                  Clinical Notes <span className="text-error">*</span>
+                </label>
+                <textarea
+                  value={endWatchForm.endNotes}
+                  onChange={(e) => setEndWatchForm(prev => ({ ...prev, endNotes: e.target.value }))}
+                  className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm text-font-base bg-white focus:ring-2 focus:ring-primary focus:border-primary resize-none"
+                  placeholder="Document clinical reasoning for ending this watch assignment..."
+                  rows={4}
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={handleEndWatch}
+                  className="flex-1 bg-error text-white py-3 rounded-lg font-semibold hover:bg-error/90 transition-colors"
+                >
+                  <i className="fa-solid fa-check mr-2"></i>
+                  Confirm End Watch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEndWatchModal(null);
+                    setEndWatchForm({ outcome: '', endNotes: '' });
+                  }}
+                  className="px-8 py-3 border-2 border-bd rounded-lg font-semibold text-font-base hover:bg-bg-subtle transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Tabs */}
       <div className="mb-2">
         <div className="border-b border-bd">
@@ -480,185 +821,264 @@ export default function SleepLogPage() {
             </div>
           </div>
 
-          {/* Resident Watch 1 */}
-          <div className="bg-white rounded-lg border border-bd">
-            <div className="p-6 border-b border-bd">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-error bg-opacity-10 rounded-full flex items-center justify-center mr-4">
-                    <i className="fa-solid fa-user text-error text-lg"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-font-base">Michael Rodriguez</h3>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="bg-error text-white px-3 py-1 rounded-full text-xs font-medium">Critical Watch</span>
-                      <span className="text-sm text-font-detail">Room 204B</span>
-                      <span className="text-sm text-font-detail">Started: 6:00 PM</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="text-primary hover:underline text-sm">View History</button>
-                  <button className="bg-primary text-white px-3 py-1 rounded text-sm">Log Entry</button>
-                </div>
-              </div>
+          {/* Active Watches - Dynamic List */}
+          {loading ? (
+            <div className="bg-white rounded-lg border border-bd p-12 text-center">
+              <i className="fa-solid fa-spinner fa-spin text-primary text-3xl mb-3"></i>
+              <p className="text-font-detail">Loading active watches...</p>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-font-base mb-4">Hourly Log Entry</h4>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Time</label>
-                        <input type="time" defaultValue="23:45" className="w-full border border-bd rounded-lg px-3 py-2 text-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Status</label>
-                        <select defaultValue="Critical" className="w-full border border-bd rounded-lg px-3 py-2 text-sm">
-                          <option>Normal</option>
-                          <option>Critical</option>
-                          <option>High</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Activity</label>
-                      <select defaultValue="Walking" className="w-full border border-bd rounded-lg px-3 py-2 text-sm">
-                        <option>Sleeping</option>
-                        <option>Laying on bed</option>
-                        <option>Walking</option>
-                        <option>Playing</option>
-                        <option>Engaging</option>
-                        <option>Bathroom</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Notes</label>
-                      <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20" placeholder="Enter detailed observations...">Resident appears agitated, pacing in room. Verbal de-escalation attempted.</textarea>
-                    </div>
-                    <button className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:bg-primary-light">Submit Entry</button>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-medium text-font-base mb-4">Recent Entries (Last 6 Hours)</h4>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    <div className="border border-error rounded-lg p-3 bg-error bg-opacity-5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">10:45 PM</span>
-                        <span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span>
-                      </div>
-                      <p className="text-sm text-font-detail mb-1"><strong>Activity:</strong> Walking</p>
-                      <p className="text-sm text-font-detail">Resident pacing, showing signs of distress. Clinician notified.</p>
-                    </div>
-                    <div className="border border-warning rounded-lg p-3 bg-warning bg-opacity-5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">9:45 PM</span>
-                        <span className="bg-warning text-white px-2 py-1 rounded text-xs">High</span>
-                      </div>
-                      <p className="text-sm text-font-detail mb-1"><strong>Activity:</strong> Laying on bed</p>
-                      <p className="text-sm text-font-detail">Resident restless, difficulty settling for sleep.</p>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">8:45 PM</span>
-                        <span className="bg-success text-white px-2 py-1 rounded text-xs">Normal</span>
-                      </div>
-                      <p className="text-sm text-font-detail mb-1"><strong>Activity:</strong> Engaging</p>
-                      <p className="text-sm text-font-detail">Participated in evening activities, cooperative mood.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          ) : activeWatches.length === 0 ? (
+            <div className="bg-white rounded-lg border border-bd p-12 text-center">
+              <i className="fa-solid fa-eye-slash text-font-detail text-5xl mb-4"></i>
+              <h3 className="text-lg font-semibold text-font-base mb-2">No Active Watches</h3>
+              <p className="text-font-detail mb-4">There are currently no residents on watch</p>
+              <button 
+                onClick={() => setActiveTab('add')}
+                className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-light transition-colors"
+              >
+                <i className="fa-solid fa-plus mr-2"></i>
+                Add to Watch
+              </button>
             </div>
-          </div>
-
-          {/* Resident Watch 2 */}
-          <div className="bg-white rounded-lg border border-bd">
-            <div className="p-6 border-b border-bd">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-warning bg-opacity-10 rounded-full flex items-center justify-center mr-4">
-                    <i className="fa-solid fa-user text-warning text-lg"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-font-base">Sarah Johnson</h3>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="bg-warning text-white px-3 py-1 rounded-full text-xs font-medium">Elevated Watch</span>
-                      <span className="text-sm text-font-detail">Room 103A</span>
-                      <span className="text-sm text-font-detail">Started: 8:00 PM</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="text-primary hover:underline text-sm">View History</button>
-                  <button className="bg-primary text-white px-3 py-1 rounded text-sm">Log Entry</button>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-font-base mb-4">Hourly Log Entry</h4>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Time</label>
-                        <input type="time" defaultValue="23:45" className="w-full border border-bd rounded-lg px-3 py-2 text-sm" />
+          ) : (
+            activeWatches.map((watch) => {
+              const watchColor = getWatchTypeColor(watch.watchType);
+              const iconBgClass = watchColor === 'error' ? 'bg-error bg-opacity-10' : 
+                                  watchColor === 'warning' ? 'bg-warning bg-opacity-10' : 
+                                  'bg-success bg-opacity-10';
+              const iconTextClass = watchColor === 'error' ? 'text-error' : 
+                                    watchColor === 'warning' ? 'text-warning' : 
+                                    'text-success';
+              const badgeBgClass = watchColor === 'error' ? 'bg-error' : 
+                                   watchColor === 'warning' ? 'bg-warning' : 
+                                   'bg-success';
+              
+              return (
+              <div key={watch.id} className="bg-white rounded-lg border border-bd">
+                <div className="p-6 border-b border-bd">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center mr-4`}>
+                        <i className={`fa-solid fa-user ${iconTextClass} text-lg`}></i>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Status</label>
-                        <select defaultValue="Normal" className="w-full border border-bd rounded-lg px-3 py-2 text-sm">
-                          <option>Normal</option>
-                          <option>Critical</option>
-                          <option>High</option>
-                        </select>
+                        <h3 className="text-lg font-semibold text-font-base">{watch.residentName}</h3>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <span className={`${badgeBgClass} text-white px-3 py-1 rounded-full text-xs font-medium`}>
+                            {getWatchTypeBadge(watch.watchType)}
+                          </span>
+                          <span className="text-sm text-font-detail">Room {watch.room}</span>
+                          <span className="text-sm text-font-detail">Started: {formatDateTime(watch.startDateTime)}</span>
+                          <span className="text-xs text-font-detail bg-bg-subtle px-2 py-1 rounded">
+                            {watch.totalLogEntries} {watch.totalLogEntries === 1 ? 'entry' : 'entries'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Activity</label>
-                      <select defaultValue="Sleeping" className="w-full border border-bd rounded-lg px-3 py-2 text-sm">
-                        <option>Sleeping</option>
-                        <option>Laying on bed</option>
-                        <option>Walking</option>
-                        <option>Playing</option>
-                        <option>Engaging</option>
-                        <option>Bathroom</option>
-                        <option>Other</option>
-                      </select>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => {
+                          setViewHistoryWatch(watch);
+                          fetchWatchLogs(watch.id);
+                        }}
+                        className="text-primary hover:text-primary-light text-sm font-medium transition-colors"
+                      >
+                        <i className="fa-solid fa-history mr-1"></i>
+                        View History
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const newExpanded = expandedWatch === watch.id ? null : watch.id;
+                          setExpandedWatch(newExpanded);
+                          if (newExpanded === watch.id) {
+                            fetchWatchLogs(watch.id);
+                          }
+                        }}
+                        className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary-light transition-colors"
+                      >
+                        <i className={`fa-solid fa-${expandedWatch === watch.id ? 'chevron-up' : 'chevron-down'} mr-1`}></i>
+                        {expandedWatch === watch.id ? 'Hide' : 'Log Entry'}
+                      </button>
+                      <button 
+                        onClick={() => setEndWatchModal(watch)}
+                        className="bg-error text-white px-3 py-1 rounded text-sm hover:bg-error/90 transition-colors"
+                      >
+                        <i className="fa-solid fa-stop-circle mr-1"></i>
+                        End Watch
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Notes</label>
-                      <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20" placeholder="Enter detailed observations...">Resident sleeping peacefully, no disturbances noted.</textarea>
+                  </div>
+                  
+                  {/* Clinical Reason - Always visible */}
+                  <div className="mt-4 pt-4 border-t border-bd">
+                    <h4 className="text-sm font-semibold text-font-base mb-2 flex items-center">
+                      <i className="fa-solid fa-clipboard-medical text-primary mr-2"></i>
+                      Clinical Reason
+                    </h4>
+                    <p className="text-sm text-font-detail whitespace-pre-wrap bg-bg-subtle p-3 rounded-lg">
+                      {watch.clinicalReason}
+                    </p>
+                    
+                    {/* Risk Indicators */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {watch.selfHarmRisk && (
+                        <span className="text-xs bg-error/10 text-error px-2 py-1 rounded border border-error/20">
+                          <i className="fa-solid fa-exclamation-triangle mr-1"></i>Self-harm risk
+                        </span>
+                      )}
+                      {watch.suicidalIdeation && (
+                        <span className="text-xs bg-error/10 text-error px-2 py-1 rounded border border-error/20">
+                          <i className="fa-solid fa-exclamation-triangle mr-1"></i>Suicidal ideation
+                        </span>
+                      )}
+                      {watch.aggressiveBehavior && (
+                        <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded border border-warning/20">
+                          <i className="fa-solid fa-hand-fist mr-1"></i>Aggressive behavior
+                        </span>
+                      )}
+                      {watch.sleepDisturbance && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20">
+                          <i className="fa-solid fa-moon mr-1"></i>Sleep disturbance
+                        </span>
+                      )}
+                      {watch.medicalConcern && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20">
+                          <i className="fa-solid fa-heartbeat mr-1"></i>Medical concern
+                        </span>
+                      )}
                     </div>
-                    <button className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:bg-primary-light">Submit Entry</button>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-font-base mb-4">Recent Entries (Last 6 Hours)</h4>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">10:45 PM</span>
-                        <span className="bg-success text-white px-2 py-1 rounded text-xs">Normal</span>
+                
+                {/* Expandable Log Entry Section */}
+                {expandedWatch === watch.id && (
+                  <div className="p-6 bg-bg-subtle/30">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium text-font-base mb-4">Add Log Entry</h4>
+                        <div className="space-y-4 bg-white p-4 rounded-lg border border-bd">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-font-base mb-2">Time *</label>
+                              <input 
+                                type="time" 
+                                value={getLogFormData(watch.id).time}
+                                onChange={(e) => updateLogFormField(watch.id, 'time', e.target.value)}
+                                className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-font-base mb-2">Status *</label>
+                              <select 
+                                value={getLogFormData(watch.id).status}
+                                onChange={(e) => updateLogFormField(watch.id, 'status', e.target.value)}
+                                className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                              >
+                                <option value="NORMAL">Normal</option>
+                                <option value="HIGH">High</option>
+                                <option value="CRITICAL">Critical</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Activity *</label>
+                            <select 
+                              value={getLogFormData(watch.id).activity}
+                              onChange={(e) => {
+                                updateLogFormField(watch.id, 'activity', e.target.value);
+                                if (e.target.value !== 'OTHER') {
+                                  updateLogFormField(watch.id, 'otherActivity', '');
+                                }
+                              }}
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            >
+                              <option value="SLEEPING">😴 Sleeping</option>
+                              <option value="LAYING_ON_BED">🛏️ Laying on bed</option>
+                              <option value="WALKING">🚶 Walking</option>
+                              <option value="PLAYING">🎮 Playing</option>
+                              <option value="ENGAGING">👥 Engaging</option>
+                              <option value="BATHROOM">🚽 Bathroom</option>
+                              <option value="OTHER">📝 Other</option>
+                            </select>
+                            {getLogFormData(watch.id).activity === 'OTHER' && (
+                              <input
+                                type="text"
+                                value={getLogFormData(watch.id).otherActivity}
+                                onChange={(e) => {
+                                  const words = e.target.value.trim().split(/\s+/);
+                                  if (words.length <= 3 || e.target.value.trim() === '') {
+                                    updateLogFormField(watch.id, 'otherActivity', e.target.value);
+                                  }
+                                }}
+                                placeholder="Max 3 words..."
+                                className="mt-2 w-full border-2 border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                                maxLength={50}
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-font-base mb-2">Notes *</label>
+                            <textarea 
+                              value={getLogFormData(watch.id).notes}
+                              onChange={(e) => updateLogFormField(watch.id, 'notes', e.target.value)}
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-primary focus:border-primary" 
+                              placeholder="Enter detailed observations..."
+                            />
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => handleSubmitLogEntry(watch.id)}
+                            className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:bg-primary-light transition-colors"
+                          >
+                            <i className="fa-solid fa-save mr-2"></i>
+                            Submit Entry
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-sm text-font-detail mb-1"><strong>Activity:</strong> Sleeping</p>
-                      <p className="text-sm text-font-detail">Resident settled for the night, regular breathing pattern.</p>
-                    </div>
-                    <div className="border border-bd rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">9:45 PM</span>
-                        <span className="bg-success text-white px-2 py-1 rounded text-xs">Normal</span>
+                      <div>
+                        <h4 className="font-medium text-font-base mb-4">Recent Entries (Last 6 Hours)</h4>
+                        <div className="space-y-3 max-h-80 overflow-y-auto">
+                          {(!watchLogs[watch.id] || watchLogs[watch.id].length === 0) ? (
+                            <div className="bg-white border border-bd rounded-lg p-4 text-center text-font-detail">
+                              <i className="fa-solid fa-clipboard-list text-2xl mb-2 text-font-detail"></i>
+                              <p>No log entries yet</p>
+                              <p className="text-xs mt-1">Add your first observation above</p>
+                            </div>
+                          ) : (
+                            watchLogs[watch.id].map((entry) => {
+                              const statusColor = entry.observationStatus === 'CRITICAL' ? 'error' : 
+                                                 entry.observationStatus === 'HIGH' ? 'warning' : 'success';
+                              const borderColor = entry.observationStatus === 'CRITICAL' ? 'border-error' : 
+                                                 entry.observationStatus === 'HIGH' ? 'border-warning' : 'border-bd';
+                              const bgColor = entry.observationStatus === 'CRITICAL' ? 'bg-error' : 
+                                             entry.observationStatus === 'HIGH' ? 'bg-warning' : 'bg-success';
+                              
+                              return (
+                                <div key={entry.id} className={`border ${borderColor} rounded-lg p-3 ${entry.observationStatus !== 'NORMAL' ? `${bgColor} bg-opacity-5` : ''}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium">{formatDateTime(entry.observationTime)}</span>
+                                    <span className={`bg-${statusColor} text-white px-2 py-1 rounded text-xs`}>
+                                      {entry.observationStatus}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-font-detail mb-1">
+                                    <strong>Activity:</strong> {entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                                  </p>
+                                  <p className="text-sm text-font-detail">{entry.notes}</p>
+                                  <p className="text-xs text-font-detail mt-2">Logged by: {entry.loggedByStaffName}</p>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-font-detail mb-1"><strong>Activity:</strong> Laying on bed</p>
-                      <p className="text-sm text-font-detail">Preparing for sleep, reading quietly.</p>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
-            </div>
-          </div>
+              );
+            })
+          )}
         </div>
       )}
 
