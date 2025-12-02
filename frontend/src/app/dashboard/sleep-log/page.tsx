@@ -81,8 +81,21 @@ export default function SleepLogPage() {
   const ITEMS_PER_PAGE = 10;
   
   // Get program and token
-  const programId = typeof window !== 'undefined' ? sessionStorage.getItem('activeProgramId') : null;
+  const [programId, setProgramId] = useState<number | null>(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+  // Load program ID from localStorage (same as incidents page)
+  useEffect(() => {
+    try {
+      const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      if (programData) {
+        const program = JSON.parse(programData);
+        setProgramId(program.id);
+      }
+    } catch (error) {
+      console.error('Error loading program data:', error);
+    }
+  }, []);
 
   // Fetch data on load
   useEffect(() => {

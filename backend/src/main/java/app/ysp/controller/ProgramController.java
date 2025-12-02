@@ -207,6 +207,7 @@ public class ProgramController {
 
     // Residents per program
     @GetMapping("/{id}/residents")
+    @PreAuthorize("isAuthenticated()")
     public List<ProgramResident> getResidents(@PathVariable Long id) {
         return residents.findByProgram_Id(id);
     }
