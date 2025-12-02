@@ -16,9 +16,9 @@ export function generateWatchReportHTML(watch: any): string {
     .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #14558f; padding-bottom: 20px; }
     .logo { width: 120px; height: auto; margin-bottom: 15px; }
     .commonwealth { font-size: 20px; color: #14558f; font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
-    .org-line { font-size: 14px; color: #14558f; font-weight: 500; margin-bottom: 5px; }
-    h1 { font-size: 24px; color: #1a1a1a; font-weight: 700; margin: 15px 0 10px 0; }
-    .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
+    .org-line { font-size: 16px; color: #14558f; font-weight: 500; margin-bottom: 5px; }
+    h1 { font-size: 14px; color: #1a1a1a; font-weight: 700; margin: 10px 0 8px 0; }
+    .subtitle { font-size: 12px; color: #666; margin-bottom: 5px; }
     .section { margin-bottom: 25px; page-break-inside: avoid; }
     .section-title { background: linear-gradient(135deg, #14558f 0%, #4377A5 100%); color: white; padding: 10px 15px; font-size: 16px; font-weight: 600; margin-bottom: 15px; border-radius: 6px; }
     .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }

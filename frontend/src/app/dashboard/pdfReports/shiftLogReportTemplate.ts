@@ -89,21 +89,21 @@ export function generateShiftLogReportHTML(data: any): string {
     }
     
     .org-line {
-      font-size: 14px;
+      font-size: 16px;
       color: #14558f;
       font-weight: 500;
       margin-bottom: 5px;
     }
     
     .report-title {
-      font-size: 24px;
+      font-size: 14px;
       font-weight: 700;
       color: #1a1a1a;
-      margin: 15px 0 10px 0;
+      margin: 10px 0 8px 0;
     }
     
     .report-subtitle {
-      font-size: 16px;
+      font-size: 12px;
       color: #666;
       margin-bottom: 5px;
     }
