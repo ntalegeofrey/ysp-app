@@ -64,4 +64,4 @@ COMMENT ON TABLE watch_assignments IS 'Sleep and behavioral watch assignments fo
 COMMENT ON TABLE watch_log_entries IS 'Hourly observation logs for residents on watch status.';
 COMMENT ON COLUMN watch_assignments.watch_type IS 'ELEVATED (most serious/red), ALERT (medium/yellow), GENERAL (standard/green)';
 COMMENT ON COLUMN watch_assignments.status IS 'ACTIVE watches are ongoing, others are archived';
-COMMENT ON CONSTRAINT idx_one_active_watch_per_resident ON watch_assignments IS 'Ensures only one active watch per resident at any time';
+COMMENT ON INDEX idx_one_active_watch_per_resident IS 'Ensures only one active watch per resident at any time';
