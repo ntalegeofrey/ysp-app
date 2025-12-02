@@ -156,10 +156,31 @@ export default function SleepLogPage() {
 
   // Fetch archived watches when archive tab is active
   useEffect(() => {
-    if (activeTab === 'archive' && programId && token) {
-      fetchArchivedWatches();
-    }
-  }, [activeTab, programId, token]);
+    if (activeTab !== 'archive' || !programId) return;
+    
+    (async () => {
+      try {
+        setLoading(true);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/watches/archive`, {
+          credentials: 'include',
+          headers: { 
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setArchivedWatches(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch archived watches:', error);
+        addToast('Failed to load archive', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [activeTab, programId]);
 
   // SSE for real-time updates
   useEffect(() => {
@@ -216,28 +237,6 @@ export default function SleepLogPage() {
       setActiveWatches(data);
     } catch (error) {
       console.error('Failed to fetch active watches:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchArchivedWatches = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/programs/${programId}/watches/archive`, {
-        credentials: 'include',
-        headers: { 
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setArchivedWatches(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch archived watches:', error);
-      addToast('Failed to load archive', 'error');
     } finally {
       setLoading(false);
     }
