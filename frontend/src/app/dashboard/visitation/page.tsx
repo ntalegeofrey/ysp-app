@@ -1,9 +1,430 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function VisitationPage() {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'todays' | 'phone' | 'archive'>('todays');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'schedule' | 'visits' | 'phone' | 'archive'>('visits');
+  const [programId, setProgramId] = useState<string | null>(null);
+  
+  // Data state
+  const [residents, setResidents] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [todaysVisitations, setTodaysVisitations] = useState<any[]>([]);
+  const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
+  const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Form state for Schedule Visitation
+  const [visitForm, setVisitForm] = useState({
+    residentId: '',
+    visitType: 'IN_PERSON',
+    visitorName: '',
+    visitorRelationship: '',
+    visitorPhone: '',
+    visitorEmail: '',
+    scheduledDate: '',
+    scheduledStartTime: '',
+    scheduledEndTime: '',
+    visitationRoom: '',
+    specialInstructions: '',
+    supervisingStaffId: '',
+    approvalStatus: 'PENDING'
+  });
+  
+  // Form state for Phone Log
+  const [phoneForm, setPhoneForm] = useState({
+    residentId: '',
+    callType: 'OUTGOING',
+    contactRelationship: '',
+    contactName: '',
+    phoneNumber: '',
+    callTime: '',
+    durationMinutes: '',
+    authorizingStaffId: '',
+    monitoringStaffId: '',
+    behaviorDuringCall: 'POSITIVE',
+    postCallBehavior: 'IMPROVED',
+    additionalComments: ''
+  });
+  
+  // Toast notifications
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    try {
+      localStorage.setItem('global-toast', JSON.stringify({ title: message, tone: type }));
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
+  };
+  
+  // Get programId from localStorage
+  useEffect(() => {
+    const selectedProgram = localStorage.getItem('selectedProgram');
+    if (selectedProgram) {
+      try {
+        const program = JSON.parse(selectedProgram);
+        setProgramId(program.id || program.programId);
+      } catch {}
+    }
+  }, []);
+  
+  // Fetch residents
+  const fetchResidents = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResidents(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch residents:', err);
+    }
+  };
+  
+  // Fetch staff
+  const fetchStaff = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/assignments`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStaff(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff:', err);
+    }
+  };
+  
+  // Fetch today's visitations
+  const fetchTodaysVisitations = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/visitations/today`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTodaysVisitations(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch visitations:', err);
+    }
+  };
+  
+  // Fetch historical records
+  const fetchHistoricalRecords = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const [visitationsRes, phoneLogsRes] = await Promise.all([
+        fetch(`/api/programs/${programId}/visitations?page=0&size=20`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        }),
+        fetch(`/api/programs/${programId}/phone-logs?page=0&size=20`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        })
+      ]);
+      
+      const visitations = visitationsRes.ok ? (await visitationsRes.json()).visitations || [] : [];
+      const phoneLogs = phoneLogsRes.ok ? (await phoneLogsRes.json()).phoneLogs || [] : [];
+      
+      // Combine and sort by date
+      const combined = [
+        ...visitations.map((v: any) => ({ ...v, type: 'visitation' })),
+        ...phoneLogs.map((p: any) => ({ ...p, type: 'phone' }))
+      ].sort((a, b) => new Date(b.createdAt || b.callDateTime).getTime() - new Date(a.createdAt || a.callDateTime).getTime());
+      
+      setHistoricalRecords(combined);
+    } catch (err) {
+      console.error('Failed to fetch historical records:', err);
+    }
+  };
+  
+  // Load data when programId changes or tab changes
+  useEffect(() => {
+    if (programId) {
+      fetchResidents();
+      fetchStaff();
+      if (activeTab === 'todays') fetchTodaysVisitations();
+      if (activeTab === 'archive') fetchHistoricalRecords();
+    }
+  }, [programId, activeTab]);
+  
+  // Handle schedule visitation form submission
+  const handleScheduleVisitation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    // Basic validation
+    if (!visitForm.residentId) {
+      addToast('Please select a resident', 'error');
+      return;
+    }
+    if (!visitForm.visitorName) {
+      addToast('Please enter visitor name', 'error');
+      return;
+    }
+    if (!visitForm.scheduledDate || !visitForm.scheduledStartTime || !visitForm.scheduledEndTime) {
+      addToast('Please enter complete schedule information', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Build visitor info
+      const visitorInfo = [{
+        name: visitForm.visitorName,
+        relationship: visitForm.visitorRelationship,
+        phone: visitForm.visitorPhone,
+        email: visitForm.visitorEmail
+      }];
+      
+      // Combine date and time
+      const scheduledDate = visitForm.scheduledDate;
+      const startTime = `${scheduledDate}T${visitForm.scheduledStartTime}:00.000Z`;
+      const endTime = `${scheduledDate}T${visitForm.scheduledEndTime}:00.000Z`;
+      
+      const payload = {
+        residentId: parseInt(visitForm.residentId),
+        visitType: visitForm.visitType,
+        approvalStatus: visitForm.approvalStatus,
+        visitorInfo,
+        scheduledDate,
+        scheduledStartTime: startTime,
+        scheduledEndTime: endTime,
+        visitationRoom: visitForm.visitationRoom,
+        specialInstructions: visitForm.specialInstructions,
+        ...(visitForm.supervisingStaffId ? { supervisingStaffId: parseInt(visitForm.supervisingStaffId) } : {})
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/visitations`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Visitation scheduled successfully', 'success');
+        // Reset form
+        setVisitForm({
+          residentId: '',
+          visitType: 'IN_PERSON',
+          visitorName: '',
+          visitorRelationship: '',
+          visitorPhone: '',
+          visitorEmail: '',
+          scheduledDate: '',
+          scheduledStartTime: '',
+          scheduledEndTime: '',
+          visitationRoom: '',
+          specialInstructions: '',
+          supervisingStaffId: '',
+          approvalStatus: 'PENDING'
+        });
+        // Switch to today's tab
+        setActiveTab('todays');
+        fetchTodaysVisitations();
+      } else {
+        let errorMsg = 'Failed to schedule visitation';
+        try {
+          const errorText = await res.text();
+          // Try to parse as JSON first
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMsg = errorJson.message || errorJson.error || errorText;
+          } catch {
+            // If not JSON, use the text directly
+            errorMsg = errorText || errorMsg;
+          }
+        } catch {
+          // If reading response fails, use default message
+        }
+        addToast(errorMsg, 'error');
+      }
+    } catch (err) {
+      console.error('Error scheduling visitation:', err);
+      addToast('Failed to schedule visitation', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle phone log form submission
+  const handleLogPhoneCall = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    // Basic validation
+    if (!phoneForm.residentId) {
+      addToast('Please select a resident', 'error');
+      return;
+    }
+    if (!phoneForm.contactRelationship) {
+      addToast('Please select contact relationship', 'error');
+      return;
+    }
+    if (!phoneForm.authorizingStaffId || !phoneForm.monitoringStaffId) {
+      addToast('Please select both authorizing and monitoring staff', 'error');
+      return;
+    }
+    if (!phoneForm.callTime || !phoneForm.durationMinutes) {
+      addToast('Please enter call time and duration', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Build call date time
+      const now = new Date();
+      const callDateTime = phoneForm.callTime 
+        ? `${now.toISOString().split('T')[0]}T${phoneForm.callTime}:00.000Z`
+        : now.toISOString();
+      
+      const payload = {
+        residentId: parseInt(phoneForm.residentId),
+        callType: phoneForm.callType,
+        contactRelationship: phoneForm.contactRelationship,
+        contactName: phoneForm.contactName,
+        phoneNumber: phoneForm.phoneNumber,
+        callDateTime,
+        durationMinutes: parseInt(phoneForm.durationMinutes) || 0,
+        authorizingStaffId: parseInt(phoneForm.authorizingStaffId),
+        monitoringStaffId: parseInt(phoneForm.monitoringStaffId),
+        behaviorDuringCall: phoneForm.behaviorDuringCall,
+        postCallBehavior: phoneForm.postCallBehavior,
+        additionalComments: phoneForm.additionalComments,
+        callTerminatedEarly: false
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/phone-logs`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Phone call logged successfully', 'success');
+        // Reset form
+        setPhoneForm({
+          residentId: '',
+          callType: 'OUTGOING',
+          contactRelationship: '',
+          contactName: '',
+          phoneNumber: '',
+          callTime: '',
+          durationMinutes: '',
+          authorizingStaffId: '',
+          monitoringStaffId: '',
+          behaviorDuringCall: 'POSITIVE',
+          postCallBehavior: 'IMPROVED',
+          additionalComments: ''
+        });
+      } else {
+        let errorMsg = 'Failed to log phone call';
+        try {
+          const errorText = await res.text();
+          // Try to parse as JSON first
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMsg = errorJson.message || errorJson.error || errorText;
+          } catch {
+            // If not JSON, use the text directly
+            errorMsg = errorText || errorMsg;
+          }
+        } catch {
+          // If reading response fails, use default message
+        }
+        addToast(errorMsg, 'error');
+      }
+    } catch (err) {
+      console.error('Error logging phone call:', err);
+      addToast('Failed to log phone call', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Get staff with valid userId for dropdowns
+  const staffWithIds = useMemo(() => {
+    return staff.filter(s => s.userId).map(s => {
+      // Build name from available fields
+      let name = '';
+      if (s.firstName || s.lastName) {
+        name = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+      } else if (s.userEmail) {
+        // Use email if no name available
+        name = s.userEmail.split('@')[0];
+      } else {
+        name = `Staff ${s.userId}`;
+      }
+      
+      return {
+        id: s.userId,
+        name: name,
+        role: s.roleType || 'STAFF'
+      };
+    });
+  }, [staff]);
+  
+  // Format time
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+  
+  // Format date
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
 
   const tabBtnBase = 'flex items-center px-0 py-4 text-sm transition-all duration-300 border-b-2';
   const tabActive = 'text-primary font-semibold border-primary';
@@ -14,9 +435,9 @@ export default function VisitationPage() {
       {/* Tabs */}
       <div className="mb-2">
         <div className="flex space-x-8 border-b border-bd bg-transparent">
-          <button className={`${tabBtnBase} ${activeTab === 'todays' ? tabActive : tabInactive}`} onClick={() => setActiveTab('todays')}>
-            <i className={`fa-solid fa-calendar-day mr-2 ${activeTab === 'todays' ? 'text-primary' : ''}`}></i>
-            Today's Schedule
+          <button className={`${tabBtnBase} ${activeTab === 'visits' ? tabActive : tabInactive}`} onClick={() => setActiveTab('visits')}>
+            <i className={`fa-solid fa-calendar-check mr-2 ${activeTab === 'visits' ? 'text-primary' : ''}`}></i>
+            Scheduled Visits
           </button>
           <button className={`${tabBtnBase} ${activeTab === 'schedule' ? tabActive : tabInactive}`} onClick={() => setActiveTab('schedule')}>
             <i className={`fa-solid fa-calendar-plus mr-2 ${activeTab === 'schedule' ? 'text-primary' : ''}`}></i>
@@ -45,80 +466,187 @@ export default function VisitationPage() {
               Administrator scheduling interface for youth visitations
             </div>
           </div>
-          <div className="p-6">
+          <form onSubmit={handleScheduleVisitation} className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Resident</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>Select Resident</option>
-                      <option>Resident A01 - Johnson, Michael</option>
-                      <option>Resident A02 - Rodriguez, Carlos</option>
-                      <option>Resident B01 - Williams, David</option>
-                      <option>Resident C01 - Brown, Anthony</option>
-                      <option>Resident C02 - Davis, Marcus</option>
+                    <select 
+                      value={visitForm.residentId} 
+                      onChange={(e) => setVisitForm({...visitForm, residentId: e.target.value})}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="">Select Resident</option>
+                      {residents.length === 0 ? (
+                        <option disabled>No residents available</option>
+                      ) : (
+                        residents.map(r => (
+                          <option key={r.id} value={r.id}>
+                            {r.residentId} - {r.lastName}, {r.firstName}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Visit Type</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>In-Person Visit</option>
-                      <option>Video Visit</option>
-                      <option>Professional Visit</option>
-                      <option>Legal Visit</option>
+                    <select 
+                      value={visitForm.visitType}
+                      onChange={(e) => setVisitForm({...visitForm, visitType: e.target.value})}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="IN_PERSON">In-Person Visit</option>
+                      <option value="VIDEO">Video Visit</option>
+                      <option value="PROFESSIONAL">Professional Visit</option>
+                      <option value="LEGAL">Legal Visit</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Visitor Information</label>
-                  <input type="text" placeholder="Full name and relationship to resident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  <label className="block text-sm font-medium text-font-base mb-2">Visitor Name</label>
+                  <input 
+                    type="text" 
+                    value={visitForm.visitorName}
+                    onChange={(e) => setVisitForm({...visitForm, visitorName: e.target.value})}
+                    required
+                    placeholder="Full name" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Relationship</label>
+                  <input 
+                    type="text" 
+                    value={visitForm.visitorRelationship}
+                    onChange={(e) => setVisitForm({...visitForm, visitorRelationship: e.target.value})}
+                    placeholder="e.g., Mother, Father, Lawyer" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Visit Date</label>
-                    <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input 
+                      type="date" 
+                      value={visitForm.scheduledDate}
+                      onChange={(e) => setVisitForm({...visitForm, scheduledDate: e.target.value})}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Time Slot</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>10:00 AM - 11:30 AM</option>
-                      <option>2:00 PM - 3:30 PM</option>
-                      <option>4:00 PM - 5:30 PM</option>
-                      <option>6:00 PM - 7:30 PM</option>
-                    </select>
+                    <label className="block text-sm font-medium text-font-base mb-2">Start Time</label>
+                    <input 
+                      type="time" 
+                      value={visitForm.scheduledStartTime}
+                      onChange={(e) => setVisitForm({...visitForm, scheduledStartTime: e.target.value})}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">End Time</label>
+                  <input 
+                    type="time" 
+                    value={visitForm.scheduledEndTime}
+                    onChange={(e) => setVisitForm({...visitForm, scheduledEndTime: e.target.value})}
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Special Instructions</label>
-                  <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20" placeholder="Any special requirements or restrictions..." />
+                  <textarea 
+                    value={visitForm.specialInstructions}
+                    onChange={(e) => setVisitForm({...visitForm, specialInstructions: e.target.value})}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20" 
+                    placeholder="Any special requirements or restrictions..." />
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Visitation Room</label>
-                  <input type="text" placeholder="Enter visitation room (e.g., Room A, Video Room, etc.)" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  <input 
+                    type="text" 
+                    value={visitForm.visitationRoom}
+                    onChange={(e) => setVisitForm({...visitForm, visitationRoom: e.target.value})}
+                    placeholder="Enter visitation room (e.g., Room A, Video Room, etc.)" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Supervising Staff (Optional)</label>
+                  <select 
+                    value={visitForm.supervisingStaffId}
+                    onChange={(e) => setVisitForm({...visitForm, supervisingStaffId: e.target.value})}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select Staff Member</option>
+                    {staffWithIds.length === 0 ? (
+                      <option disabled>No staff members with user accounts</option>
+                    ) : (
+                      staffWithIds.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} - {s.role}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Contact Information</label>
-                  <input type="text" placeholder="Visitor phone number" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary mb-2" />
-                  <input type="email" placeholder="Visitor email address" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  <input 
+                    type="tel" 
+                    value={visitForm.visitorPhone}
+                    onChange={(e) => setVisitForm({...visitForm, visitorPhone: e.target.value})}
+                    placeholder="Visitor phone number" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary mb-2" />
+                  <input 
+                    type="email" 
+                    value={visitForm.visitorEmail}
+                    onChange={(e) => setVisitForm({...visitForm, visitorEmail: e.target.value})}
+                    placeholder="Visitor email address" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div className="bg-primary-lightest p-4 rounded-lg">
                   <h4 className="font-medium text-font-base mb-2">Approval Status</h4>
                   <div className="flex items-center space-x-3">
-                    <label className="flex items-center"><input type="radio" name="approval" className="text-primary focus:ring-primary" /><span className="ml-2 text-sm text-success">Approved</span></label>
-                    <label className="flex items-center"><input defaultChecked type="radio" name="approval" className="text-primary focus:ring-primary" /><span className="ml-2 text-sm text-warning">Pending Review</span></label>
-                    <label className="flex items-center"><input type="radio" name="approval" className="text-primary focus:ring-primary" /><span className="ml-2 text-sm text-error">Denied</span></label>
+                    <label className="flex items-center">
+                      <input 
+                        type="radio" 
+                        name="approval" 
+                        value="APPROVED"
+                        checked={visitForm.approvalStatus === 'APPROVED'}
+                        onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
+                        className="text-primary focus:ring-primary" />
+                      <span className="ml-2 text-sm text-success">Approved</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="radio" 
+                        name="approval" 
+                        value="PENDING"
+                        checked={visitForm.approvalStatus === 'PENDING'}
+                        onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
+                        className="text-primary focus:ring-primary" />
+                      <span className="ml-2 text-sm text-warning">Pending Review</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="radio" 
+                        name="approval" 
+                        value="DENIED"
+                        checked={visitForm.approvalStatus === 'DENIED'}
+                        onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
+                        className="text-primary focus:ring-primary" />
+                      <span className="ml-2 text-sm text-error">Denied</span>
+                    </label>
                   </div>
                 </div>
-                <button className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-light font-medium">
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-light font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                   <i className="fa-solid fa-calendar-check mr-2"></i>
-                  Schedule Visitation
+                  {loading ? 'Scheduling...' : 'Schedule Visitation'}
                 </button>
               </div>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -215,129 +743,201 @@ export default function VisitationPage() {
             </h3>
             <div className="mt-2 text-sm text-font-detail">Log completed phone calls for resident contact tracking</div>
           </div>
-          <div className="p-6">
+          <form onSubmit={handleLogPhoneCall} className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Resident</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>Select Resident</option>
-                      <option>Resident A01 - Johnson, Michael</option>
-                      <option>Resident A02 - Rodriguez, Carlos</option>
-                      <option>Resident B01 - Williams, David</option>
-                      <option>Resident C01 - Brown, Anthony</option>
-                      <option>Resident C02 - Davis, Marcus</option>
+                    <select 
+                      value={phoneForm.residentId}
+                      onChange={(e) => setPhoneForm({...phoneForm, residentId: e.target.value})}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="">Select Resident</option>
+                      {residents.length === 0 ? (
+                        <option disabled>No residents available</option>
+                      ) : (
+                        residents.map(r => (
+                          <option key={r.id} value={r.id}>
+                            {r.residentId} - {r.lastName}, {r.firstName}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Call Type</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>Outgoing Call</option>
-                      <option>Incoming Call</option>
-                      <option>Legal Call</option>
-                      <option>Emergency Call</option>
+                    <select 
+                      value={phoneForm.callType}
+                      onChange={(e) => setPhoneForm({...phoneForm, callType: e.target.value})}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                      <option value="OUTGOING">Outgoing Call</option>
+                      <option value="INCOMING">Incoming Call</option>
+                      <option value="LEGAL">Legal Call</option>
+                      <option value="EMERGENCY">Emergency Call</option>
                     </select>
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Person Called/Calling</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                  <select 
+                    value={phoneForm.contactRelationship}
+                    onChange={(e) => setPhoneForm({...phoneForm, contactRelationship: e.target.value})}
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                     <option value="">Select relationship...</option>
-                    <option value="mother1">Mother 1</option>
-                    <option value="mother2">Mother 2</option>
-                    <option value="father1">Father 1</option>
-                    <option value="father2">Father 2</option>
-                    <option value="stepmother">Step-Mother</option>
-                    <option value="stepfather">Step-Father</option>
-                    <option value="sister">Sister</option>
-                    <option value="brother">Brother</option>
-                    <option value="stepsister">Step-Sister</option>
-                    <option value="stepbrother">Step-Brother</option>
-                    <option value="grandmother">Grandmother</option>
-                    <option value="grandfather">Grandfather</option>
-                    <option value="aunt">Aunt</option>
-                    <option value="uncle">Uncle</option>
-                    <option value="cousin">Cousin</option>
-                    <option value="guardian">Legal Guardian</option>
-                    <option value="foster">Foster Parent</option>
-                    <option value="caseworker">Caseworker</option>
-                    <option value="social_services">Social Services</option>
-                    <option value="probation">Probation Officer</option>
-                    <option value="attorney">Attorney/Legal Representative</option>
-                    <option value="therapist">Therapist/Counselor</option>
-                    <option value="doctor">Doctor/Medical Provider</option>
-                    <option value="support_services">Support Services</option>
-                    <option value="other">Other (specify in comments)</option>
+                    <option value="MOTHER_1">Mother 1</option>
+                    <option value="MOTHER_2">Mother 2</option>
+                    <option value="FATHER_1">Father 1</option>
+                    <option value="FATHER_2">Father 2</option>
+                    <option value="STEPMOTHER">Step-Mother</option>
+                    <option value="STEPFATHER">Step-Father</option>
+                    <option value="SISTER">Sister</option>
+                    <option value="BROTHER">Brother</option>
+                    <option value="STEPSISTER">Step-Sister</option>
+                    <option value="STEPBROTHER">Step-Brother</option>
+                    <option value="GRANDMOTHER">Grandmother</option>
+                    <option value="GRANDFATHER">Grandfather</option>
+                    <option value="AUNT">Aunt</option>
+                    <option value="UNCLE">Uncle</option>
+                    <option value="COUSIN">Cousin</option>
+                    <option value="GUARDIAN">Legal Guardian</option>
+                    <option value="FOSTER">Foster Parent</option>
+                    <option value="CASEWORKER">Caseworker</option>
+                    <option value="SOCIAL_SERVICES">Social Services</option>
+                    <option value="PROBATION">Probation Officer</option>
+                    <option value="ATTORNEY">Attorney/Legal Representative</option>
+                    <option value="THERAPIST">Therapist/Counselor</option>
+                    <option value="DOCTOR">Doctor/Medical Provider</option>
+                    <option value="SUPPORT_SERVICES">Support Services</option>
+                    <option value="OTHER">Other (specify in comments)</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Contact Name</label>
+                  <input 
+                    type="text"
+                    value={phoneForm.contactName}
+                    onChange={(e) => setPhoneForm({...phoneForm, contactName: e.target.value})}
+                    placeholder="Full name of the contact"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Call Time</label>
-                    <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input 
+                      type="time"
+                      value={phoneForm.callTime}
+                      onChange={(e) => setPhoneForm({...phoneForm, callTime: e.target.value})}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Duration (minutes)</label>
-                    <input type="number" placeholder="15" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <input 
+                      type="number"
+                      value={phoneForm.durationMinutes}
+                      onChange={(e) => setPhoneForm({...phoneForm, durationMinutes: e.target.value})}
+                      required
+                      min="1"
+                      placeholder="15"
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Phone Number</label>
-                  <input type="tel" placeholder="(555) 123-4567" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  <input 
+                    type="tel"
+                    value={phoneForm.phoneNumber}
+                    onChange={(e) => setPhoneForm({...phoneForm, phoneNumber: e.target.value})}
+                    placeholder="(555) 123-4567"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Staff Authorizing Call</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Select Staff Member</option>
-                    <option>L. Davis - Supervisor</option>
-                    <option>R. Martinez - JJYDS II</option>
-                    <option>K. Thompson - JJYDS I</option>
-                    <option>M. Wilson - Caseworker</option>
+                  <select 
+                    value={phoneForm.authorizingStaffId}
+                    onChange={(e) => setPhoneForm({...phoneForm, authorizingStaffId: e.target.value})}
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select Staff Member</option>
+                    {staffWithIds.length === 0 ? (
+                      <option disabled>No staff members with user accounts</option>
+                    ) : (
+                      staffWithIds.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} - {s.role}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Staff Monitoring Call</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Select Monitoring Staff</option>
-                    <option>L. Davis - Supervisor</option>
-                    <option>R. Martinez - JJYDS II</option>
-                    <option>K. Thompson - JJYDS I</option>
-                    <option>J. Anderson - Support Staff</option>
+                  <select 
+                    value={phoneForm.monitoringStaffId}
+                    onChange={(e) => setPhoneForm({...phoneForm, monitoringStaffId: e.target.value})}
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select Monitoring Staff</option>
+                    {staffWithIds.length === 0 ? (
+                      <option disabled>No staff members with user accounts</option>
+                    ) : (
+                      staffWithIds.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} - {s.role}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Resident Behavior During Call</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Positive - Calm and appropriate</option>
-                    <option>Neutral - No significant issues</option>
-                    <option>Agitated - Elevated but manageable</option>
-                    <option>Distressed - Emotional response</option>
-                    <option>Concerning - Required intervention</option>
+                  <select 
+                    value={phoneForm.behaviorDuringCall}
+                    onChange={(e) => setPhoneForm({...phoneForm, behaviorDuringCall: e.target.value})}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="POSITIVE">Positive - Calm and appropriate</option>
+                    <option value="NEUTRAL">Neutral - No significant issues</option>
+                    <option value="AGITATED">Agitated - Elevated but manageable</option>
+                    <option value="DISTRESSED">Distressed - Emotional response</option>
+                    <option value="CONCERNING">Concerning - Required intervention</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Post-Call Behavior</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Improved - Positive mood change</option>
-                    <option>No change - Maintained baseline</option>
-                    <option>Slightly elevated - Minor agitation</option>
-                    <option>Significantly impacted - Requires monitoring</option>
-                    <option>Crisis level - Immediate intervention needed</option>
+                  <select 
+                    value={phoneForm.postCallBehavior}
+                    onChange={(e) => setPhoneForm({...phoneForm, postCallBehavior: e.target.value})}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="IMPROVED">Improved - Positive mood change</option>
+                    <option value="NO_CHANGE">No change - Maintained baseline</option>
+                    <option value="SLIGHTLY_ELEVATED">Slightly elevated - Minor agitation</option>
+                    <option value="SIGNIFICANTLY_IMPACTED">Significantly impacted - Requires monitoring</option>
+                    <option value="CRISIS_LEVEL">Crisis level - Immediate intervention needed</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Additional Comments</label>
-                  <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20" placeholder="Any additional observations about the call or resident's response..." />
+                  <textarea 
+                    value={phoneForm.additionalComments}
+                    onChange={(e) => setPhoneForm({...phoneForm, additionalComments: e.target.value})}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20"
+                    placeholder="Any additional observations about the call or resident's response..." />
                 </div>
-                <button className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-light font-medium">
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-light font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                   <i className="fa-solid fa-save mr-2"></i>
-                  Log Phone Call
+                  {loading ? 'Logging...' : 'Log Phone Call'}
                 </button>
               </div>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

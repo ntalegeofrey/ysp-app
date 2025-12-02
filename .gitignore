@@ -43,3 +43,6 @@ ansible/group_vars/vault.yml
 
 all.yml
 vault.yml
+
+# Test scripts for apis
+api_tests/
