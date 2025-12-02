@@ -18,7 +18,7 @@ public class JwtService {
     @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
-    @Value("${app.jwt.ttlSeconds:3600}")
+    @Value("${app.jwt.ttlSeconds:7200}")
     private long ttlSeconds;
 
     private Key key;

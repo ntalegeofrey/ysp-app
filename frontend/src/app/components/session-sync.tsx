@@ -62,8 +62,8 @@ export default function SessionSync() {
       }
     };
 
-    // Idle detection (10 minutes)
-    const IDLE_LIMIT_MS = 10 * 60 * 1000;
+    // Idle detection (2 hours to match JWT TTL)
+    const IDLE_LIMIT_MS = 120 * 60 * 1000;
     let lastActivity = Date.now();
     const markActive = () => { lastActivity = Date.now(); };
     ['click','keydown','mousemove','scroll','touchstart','touchmove','pointerdown','wheel'].forEach(evt => {
