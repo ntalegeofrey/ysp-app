@@ -485,7 +485,7 @@ export default function SleepLogPage() {
     }));
   };
 
-  // Fetch recent log entries for a watch
+  // Fetch recent log entries for a watch (last 6 hours)
   const fetchWatchLogs = async (watchId: number) => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -502,6 +502,26 @@ export default function SleepLogPage() {
       }
     } catch (error) {
       console.error('Failed to fetch watch logs:', error);
+    }
+  };
+
+  // Fetch ALL log entries for a watch (for history modal)
+  const fetchAllWatchLogs = async (watchId: number) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`/api/programs/${programId}/watches/${watchId}/log-entries`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWatchLogs(prev => ({ ...prev, [watchId]: data }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch all watch logs:', error);
     }
   };
 
@@ -971,7 +991,7 @@ export default function SleepLogPage() {
                       <button 
                         onClick={() => {
                           setViewHistoryWatch(watch);
-                          fetchWatchLogs(watch.id);
+                          fetchAllWatchLogs(watch.id);
                         }}
                         className="text-primary hover:text-primary-light text-sm font-medium transition-colors"
                       >
