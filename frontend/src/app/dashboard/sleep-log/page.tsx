@@ -1,9 +1,204 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
+
+interface WatchStats {
+  totalActive: number;
+  elevated: number;
+  alert: number;
+  general: number;
+}
+
+interface WatchAssignment {
+  id: number;
+  residentId: number;
+  residentName: string;
+  residentNumber: string;
+  room: string;
+  watchType: string;
+  startDateTime: string;
+  clinicalReason: string;
+  status: string;
+  totalLogEntries: number;
+}
+
+interface LogEntry {
+  id: number;
+  observationTime: string;
+  observationStatus: string;
+  activity: string;
+  notes: string;
+  loggedByStaffName: string;
+}
+
+interface Resident {
+  id: number;
+  firstName: string;
+  lastName: string;
+  residentId: string;
+  room: string;
+}
 
 export default function SleepLogPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'add' | 'archive'>('active');
+  const [stats, setStats] = useState<WatchStats>({ totalActive: 0, elevated: 0, alert: 0, general: 0 });
+  const [activeWatches, setActiveWatches] = useState<WatchAssignment[]>([]);
+  const [archivedWatches, setArchivedWatches] = useState<WatchAssignment[]>([]);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedWatch, setExpandedWatch] = useState<number | null>(null);
+  const [watchLogs, setWatchLogs] = useState<{ [key: number]: LogEntry[] }>({});
+  const { toasts, addToast, removeToast } = useToast();
+  
+  // Form states for Add to Watch
+  const [selectedResident, setSelectedResident] = useState('');
+  const [watchType, setWatchType] = useState('GENERAL');
+  const [startDateTime, setStartDateTime] = useState('');
+  const [clinicalReason, setClinicalReason] = useState('');
+  const [riskAssessment, setRiskAssessment] = useState({
+    selfHarmRisk: false,
+    suicidalIdeation: false,
+    aggressiveBehavior: false,
+    sleepDisturbance: false,
+    medicalConcern: false
+  });
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Get program and token
+  const programId = typeof window !== 'undefined' ? sessionStorage.getItem('activeProgramId') : null;
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null;
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+
+  // Fetch data on load
+  useEffect(() => {
+    if (programId && token) {
+      fetchStats();
+      fetchActiveWatches();
+      fetchResidents();
+    }
+  }, [programId, token]);
+
+  // SSE for real-time updates
+  useEffect(() => {
+    if (typeof window !== 'undefined' && programId) {
+      const SSEHub = (window as any).SSEHub;
+      if (SSEHub) {
+        SSEHub.on('watch:created', () => {
+          fetchStats();
+          fetchActiveWatches();
+        });
+        SSEHub.on('watch:updated', () => {
+          fetchStats();
+          fetchActiveWatches();
+        });
+        SSEHub.on('watch:log-entry', () => {
+          fetchStats();
+        });
+      }
+    }
+  }, [programId]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/programs/${programId}/watches/statistics`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  const fetchActiveWatches = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/programs/${programId}/watches/active`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveWatches(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch active watches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchResidents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/programs/${programId}/residents`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResidents(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch residents:', error);
+    }
+  };
+
+  const handleCreateWatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedResident || !clinicalReason || !startDateTime) {
+      addToast('Please fill all required fields', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/programs/${programId}/watches`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          residentId: parseInt(selectedResident),
+          watchType,
+          startDateTime,
+          clinicalReason,
+          ...riskAssessment
+        })
+      });
+
+      if (res.ok) {
+        addToast('Watch created successfully!', 'success');
+        // Clear form
+        setSelectedResident('');
+        setWatchType('GENERAL');
+        setStartDateTime('');
+        setClinicalReason('');
+        setRiskAssessment({
+          selfHarmRisk: false,
+          suicidalIdeation: false,
+          aggressiveBehavior: false,
+          sleepDisturbance: false,
+          medicalConcern: false
+        });
+        // Refresh data
+        fetchStats();
+        fetchActiveWatches();
+        // Switch to active tab
+        setActiveTab('active');
+      } else {
+        const error = await res.text();
+        addToast(error || 'Failed to create watch', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to create watch:', error);
+      addToast('Failed to create watch', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const tabBtnBase = 'flex items-center px-0 py-4 text-sm transition-all duration-300 border-b-2';
   const tabActive = 'text-primary font-semibold border-primary';
@@ -11,6 +206,7 @@ export default function SleepLogPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Tabs */}
       <div className="mb-2">
         <div className="border-b border-bd">
@@ -40,7 +236,7 @@ export default function SleepLogPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-font-detail text-sm">Total on Watch</p>
-                  <p className="text-2xl font-bold text-primary">7</p>
+                  <p className="text-2xl font-bold text-primary">{stats.totalActive}</p>
                 </div>
                 <div className="bg-primary bg-opacity-10 p-3 rounded-lg">
                   <i className="fa-solid fa-eye text-primary text-xl"></i>
@@ -51,7 +247,7 @@ export default function SleepLogPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-font-detail text-sm">Elevated Watch</p>
-                  <p className="text-2xl font-bold text-error">2</p>
+                  <p className="text-2xl font-bold text-error">{stats.elevated}</p>
                 </div>
                 <div className="bg-error bg-opacity-10 p-3 rounded-lg">
                   <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
@@ -62,7 +258,7 @@ export default function SleepLogPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-font-detail text-sm">Alert Watch</p>
-                  <p className="text-2xl font-bold text-warning">3</p>
+                  <p className="text-2xl font-bold text-warning">{stats.alert}</p>
                 </div>
                 <div className="bg-warning bg-opacity-10 p-3 rounded-lg">
                   <i className="fa-solid fa-shield-halved text-warning text-xl"></i>
@@ -73,7 +269,7 @@ export default function SleepLogPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-font-detail text-sm">General Watch</p>
-                  <p className="text-2xl font-bold text-success">2</p>
+                  <p className="text-2xl font-bold text-success">{stats.general}</p>
                 </div>
                 <div className="bg-success bg-opacity-10 p-3 rounded-lg">
                   <i className="fa-solid fa-bed text-success text-xl"></i>
@@ -274,53 +470,122 @@ export default function SleepLogPage() {
             </h3>
             <p className="text-sm text-font-detail mt-1">Complete this form to place a resident under watch supervision</p>
           </div>
-          <div className="p-6">
+          <form onSubmit={handleCreateWatch} className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Resident Name</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>Select Resident...</option>
-                      <option>Alex Thompson</option>
-                      <option>Jordan Martinez</option>
-                      <option>Casey Williams</option>
-                      <option>Riley Johnson</option>
+                    <label className="block text-sm font-medium text-font-base mb-2">Resident Name *</label>
+                    <select 
+                      value={selectedResident}
+                      onChange={(e) => setSelectedResident(e.target.value)}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="">Select Resident...</option>
+                      {residents.map(resident => (
+                        <option key={resident.id} value={resident.id}>
+                          {resident.firstName} {resident.lastName} - {resident.residentId}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Room Number</label>
-                    <input type="text" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g., 204B" />
+                    <input 
+                      type="text" 
+                      value={residents.find(r => r.id === parseInt(selectedResident))?.room || ''}
+                      readOnly
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle" 
+                      placeholder="Auto-filled" 
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Watch Type</label>
-                    <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                      <option>General Watch</option>
-                      <option>Alert Watch</option>
-                      <option>Elevated Watch</option>
+                    <label className="block text-sm font-medium text-font-base mb-2">Watch Type *</label>
+                    <select 
+                      value={watchType}
+                      onChange={(e) => setWatchType(e.target.value)}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="GENERAL">General Watch</option>
+                      <option value="ALERT">Alert Watch</option>
+                      <option value="ELEVATED">Elevated Watch</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Start Date & Time</label>
-                    <input type="datetime-local" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    <label className="block text-sm font-medium text-font-base mb-2">Start Date & Time *</label>
+                    <input 
+                      type="datetime-local" 
+                      value={startDateTime}
+                      onChange={(e) => setStartDateTime(e.target.value)}
+                      required
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                    />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Clinical Reason</label>
-                  <textarea className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Enter clinical justification for watch placement..."></textarea>
+                  <label className="block text-sm font-medium text-font-base mb-2">Clinical Reason *</label>
+                  <textarea 
+                    value={clinicalReason}
+                    onChange={(e) => setClinicalReason(e.target.value)}
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm h-24 focus:ring-2 focus:ring-primary focus:border-primary" 
+                    placeholder="Enter clinical justification for watch placement..."
+                  />
                 </div>
               </div>
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Risk Assessment</label>
                   <div className="space-y-3">
-                    <label className="flex items-center"><input type="checkbox" className="mr-3 text-primary focus:ring-primary" /><span className="text-sm">Self-harm risk</span></label>
-                    <label className="flex items-center"><input type="checkbox" className="mr-3 text-primary focus:ring-primary" /><span className="text-sm">Suicidal ideation</span></label>
-                    <label className="flex items-center"><input type="checkbox" className="mr-3 text-primary focus:ring-primary" /><span className="text-sm">Aggressive behavior</span></label>
-                    <label className="flex items-center"><input type="checkbox" className="mr-3 text-primary focus:ring-primary" /><span className="text-sm">Sleep disturbance</span></label>
-                    <label className="flex items-center"><input type="checkbox" className="mr-3 text-primary focus:ring-primary" /><span className="text-sm">Medical concern</span></label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={riskAssessment.selfHarmRisk}
+                        onChange={(e) => setRiskAssessment({...riskAssessment, selfHarmRisk: e.target.checked})}
+                        className="mr-3 text-primary focus:ring-primary" 
+                      />
+                      <span className="text-sm">Self-harm risk</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={riskAssessment.suicidalIdeation}
+                        onChange={(e) => setRiskAssessment({...riskAssessment, suicidalIdeation: e.target.checked})}
+                        className="mr-3 text-primary focus:ring-primary" 
+                      />
+                      <span className="text-sm">Suicidal ideation</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={riskAssessment.aggressiveBehavior}
+                        onChange={(e) => setRiskAssessment({...riskAssessment, aggressiveBehavior: e.target.checked})}
+                        className="mr-3 text-primary focus:ring-primary" 
+                      />
+                      <span className="text-sm">Aggressive behavior</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={riskAssessment.sleepDisturbance}
+                        onChange={(e) => setRiskAssessment({...riskAssessment, sleepDisturbance: e.target.checked})}
+                        className="mr-3 text-primary focus:ring-primary" 
+                      />
+                      <span className="text-sm">Sleep disturbance</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={riskAssessment.medicalConcern}
+                        onChange={(e) => setRiskAssessment({...riskAssessment, medicalConcern: e.target.checked})}
+                        className="mr-3 text-primary focus:ring-primary" 
+                      />
+                      <span className="text-sm">Medical concern</span>
+                    </label>
                   </div>
                 </div>
                 <div>
@@ -328,15 +593,28 @@ export default function SleepLogPage() {
                   <input type="text" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Dr. Smith (auto-filled)" readOnly />
                 </div>
                 <div className="flex space-x-3 pt-4">
-                  <button className="flex-1 bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary-light transition-colors">
-                    <i className="fa-solid fa-plus mr-2"></i>
-                    Add to Watch
+                  <button 
+                    type="submit" 
+                    disabled={submitting}
+                    className="flex-1 bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? (
+                      <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Adding...</>
+                    ) : (
+                      <><i className="fa-solid fa-plus mr-2"></i>Add to Watch</>
+                    )}
                   </button>
-                  <button className="px-6 py-3 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors">Cancel</button>
+                  <button 
+                    type="button"
+                    onClick={() => setActiveTab('active')}
+                    className="px-6 py-3 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
