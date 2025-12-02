@@ -3,15 +3,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateVisitationReportHTML } from '../pdfReports/visitationReportTemplate';
+import ToastContainer from '@/app/components/Toast';
+import { useToast } from '@/app/hooks/useToast';
 
 export default function VisitationPage() {
   const router = useRouter();
+  const { toasts, addToast, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<'schedule' | 'visits' | 'phone' | 'archive'>('visits');
   const [programId, setProgramId] = useState<string | null>(null);
   
   // Data state
   const [residents, setResidents] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [staffDirectory, setStaffDirectory] = useState<any[]>([]);
+  const [programStaff, setProgramStaff] = useState<any[]>([]);
   const [scheduledVisitations, setScheduledVisitations] = useState<any[]>([]);
   const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
   const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
@@ -42,7 +47,7 @@ export default function VisitationPage() {
     visitationRoom: '',
     specialInstructions: '',
     supervisingStaffId: '',
-    approvalStatus: 'PENDING'
+    approvalStatus: 'PENDING_REVIEW'
   });
   
   // Form state for Phone Log
@@ -60,14 +65,6 @@ export default function VisitationPage() {
     postCallBehavior: 'IMPROVED',
     additionalComments: ''
   });
-  
-  // Toast notifications
-  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    try {
-      localStorage.setItem('global-toast', JSON.stringify({ title: message, tone: type }));
-      window.dispatchEvent(new Event('storage'));
-    } catch {}
-  };
   
   // Get programId from localStorage
   useEffect(() => {
@@ -101,12 +98,11 @@ export default function VisitationPage() {
     }
   };
   
-  // Fetch staff
-  const fetchStaff = async () => {
-    if (!programId) return;
+  // Fetch staff directory (all staff for full details)
+  const fetchStaffDirectory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/assignments`, {
+      const res = await fetch('/api/users/search?q=', {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -115,6 +111,25 @@ export default function VisitationPage() {
       });
       if (res.ok) {
         const data = await res.json();
+        setStaffDirectory(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff directory:', err);
+    }
+  };
+  
+  // Fetch program staff assignments
+  const fetchStaff = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/assignments`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProgramStaff(data);
         setStaff(data);
       }
     } catch (err) {
@@ -218,6 +233,11 @@ export default function VisitationPage() {
     }
   };
   
+  // Load staff directory on mount
+  useEffect(() => {
+    fetchStaffDirectory();
+  }, []);
+  
   // Load data when programId changes or tab changes
   useEffect(() => {
     if (programId) {
@@ -251,6 +271,10 @@ export default function VisitationPage() {
     }
     if (!visitForm.visitorName) {
       addToast('Please enter visitor name', 'error');
+      return;
+    }
+    if (!visitForm.visitorRelationship) {
+      addToast('Please select visitor relationship', 'error');
       return;
     }
     if (!visitForm.scheduledDate || !visitForm.scheduledStartTime || !visitForm.scheduledEndTime) {
@@ -530,6 +554,81 @@ export default function VisitationPage() {
     }
   };
   
+  // Handle approve visit
+  const handleApproveVisit = async (visitId: number) => {
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/visitations/${visitId}/approval`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ approvalStatus: 'APPROVED' })
+      });
+      
+      if (res.ok) {
+        addToast('Visit approved successfully', 'success');
+        fetchScheduledVisitations();
+      } else {
+        addToast('Failed to approve visit', 'error');
+      }
+    } catch (err) {
+      addToast('Failed to approve visit', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle deny visit
+  const handleDenyVisit = async (visitId: number) => {
+    const reason = prompt('Please provide a reason for denial:');
+    if (!reason) {
+      addToast('Denial reason is required', 'warning');
+      return;
+    }
+    
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/visitations/${visitId}/approval`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          approvalStatus: 'DENIED',
+          denialReason: reason
+        })
+      });
+      
+      if (res.ok) {
+        addToast('Visit denied', 'success');
+        fetchScheduledVisitations();
+      } else {
+        addToast('Failed to deny visit', 'error');
+      }
+    } catch (err) {
+      addToast('Failed to deny visit', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Handle complete visit
   const handleCompleteVisit = async (visitId: number) => {
     const visitNotes = prompt('Enter visit notes (optional):');
@@ -572,27 +671,51 @@ export default function VisitationPage() {
     }
   };
   
-  // Get staff with valid userId for dropdowns
+  // Create unique program staff by email to avoid duplicates
+  const uniqueProgramStaff = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const s of programStaff) {
+      const key = (s.userEmail || '').toLowerCase();
+      if (!key) continue;
+      if (!map[key]) map[key] = s;
+    }
+    return Object.values(map);
+  }, [programStaff]);
+  
+  // Create lookup by email for staff details
+  const staffByEmail = useMemo(
+    () => Object.fromEntries(staffDirectory.map((s: any) => [s.email?.toLowerCase() || '', s])),
+    [staffDirectory]
+  );
+  
+  // Get staff with proper display names for dropdowns
   const staffWithIds = useMemo(() => {
-    return staff.filter(s => s.userId).map(s => {
-      // Build name from available fields
-      let name = '';
-      if (s.firstName || s.lastName) {
-        name = `${s.firstName || ''} ${s.lastName || ''}`.trim();
-      } else if (s.userEmail) {
-        // Use email if no name available
-        name = s.userEmail.split('@')[0];
-      } else {
-        name = `Staff ${s.userId}`;
+    return uniqueProgramStaff.filter(s => s.userEmail).map((s, idx) => {
+      const emailKey = (s.userEmail || '').toLowerCase();
+      const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+      
+      // Get full name from directory or build from assignment
+      const baseName = fromDirectory?.fullName?.trim() || '';
+      const fallbackName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+      const emailFallback = (s.userEmail || '').trim();
+      const name = baseName || fallbackName || emailFallback || 'Staff';
+      
+      // Get job title
+      const directoryTitle = fromDirectory?.jobTitle?.trim();
+      const rawTitle = directoryTitle || (s.title || '').trim();
+      let displayName = name;
+      if (rawTitle) {
+        displayName = `${name} (${rawTitle})`;
       }
       
       return {
-        id: s.userId,
-        name: name,
-        role: s.roleType || 'STAFF'
+        ...s,
+        id: s.userId || `staff-${idx}`,
+        displayName: displayName,
+        fullName: name
       };
     });
-  }, [staff]);
+  }, [uniqueProgramStaff, staffByEmail]);
   
   // Format time
   const formatTime = (dateStr: string) => {
@@ -671,7 +794,7 @@ export default function VisitationPage() {
                       ) : (
                         residents.map(r => (
                           <option key={r.id} value={r.id}>
-                            {r.residentId} - {r.lastName}, {r.firstName}
+                            {r.residentId} - {r.firstName} {r.lastName}
                           </option>
                         ))
                       )}
@@ -702,12 +825,38 @@ export default function VisitationPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Relationship</label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={visitForm.visitorRelationship}
                     onChange={(e) => setVisitForm({...visitForm, visitorRelationship: e.target.value})}
-                    placeholder="e.g., Mother, Father, Lawyer" 
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                    required
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select relationship...</option>
+                    <option value="MOTHER_1">Mother 1</option>
+                    <option value="MOTHER_2">Mother 2</option>
+                    <option value="FATHER_1">Father 1</option>
+                    <option value="FATHER_2">Father 2</option>
+                    <option value="STEPMOTHER">Step-Mother</option>
+                    <option value="STEPFATHER">Step-Father</option>
+                    <option value="SISTER">Sister</option>
+                    <option value="BROTHER">Brother</option>
+                    <option value="STEPSISTER">Step-Sister</option>
+                    <option value="STEPBROTHER">Step-Brother</option>
+                    <option value="GRANDMOTHER">Grandmother</option>
+                    <option value="GRANDFATHER">Grandfather</option>
+                    <option value="AUNT">Aunt</option>
+                    <option value="UNCLE">Uncle</option>
+                    <option value="COUSIN">Cousin</option>
+                    <option value="GUARDIAN">Legal Guardian</option>
+                    <option value="FOSTER">Foster Parent</option>
+                    <option value="CASEWORKER">Caseworker</option>
+                    <option value="SOCIAL_SERVICES">Social Services</option>
+                    <option value="PROBATION">Probation Officer</option>
+                    <option value="ATTORNEY">Attorney/Legal Representative</option>
+                    <option value="THERAPIST">Therapist/Counselor</option>
+                    <option value="DOCTOR">Doctor/Medical Provider</option>
+                    <option value="SUPPORT_SERVICES">Support Services</option>
+                    <option value="OTHER">Other (specify in instructions)</option>
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -797,18 +946,8 @@ export default function VisitationPage() {
                       <input 
                         type="radio" 
                         name="approval" 
-                        value="APPROVED"
-                        checked={visitForm.approvalStatus === 'APPROVED'}
-                        onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
-                        className="text-primary focus:ring-primary" />
-                      <span className="ml-2 text-sm text-success">Approved</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input 
-                        type="radio" 
-                        name="approval" 
-                        value="PENDING"
-                        checked={visitForm.approvalStatus === 'PENDING'}
+                        value="PENDING_REVIEW"
+                        checked={visitForm.approvalStatus === 'PENDING_REVIEW'}
                         onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
                         className="text-primary focus:ring-primary" />
                       <span className="ml-2 text-sm text-warning">Pending Review</span>
@@ -817,11 +956,11 @@ export default function VisitationPage() {
                       <input 
                         type="radio" 
                         name="approval" 
-                        value="DENIED"
-                        checked={visitForm.approvalStatus === 'DENIED'}
+                        value="APPROVED"
+                        checked={visitForm.approvalStatus === 'APPROVED'}
                         onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
                         className="text-primary focus:ring-primary" />
-                      <span className="ml-2 text-sm text-error">Denied</span>
+                      <span className="ml-2 text-sm text-success">Approved</span>
                     </label>
                   </div>
                 </div>
@@ -876,7 +1015,12 @@ export default function VisitationPage() {
                   let statusTextColor = 'text-primary';
                   let statusBadgeColor = 'bg-primary';
                   
-                  if (visit.status === 'COMPLETED') {
+                  // Check approval status first - pending review gets orange
+                  if (visit.approvalStatus === 'PENDING_REVIEW') {
+                    statusColor = 'bg-orange-50 border-orange-200';
+                    statusTextColor = 'text-orange-600';
+                    statusBadgeColor = 'bg-orange-500';
+                  } else if (visit.status === 'COMPLETED') {
                     statusColor = 'bg-success-lightest border-success/20';
                     statusTextColor = 'text-success';
                     statusBadgeColor = 'bg-success';
@@ -905,8 +1049,14 @@ export default function VisitationPage() {
                             <span className={`${statusBadgeColor} text-white px-3 py-1 rounded-full text-xs font-medium`}>
                               {visit.status}
                             </span>
+                            {visit.approvalStatus === 'PENDING_REVIEW' && (
+                              <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-pulse">
+                                <i className="fa-solid fa-exclamation-triangle mr-1"></i>
+                                PENDING REVIEW
+                              </span>
+                            )}
                             {isToday && (
-                              <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                              <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium">
                                 TODAY
                               </span>
                             )}
@@ -970,9 +1120,28 @@ export default function VisitationPage() {
                           )}
                         </div>
                         
-                        {/* Action Button */}
-                        <div className="ml-4">
-                          {isToday && visit.status === 'SCHEDULED' && (
+                        {/* Action Buttons */}
+                        <div className="ml-4 flex flex-col gap-2">
+                          {/* Pending Review - Show Approve/Deny buttons */}
+                          {visit.approvalStatus === 'PENDING_REVIEW' && (
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => handleApproveVisit(visit.id)}
+                                className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success-dark text-sm font-medium transition-colors flex items-center">
+                                <i className="fa-solid fa-check mr-2"></i>
+                                Approve
+                              </button>
+                              <button 
+                                onClick={() => handleDenyVisit(visit.id)}
+                                className="bg-error text-white px-4 py-2 rounded-lg hover:bg-error-dark text-sm font-medium transition-colors flex items-center">
+                                <i className="fa-solid fa-times mr-2"></i>
+                                Deny
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Start Visit - Only for today's approved/scheduled visits */}
+                          {isToday && visit.status === 'SCHEDULED' && visit.approvalStatus === 'APPROVED' && (
                             <button 
                               onClick={() => handleStartVisit(visit.id)}
                               className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark text-sm font-medium transition-colors">
@@ -980,6 +1149,8 @@ export default function VisitationPage() {
                               Start Visit
                             </button>
                           )}
+                          
+                          {/* Complete Visit - For in-progress visits */}
                           {visit.status === 'IN_PROGRESS' && (
                             <button 
                               onClick={() => handleCompleteVisit(visit.id)}
@@ -1026,7 +1197,7 @@ export default function VisitationPage() {
                       ) : (
                         residents.map(r => (
                           <option key={r.id} value={r.id}>
-                            {r.residentId} - {r.lastName}, {r.firstName}
+                            {r.residentId} - {r.firstName} {r.lastName}
                           </option>
                         ))
                       )}
@@ -1246,17 +1417,21 @@ export default function VisitationPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Resident</label>
-                <select 
+                <input
+                  list="residents-list"
                   value={recordsFilter.residentId}
                   onChange={(e) => setRecordsFilter({...recordsFilter, residentId: e.target.value})}
-                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                  placeholder="Search resident by name or ID..."
+                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                <datalist id="residents-list">
                   <option value="">All Residents</option>
                   {residents.map(r => (
                     <option key={r.id} value={r.id}>
-                      {r.residentId} - {r.lastName}, {r.firstName}
+                      {r.residentId} - {r.firstName} {r.lastName}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
             
@@ -1365,6 +1540,9 @@ export default function VisitationPage() {
           </div>
         </div>
       )}
+      
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
