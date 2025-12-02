@@ -10,29 +10,29 @@ export function generateRepairHistoryReportHTML(data: any): string {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
-    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #1e40af; padding-bottom: 20px; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #14558f; padding-bottom: 20px; }
     .logo { width: 120px; height: auto; margin-bottom: 15px; }
-    .commonwealth { font-size: 14px; color: #1e40af; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
-    h1 { font-size: 28px; color: #1e40af; margin-bottom: 10px; }
+    .commonwealth { font-size: 14px; color: #14558f; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
+    h1 { font-size: 28px; color: #14558f; margin-bottom: 10px; }
     .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
     .section { margin-bottom: 25px; page-break-inside: avoid; }
-    .section-title { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 12px; border-bottom: 2px solid #dbeafe; padding-bottom: 5px; }
+    .section-title { font-size: 18px; font-weight: bold; color: #14558f; margin-bottom: 12px; border-bottom: 2px solid #E8EEF4; padding-bottom: 5px; }
     .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px; }
-    .info-item { padding: 10px; background: #eff6ff; border-radius: 4px; }
+    .info-item { padding: 10px; background: #E8EEF4; border-radius: 4px; }
     .info-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
     .info-value { font-size: 14px; color: #1a1a1a; }
     .full-width { grid-column: 1 / -1; }
-    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #1e40af; margin-bottom: 15px; }
+    .text-block { padding: 15px; background: #f9fafb; border-left: 4px solid #14558f; margin-bottom: 15px; }
     .text-label { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 600; }
     .text-content { font-size: 14px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; }
     .repair-r3 { background: #fee2e2; color: #991b1b; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
     .repair-r2 { background: #fef3c7; color: #92400e; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
-    .repair-r1 { background: #dbeafe; color: #1e40af; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
+    .repair-r1 { background: #E8EEF4; color: #14558f; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
     .status-completed { background: #d1fae5; color: #065f46; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
     .status-active { background: #fee2e2; color: #991b1b; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
     .status-pending { background: #fef3c7; color: #92400e; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: bold; }
     .repair-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .repair-table th { background: #1e40af; color: white; padding: 10px; text-align: left; font-size: 12px; border: 1px solid #1e40af; }
+    .repair-table th { background: #14558f; color: white; padding: 10px; text-align: left; font-size: 12px; border: 1px solid #14558f; }
     .repair-table td { padding: 10px; border: 1px solid #ddd; font-size: 13px; }
     .repair-table tr:nth-child(even) { background: #f9fafb; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; font-size: 12px; color: #999; }
@@ -43,8 +43,12 @@ export function generateRepairHistoryReportHTML(data: any): string {
   <div class="header">
     <img src="${logoUrl}" alt="DYS Logo" class="logo" />
     <div class="commonwealth">COMMONWEALTH OF MASSACHUSETTS</div>
+    <div class="subtitle">Executive Office for Health and Human Services</div>
+    <div class="subtitle">Department of Youth Services</div>
     <h1>Behavioral Repair History Report</h1>
     <div class="subtitle">${data.programName || 'Program Name'}</div>
+    <div class="subtitle">Phone: (617) 951-2409</div>
+    <div class="subtitle">Address: ${data.programAddress || 'Program Address'}</div>
     <div class="subtitle">Report Generated: ${new Date().toLocaleString()}</div>
   </div>
   

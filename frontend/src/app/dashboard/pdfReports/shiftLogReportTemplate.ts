@@ -72,7 +72,7 @@ export function generateShiftLogReportHTML(data: any): string {
       align-items: center;
       margin-bottom: 25px;
       padding-bottom: 15px;
-      border-bottom: 3px solid #1e40af;
+      border-bottom: 3px solid #14558f;
     }
     
     .logo {
@@ -87,7 +87,7 @@ export function generateShiftLogReportHTML(data: any): string {
     .report-title {
       font-size: 22pt;
       font-weight: bold;
-      color: #1e40af;
+      color: #14558f;
       margin-bottom: 5px;
     }
     
@@ -132,7 +132,7 @@ export function generateShiftLogReportHTML(data: any): string {
     .section-title {
       font-size: 14pt;
       font-weight: bold;
-      color: #1e40af;
+      color: #14558f;
       margin-bottom: 12px;
       padding-bottom: 5px;
       border-bottom: 2px solid #e2e8f0;
@@ -153,7 +153,7 @@ export function generateShiftLogReportHTML(data: any): string {
     }
     
     th {
-      background: #1e40af;
+      background: #14558f;
       color: white;
       padding: 10px;
       text-align: left;
@@ -195,7 +195,7 @@ export function generateShiftLogReportHTML(data: any): string {
     .equipment-value {
       font-size: 16pt;
       font-weight: bold;
-      color: #1e40af;
+      color: #14558f;
     }
     
     .text-content {
@@ -238,7 +238,7 @@ export function generateShiftLogReportHTML(data: any): string {
     
     .certification-section {
       background: #f1f5f9;
-      border: 2px solid #1e40af;
+      border: 2px solid #14558f;
       border-radius: 6px;
       padding: 15px;
       margin-top: 20px;
@@ -254,7 +254,7 @@ export function generateShiftLogReportHTML(data: any): string {
       display: inline-block;
       width: 16px;
       height: 16px;
-      border: 2px solid #1e40af;
+      border: 2px solid #14558f;
       border-radius: 3px;
       margin-right: 10px;
       position: relative;
@@ -262,12 +262,12 @@ export function generateShiftLogReportHTML(data: any): string {
     }
     
     .cert-checkbox.checked::after {
-      content: '✓';
+      content: 'X';
       position: absolute;
       top: -3px;
       left: 2px;
       font-size: 14pt;
-      color: #1e40af;
+      color: #14558f;
       font-weight: bold;
     }
     
@@ -309,8 +309,14 @@ export function generateShiftLogReportHTML(data: any): string {
   <div class="header">
     <img src="${logoUrl}" alt="DYS Logo" class="logo" />
     <div class="title-section">
-      <div class="report-title">Shift Log Report</div>
+      <div class="report-subtitle">COMMONWEALTH OF MASSACHUSETTS</div>
+      <div class="report-subtitle">Executive Office for Health and Human Services</div>
       <div class="report-subtitle">Department of Youth Services</div>
+      <div class="report-title">Shift Log Report</div>
+      <div class="report-subtitle">${data.programName || 'Program Name'}</div>
+      <div class="report-subtitle">Phone: (617) 951-2409</div>
+      <div class="report-subtitle">Address: ${data.programAddress || 'Program Address'}</div>
+      <div class="report-subtitle">Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
     </div>
   </div>
 
@@ -434,7 +440,7 @@ export function generateShiftLogReportHTML(data: any): string {
       <tbody>
         ${data.attachments.map((att: any) => `
           <tr>
-            <td><a href="${att.fileUrl}" target="_blank" style="color: #1e40af; text-decoration: none;">${att.fileName || 'File'}</a></td>
+            <td><a href="${att.fileUrl}" target="_blank" style="color: #14558f; text-decoration: none;">${att.fileName || 'File'}</a></td>
             <td>${att.fileType || 'Unknown'}</td>
             <td>${(att.fileSize / 1024).toFixed(2)} KB</td>
             <td>${att.uploadedAt ? formatDateTime(att.uploadedAt) : 'N/A'}</td>
@@ -480,7 +486,7 @@ export function generateShiftLogReportHTML(data: any): string {
       
       <div style="margin-top: 20px;">
         <div style="font-size: 9pt; color: #64748b; margin-bottom: 5px;">Signature:</div>
-        <div class="signature-line" style="font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 24pt; padding: 5px 10px; color: #1e40af;">
+        <div class="signature-line" style="font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 24pt; padding: 5px 10px; color: #14558f;">
           ${generateSignature(data.reportCompletedBy)}
         </div>
       </div>

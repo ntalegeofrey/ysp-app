@@ -29,6 +29,7 @@ interface WatchAssignment {
   endNotes?: string;
   authorizedByClinician?: string;
   endedByStaffName?: string;
+  programAddress?: string;
   // Risk assessment fields
   selfHarmRisk?: boolean;
   suicidalIdeation?: boolean;
