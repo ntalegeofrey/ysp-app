@@ -54,6 +54,7 @@ export default function SleepLogPage() {
   const [expandedWatch, setExpandedWatch] = useState<number | null>(null);
   const [watchLogs, setWatchLogs] = useState<{ [key: number]: LogEntry[] }>({});
   const { toasts, addToast, removeToast } = useToast();
+  const [currentUser, setCurrentUser] = useState({ fullName: '', firstName: '', lastName: '' });
   
   // Form states for Add to Watch
   const [selectedResident, setSelectedResident] = useState('');
@@ -84,7 +85,7 @@ export default function SleepLogPage() {
   const [programId, setProgramId] = useState<number | null>(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-  // Load program ID from localStorage (same as incidents page)
+  // Load program ID and current user from localStorage
   useEffect(() => {
     try {
       const programData = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
@@ -92,8 +93,18 @@ export default function SleepLogPage() {
         const program = JSON.parse(programData);
         setProgramId(program.id);
       }
+
+      const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (userData) {
+        const user = JSON.parse(userData);
+        setCurrentUser({
+          fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || 'Unknown User',
+          firstName: user.firstName || '',
+          lastName: user.lastName || ''
+        });
+      }
     } catch (error) {
-      console.error('Error loading program data:', error);
+      console.error('Error loading program/user data:', error);
     }
   }, []);
 
@@ -330,6 +341,9 @@ export default function SleepLogPage() {
         ? `${clinicalReason}\n\nOther Risk Assessment: ${otherRiskDescription}`
         : clinicalReason;
 
+      // Convert datetime-local format to ISO-8601 Instant format
+      const startDateTimeISO = new Date(startDateTime).toISOString();
+
       const res = await fetch(`/api/programs/${programId}/watches`, {
         method: 'POST',
         credentials: 'include',
@@ -341,7 +355,7 @@ export default function SleepLogPage() {
         body: JSON.stringify({
           residentId: parseInt(selectedResident),
           watchType,
-          startDateTime,
+          startDateTime: startDateTimeISO,
           clinicalReason: fullClinicalReason,
           ...riskAssessment
         })
@@ -370,11 +384,19 @@ export default function SleepLogPage() {
         setActiveTab('active');
       } else {
         const error = await res.text();
-        addToast(error || 'Failed to create watch', 'error');
+        console.error('Server error response:', error);
+        console.error('Request payload was:', {
+          residentId: parseInt(selectedResident),
+          watchType,
+          startDateTime: startDateTimeISO,
+          clinicalReason: fullClinicalReason,
+          ...riskAssessment
+        });
+        addToast(error || `Failed to create watch (Status: ${res.status})`, 'error');
       }
     } catch (error) {
       console.error('Failed to create watch:', error);
-      addToast('Failed to create watch', 'error');
+      addToast('Network error: Failed to create watch', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -869,6 +891,7 @@ export default function SleepLogPage() {
                   </label>
                   <input 
                     type="text" 
+                    value={currentUser.fullName || 'Loading...'}
                     className="w-full border-2 border-primary/30 rounded-lg px-4 py-3 text-sm font-medium text-font-base bg-white/80 cursor-not-allowed" 
                     placeholder="Your name (auto-filled from login)" 
                     readOnly 
