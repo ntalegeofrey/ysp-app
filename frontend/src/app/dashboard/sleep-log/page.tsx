@@ -199,32 +199,53 @@ export default function SleepLogPage() {
     })();
   }, [programId]);
 
-  // Fetch archived watches when archive tab is active
-  useEffect(() => {
-    if (activeTab !== 'archive' || !programId) return;
+  // Helper function to fetch all watches
+  const fetchAllWatches = async () => {
+    if (!programId) return;
     
-    (async () => {
-      try {
-        setLoading(true);
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const res = await fetch(`/api/programs/${programId}/watches/archive`, {
+    try {
+      setLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      
+      // Fetch both active and archived watches
+      const [activeRes, archivedRes] = await Promise.all([
+        fetch(`/api/programs/${programId}/watches/active`, {
           credentials: 'include',
           headers: { 
             'Accept': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setArchivedWatches(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch archived watches:', error);
-        addToast('Failed to load archive', 'error');
-      } finally {
-        setLoading(false);
-      }
-    })();
+        }),
+        fetch(`/api/programs/${programId}/watches/archive`, {
+          credentials: 'include',
+          headers: { 
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+      ]);
+      
+      const activeData = activeRes.ok ? await activeRes.json() : [];
+      const archivedData = archivedRes.ok ? await archivedRes.json() : [];
+      
+      // Combine and sort by start date (newest first)
+      const allWatches = [...activeData, ...archivedData].sort((a, b) => 
+        new Date(b.startDateTime).getTime() - new Date(a.startDateTime).getTime()
+      );
+      
+      setArchivedWatches(allWatches);
+    } catch (error) {
+      console.error('Failed to fetch watches:', error);
+      addToast('Failed to load watch history', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch all watches (active and archived) when archive tab is active
+  useEffect(() => {
+    if (activeTab !== 'archive' || !programId) return;
+    fetchAllWatches();
   }, [activeTab, programId]);
 
   // SSE for real-time updates
@@ -235,17 +256,30 @@ export default function SleepLogPage() {
         SSEHub.on('watch:created', () => {
           fetchStats();
           fetchActiveWatches();
+          // Refresh archive if on that tab
+          if (activeTab === 'archive') {
+            fetchAllWatches();
+          }
         });
         SSEHub.on('watch:updated', () => {
           fetchStats();
           fetchActiveWatches();
+          // Refresh archive if on that tab
+          if (activeTab === 'archive') {
+            fetchAllWatches();
+          }
         });
-        SSEHub.on('watch:log-entry', () => {
-          fetchStats();
+        SSEHub.on('watch_log_entry_created', () => {
+          // Refresh active watches to update entry counts
+          fetchActiveWatches();
+          // Refresh archive to update entry counts
+          if (activeTab === 'archive') {
+            fetchAllWatches();
+          }
         });
       }
     }
-  }, [programId]);
+  }, [programId, activeTab]);
 
   const fetchStats = async () => {
     if (!programId) return;
@@ -480,8 +514,11 @@ export default function SleepLogPage() {
           updated[watchId] = resetForm;
           return updated;
         });
-        // Refresh log entries
+        // Refresh log entries for this watch
         fetchWatchLogs(watchId);
+        // Refresh active watches to update entry count
+        fetchActiveWatches();
+        // SSE will also trigger updates for other users
       } else {
         const error = await res.text();
         addToast(error || 'Failed to add log entry', 'error');
@@ -1379,8 +1416,8 @@ export default function SleepLogPage() {
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
             <h3 className="text-lg font-semibold text-font-base flex items-center mb-4">
-              <i className="fa-solid fa-archive text-primary mr-3"></i>
-              Watch Archive
+              <i className="fa-solid fa-history text-primary mr-3"></i>
+              Complete Watch History
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <input 
@@ -1431,14 +1468,14 @@ export default function SleepLogPage() {
             <table className="w-full">
               <thead className="bg-bg-subtle">
                 <tr>
-                  <th className="text-left p-4 font-medium text-font-base">Resident</th>
-                  <th className="text-left p-4 font-medium text-font-base">Watch Type</th>
-                  <th className="text-left p-4 font-medium text-font-base">Start Date/Time</th>
-                  <th className="text-left p-4 font-medium text-font-base">End Date/Time</th>
-                  <th className="text-left p-4 font-medium text-font-base">Duration</th>
-                  <th className="text-left p-4 font-medium text-font-base">Outcome</th>
-                  <th className="text-left p-4 font-medium text-font-base">Total Entries</th>
-                  <th className="text-left p-4 font-medium text-font-base">Actions</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Resident</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Watch Type</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Status</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Started</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Ended</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Duration</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Entries</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Outcome</th>
                 </tr>
               </thead>
               <tbody>
@@ -1458,34 +1495,42 @@ export default function SleepLogPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedArchive.map((watch) => (
-                    <tr key={watch.id} className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-4 font-medium">{watch.residentName}</td>
-                      <td className="p-4">
-                        <span className={`bg-${getWatchTypeColor(watch.watchType)} text-white px-2 py-1 rounded text-sm`}>
+                  paginatedArchive.map((watch) => {
+                    const isActive = !watch.endDateTime;
+                    return (
+                      <tr key={watch.id} className={`border-b border-bd hover:bg-bg-subtle/50 ${isActive ? 'bg-primary/5' : ''}`}>
+                        <td className="p-3 text-sm font-medium text-font-base">
+                          {watch.residentName}
+                          <div className="text-xs text-font-detail">Room {watch.room}</div>
+                        </td>
+                        <td className="p-3 text-sm">
                           {getWatchTypeBadge(watch.watchType)}
-                        </span>
-                      </td>
-                      <td className="p-4">{formatDateTime(watch.startDateTime)}</td>
-                      <td className="p-4">{watch.endDateTime ? formatDateTime(watch.endDateTime) : '-'}</td>
-                      <td className="p-4">{watch.duration || '-'}</td>
-                      <td className="p-4">
-                        <span className={`${watch.status === 'COMPLETED' ? 'bg-success' : watch.status === 'ESCALATED' ? 'bg-warning' : 'bg-primary'} text-white px-2 py-1 rounded text-sm`}>
-                          {watch.status}
-                        </span>
-                      </td>
-                      <td className="p-4">{watch.totalLogEntries}</td>
-                      <td className="p-4">
-                        <button 
-                          onClick={() => handlePrintWatch(watch.id)}
-                          className="text-primary hover:text-primary-light transition-colors"
-                          title="Print Watch Report"
-                        >
-                          <i className="fa-solid fa-print"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="p-3 text-sm">
+                          {isActive ? (
+                            <span className="bg-success text-white px-2 py-1 rounded text-xs font-medium">
+                              <i className="fa-solid fa-circle-dot mr-1"></i>ACTIVE
+                            </span>
+                          ) : (
+                            <span className="bg-font-detail text-white px-2 py-1 rounded text-xs font-medium">
+                              ENDED
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-sm text-font-detail">{formatDateTime(watch.startDateTime)}</td>
+                        <td className="p-3 text-sm text-font-detail">{watch.endDateTime ? formatDateTime(watch.endDateTime) : '-'}</td>
+                        <td className="p-3 text-sm text-font-detail">{watch.duration || (isActive ? 'Ongoing' : '-')}</td>
+                        <td className="p-3 text-sm text-font-detail text-center">{watch.totalLogEntries}</td>
+                        <td className="p-3 text-sm">
+                          {watch.outcome ? (
+                            <span className="bg-primary text-white px-2 py-1 rounded text-xs">{watch.outcome}</span>
+                          ) : (
+                            <span className="text-font-detail">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
