@@ -67,33 +67,45 @@ export function generateShiftLogReportHTML(data: any): string {
     }
     
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      text-align: center;
       margin-bottom: 25px;
       padding-bottom: 15px;
       border-bottom: 3px solid #14558f;
     }
     
     .logo {
-      max-width: 180px;
+      width: 120px;
       height: auto;
+      margin-bottom: 15px;
     }
     
-    .title-section {
-      text-align: right;
-    }
-    
-    .report-title {
-      font-size: 22pt;
-      font-weight: bold;
+    .commonwealth {
+      font-size: 20px;
       color: #14558f;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    
+    .org-line {
+      font-size: 14px;
+      color: #14558f;
+      font-weight: 500;
       margin-bottom: 5px;
     }
     
+    .report-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 15px 0 10px 0;
+    }
+    
     .report-subtitle {
-      font-size: 11pt;
+      font-size: 16px;
       color: #666;
+      margin-bottom: 5px;
     }
     
     .info-box {
@@ -308,16 +320,14 @@ export function generateShiftLogReportHTML(data: any): string {
 <body>
   <div class="header">
     <img src="${logoUrl}" alt="DYS Logo" class="logo" />
-    <div class="title-section">
-      <div class="report-subtitle">COMMONWEALTH OF MASSACHUSETTS</div>
-      <div class="report-subtitle">Executive Office for Health and Human Services</div>
-      <div class="report-subtitle">Department of Youth Services</div>
-      <div class="report-title">Shift Log Report</div>
-      <div class="report-subtitle">${data.programName || 'Program Name'}</div>
-      <div class="report-subtitle">Phone: (617) 951-2409</div>
-      <div class="report-subtitle">Address: ${data.programAddress || 'Program Address'}</div>
-      <div class="report-subtitle">Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
-    </div>
+    <div class="commonwealth">COMMONWEALTH OF MASSACHUSETTS</div>
+    <div class="org-line">Executive Office for Health and Human Services</div>
+    <div class="org-line">Department of Youth Services</div>
+    <div class="report-title">Shift Log Report</div>
+    <div class="report-subtitle">${data.programName || 'Program Name'}</div>
+    <div class="report-subtitle">Phone: (617) 951-2409</div>
+    <div class="report-subtitle">Address: ${data.programAddress || 'Program Address'}</div>
+    <div class="report-subtitle">Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
   </div>
 
   <!-- Program & Shift Information -->

@@ -12,8 +12,9 @@ export function generateShakedownReportHTML(data: any): string {
     body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #1a1a1a; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #14558f; padding-bottom: 20px; }
     .logo { width: 120px; height: auto; margin-bottom: 15px; }
-    .commonwealth { font-size: 14px; color: #14558f; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
-    h1 { font-size: 28px; color: #14558f; margin-bottom: 10px; }
+    .commonwealth { font-size: 20px; color: #14558f; font-weight: 700; margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
+    .org-line { font-size: 14px; color: #14558f; font-weight: 500; margin-bottom: 5px; }
+    h1 { font-size: 24px; color: #1a1a1a; font-weight: 700; margin: 15px 0 10px 0; }
     .subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
     .section { margin-bottom: 25px; page-break-inside: avoid; }
     .section-title { font-size: 18px; font-weight: bold; color: #14558f; margin-bottom: 12px; border-bottom: 2px solid #E8EEF4; padding-bottom: 5px; }
@@ -38,8 +39,8 @@ export function generateShakedownReportHTML(data: any): string {
   <div class="header">
     <img src="${logoUrl}" alt="DYS Logo" class="logo" />
     <div class="commonwealth">COMMONWEALTH OF MASSACHUSETTS</div>
-    <div class="subtitle">Executive Office for Health and Human Services</div>
-    <div class="subtitle">Department of Youth Services</div>
+    <div class="org-line">Executive Office for Health and Human Services</div>
+    <div class="org-line">Department of Youth Services</div>
     <h1>Shakedown Report</h1>
     <div class="subtitle">${data.programName || 'Program Name'}</div>
     <div class="subtitle">Phone: (617) 951-2409</div>
