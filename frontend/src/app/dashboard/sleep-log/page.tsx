@@ -86,12 +86,72 @@ export default function SleepLogPage() {
 
   // Fetch data on load
   useEffect(() => {
-    if (programId) {
-      console.log('Fetching data for program:', programId);
-      fetchStats();
-      fetchActiveWatches();
-      fetchResidents();
-    }
+    if (!programId) return;
+    
+    console.log('Fetching data for program:', programId);
+    
+    // Fetch stats
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/watches/statistics`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    })();
+    
+    // Fetch active watches
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/watches/active`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setActiveWatches(data);
+      } catch (error) {
+        console.error('Failed to fetch active watches:', error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+    
+    // Fetch residents
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`/api/programs/${programId}/residents`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        if (!res.ok) {
+          console.error('Failed to fetch residents - status:', res.status);
+          return;
+        }
+        const data = await res.json();
+        console.log('Fetched residents:', data);
+        setResidents(data);
+      } catch (error) {
+        console.error('Failed to fetch residents:', error);
+      }
+    })();
   }, [programId]);
 
   // Fetch archived watches when archive tab is active
@@ -158,29 +218,6 @@ export default function SleepLogPage() {
       console.error('Failed to fetch active watches:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchResidents = async () => {
-    if (!programId) return;
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const res = await fetch(`/api/programs/${programId}/residents`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      if (!res.ok) {
-        console.error('Failed to fetch residents - status:', res.status);
-        return;
-      }
-      const data = await res.json();
-      console.log('Fetched residents:', data);
-      setResidents(data);
-    } catch (error) {
-      console.error('Failed to fetch residents:', error);
     }
   };
 
