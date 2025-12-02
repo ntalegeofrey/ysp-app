@@ -13,7 +13,7 @@ export default function VisitationPage() {
     <div className="space-y-6">
       {/* Tabs */}
       <div className="mb-2">
-        <div className="flex justify-end space-x-8 border-b border-bd bg-transparent">
+        <div className="flex space-x-8 border-b border-bd bg-transparent">
           <button className={`${tabBtnBase} ${activeTab === 'todays' ? tabActive : tabInactive}`} onClick={() => setActiveTab('todays')}>
             <i className={`fa-solid fa-calendar-day mr-2 ${activeTab === 'todays' ? 'text-primary' : ''}`}></i>
             Today's Schedule
