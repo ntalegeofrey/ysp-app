@@ -3,24 +3,24 @@
 import { useState } from 'react';
 
 export default function VisitationPage() {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'todays' | 'phone' | 'archive'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'todays' | 'phone' | 'archive'>('todays');
 
-  const tabBtnBase = 'flex-1 px-6 py-4 text-sm font-medium border-b-2 bg-transparent';
-  const tabActive = 'border-primary text-primary';
-  const tabInactive = 'border-transparent text-font-detail hover:text-primary';
+  const tabBtnBase = 'flex items-center px-0 py-4 text-sm transition-all duration-300 border-b-2';
+  const tabActive = 'text-primary font-semibold border-primary';
+  const tabInactive = 'text-font-medium font-medium border-transparent hover:text-primary';
 
   return (
     <div className="space-y-6">
       {/* Tabs */}
       <div className="mb-2">
-        <div className="flex border-b border-bd bg-transparent">
-          <button className={`${tabBtnBase} ${activeTab === 'schedule' ? tabActive : tabInactive}`} onClick={() => setActiveTab('schedule')}>
-            <i className={`fa-solid fa-calendar-plus mr-2 ${activeTab === 'schedule' ? 'text-primary' : ''}`}></i>
-            Schedule Visitation
-          </button>
+        <div className="flex justify-end space-x-8 border-b border-bd bg-transparent">
           <button className={`${tabBtnBase} ${activeTab === 'todays' ? tabActive : tabInactive}`} onClick={() => setActiveTab('todays')}>
             <i className={`fa-solid fa-calendar-day mr-2 ${activeTab === 'todays' ? 'text-primary' : ''}`}></i>
             Today's Schedule
+          </button>
+          <button className={`${tabBtnBase} ${activeTab === 'schedule' ? tabActive : tabInactive}`} onClick={() => setActiveTab('schedule')}>
+            <i className={`fa-solid fa-calendar-plus mr-2 ${activeTab === 'schedule' ? 'text-primary' : ''}`}></i>
+            Schedule Visitation
           </button>
           <button className={`${tabBtnBase} ${activeTab === 'phone' ? tabActive : tabInactive}`} onClick={() => setActiveTab('phone')}>
             <i className={`fa-solid fa-phone mr-2 ${activeTab === 'phone' ? 'text-primary' : ''}`}></i>
@@ -96,22 +96,8 @@ export default function VisitationPage() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Assigned Staff</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Auto-assign based on shift</option>
-                    <option>L. Davis - Available</option>
-                    <option>R. Martinez - Available</option>
-                    <option>K. Thompson - Available</option>
-                  </select>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Visitation Room</label>
-                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Visitation Room A</option>
-                    <option>Visitation Room B</option>
-                    <option>Video Conference Room</option>
-                    <option>Private Legal Room</option>
-                  </select>
+                  <input type="text" placeholder="Enter visitation room (e.g., Room A, Video Room, etc.)" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Contact Information</label>
@@ -256,7 +242,34 @@ export default function VisitationPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Person Called/Calling</label>
-                  <input type="text" placeholder="Full name and relationship to resident" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                  <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                    <option value="">Select relationship...</option>
+                    <option value="mother1">Mother 1</option>
+                    <option value="mother2">Mother 2</option>
+                    <option value="father1">Father 1</option>
+                    <option value="father2">Father 2</option>
+                    <option value="stepmother">Step-Mother</option>
+                    <option value="stepfather">Step-Father</option>
+                    <option value="sister">Sister</option>
+                    <option value="brother">Brother</option>
+                    <option value="stepsister">Step-Sister</option>
+                    <option value="stepbrother">Step-Brother</option>
+                    <option value="grandmother">Grandmother</option>
+                    <option value="grandfather">Grandfather</option>
+                    <option value="aunt">Aunt</option>
+                    <option value="uncle">Uncle</option>
+                    <option value="cousin">Cousin</option>
+                    <option value="guardian">Legal Guardian</option>
+                    <option value="foster">Foster Parent</option>
+                    <option value="caseworker">Caseworker</option>
+                    <option value="social_services">Social Services</option>
+                    <option value="probation">Probation Officer</option>
+                    <option value="attorney">Attorney/Legal Representative</option>
+                    <option value="therapist">Therapist/Counselor</option>
+                    <option value="doctor">Doctor/Medical Provider</option>
+                    <option value="support_services">Support Services</option>
+                    <option value="other">Other (specify in comments)</option>
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
