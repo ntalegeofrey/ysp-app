@@ -448,8 +448,10 @@ export default function SleepLogPage() {
       const payload = {
         observationTime: now.toISOString(),
         observationStatus: formData.status,
-        activity: formData.activity === 'OTHER' ? formData.otherActivity.trim().toUpperCase().replace(/\s+/g, '_') : formData.activity,
-        notes: formData.notes.trim()
+        activity: formData.activity,
+        notes: formData.activity === 'OTHER' && formData.otherActivity.trim()
+          ? `[${formData.otherActivity.trim()}] ${formData.notes.trim()}`
+          : formData.notes.trim()
       };
       
       const res = await fetch(`/api/programs/${programId}/watches/${watchId}/log-entries`, {
@@ -639,10 +641,14 @@ export default function SleepLogPage() {
                               </span>
                             </td>
                             <td className="p-3 text-sm text-font-base">
-                              {entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                              {entry.activity === 'OTHER' && entry.notes.match(/^\[(.+?)\]/) 
+                                ? entry.notes.match(/^\[(.+?)\]/)?.[1] 
+                                : entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                             </td>
                             <td className="p-3 text-sm text-font-detail max-w-md">
-                              {entry.notes}
+                              {entry.activity === 'OTHER' && entry.notes.match(/^\[.+?\]\s*(.*)/) 
+                                ? entry.notes.match(/^\[.+?\]\s*(.*)/)?.[1] 
+                                : entry.notes}
                             </td>
                             <td className="p-3 text-sm text-font-detail whitespace-nowrap">
                               {entry.loggedByStaffName}
@@ -985,8 +991,10 @@ export default function SleepLogPage() {
                             <select 
                               value={getLogFormData(watch.id).activity}
                               onChange={(e) => {
-                                updateLogFormField(watch.id, 'activity', e.target.value);
-                                if (e.target.value !== 'OTHER') {
+                                const newActivity = e.target.value;
+                                updateLogFormField(watch.id, 'activity', newActivity);
+                                // Clear otherActivity when switching away from OTHER
+                                if (newActivity !== 'OTHER') {
                                   updateLogFormField(watch.id, 'otherActivity', '');
                                 }
                               }}
@@ -1001,19 +1009,29 @@ export default function SleepLogPage() {
                               <option value="OTHER">📝 Other</option>
                             </select>
                             {getLogFormData(watch.id).activity === 'OTHER' && (
-                              <input
-                                type="text"
-                                value={getLogFormData(watch.id).otherActivity}
-                                onChange={(e) => {
-                                  const words = e.target.value.trim().split(/\s+/);
-                                  if (words.length <= 3 || e.target.value.trim() === '') {
-                                    updateLogFormField(watch.id, 'otherActivity', e.target.value);
-                                  }
-                                }}
-                                placeholder="Max 3 words..."
-                                className="mt-2 w-full border-2 border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                                maxLength={50}
-                              />
+                              <div className="mt-2 animate-in slide-in-from-top-2 duration-200">
+                                <input
+                                  type="text"
+                                  value={getLogFormData(watch.id).otherActivity}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const words = value.trim().split(/\s+/).filter(w => w.length > 0);
+                                    // Allow typing if empty or within 3-word limit
+                                    if (value === '' || words.length <= 3) {
+                                      updateLogFormField(watch.id, 'otherActivity', value);
+                                    }
+                                  }}
+                                  placeholder="Max 3 words..."
+                                  className="w-full border-2 border-primary/30 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                                  maxLength={50}
+                                />
+                                <p className="text-xs text-font-detail mt-1">
+                                  {(() => {
+                                    const words = getLogFormData(watch.id).otherActivity.trim().split(/\s+/).filter(w => w.length > 0);
+                                    return words.length > 0 ? `${words.length}/3 words` : '0/3 words';
+                                  })()}
+                                </p>
+                              </div>
                             )}
                           </div>
                           <div>
@@ -1062,9 +1080,15 @@ export default function SleepLogPage() {
                                     </span>
                                   </div>
                                   <p className="text-sm text-font-detail mb-1">
-                                    <strong>Activity:</strong> {entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                                    <strong>Activity:</strong> {entry.activity === 'OTHER' && entry.notes.match(/^\[(.+?)\]/) 
+                                      ? entry.notes.match(/^\[(.+?)\]/)?.[1] 
+                                      : entry.activity.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                                   </p>
-                                  <p className="text-sm text-font-detail">{entry.notes}</p>
+                                  <p className="text-sm text-font-detail">
+                                    {entry.activity === 'OTHER' && entry.notes.match(/^\[.+?\]\s*(.*)/) 
+                                      ? entry.notes.match(/^\[.+?\]\s*(.*)/)?.[1] 
+                                      : entry.notes}
+                                  </p>
                                   <p className="text-xs text-font-detail mt-2">Logged by: {entry.loggedByStaffName}</p>
                                 </div>
                               );
