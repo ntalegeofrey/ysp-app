@@ -199,10 +199,8 @@ export default function RepairsPage() {
           <div className="p-6 space-y-4">
             {loading ? (
               <div className="text-center text-font-detail py-8">Loading repairs...</div>
-            ) : repairs.length === 0 ? (
-              <div className="text-center text-font-detail py-8">No active repairs found</div>
-            ) : (
-              repairs.filter((repair: any) => {
+            ) : (() => {
+              const activeRepairs = repairs.filter((repair: any) => {
                 // Filter out expired repairs
                 if (repair.repairEndDate) {
                   const endDate = new Date(repair.repairEndDate);
@@ -211,7 +209,18 @@ export default function RepairsPage() {
                   return endDate >= today;
                 }
                 return true;
-              }).map((repair: any) => {
+              });
+              
+              return activeRepairs.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success bg-opacity-10 mb-4">
+                    <i className="fa-solid fa-check-circle text-success text-3xl"></i>
+                  </div>
+                  <h4 className="text-lg font-semibold text-font-base mb-2">No Active Behavior Repairs</h4>
+                  <p className="text-sm text-font-detail">All residents are currently in good standing</p>
+                </div>
+              ) : (
+                activeRepairs.map((repair: any) => {
                 const levelColors = {
                   'Repair 1': { bg: 'bg-primary-lightest', border: 'border-primary', text: 'text-primary', button: 'bg-primary' },
                   'Repair 2': { bg: 'bg-highlight-lightest', border: 'border-highlight', text: 'text-highlight', button: 'bg-highlight' },
@@ -243,10 +252,16 @@ export default function RepairsPage() {
                         {canReview() && (
                           <button 
                             onClick={() => setReviewModal({open: true, repair})}
-                            className="bg-primary text-white px-3 py-1 rounded text-sm hover:opacity-90 transition-colors"
+                            disabled={repair.status === 'approved' || repair.status === 'revoked'}
+                            className={`px-3 py-1 rounded text-sm transition-colors ${
+                              repair.status === 'approved' || repair.status === 'revoked'
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-primary text-white hover:opacity-90'
+                            }`}
+                            title={repair.status === 'approved' ? 'Repair already affirmed' : repair.status === 'revoked' ? 'Repair already revoked' : 'Review this repair'}
                           >
                             <i className="fa-solid fa-gavel mr-1"></i>
-                            Review
+                            {repair.status === 'approved' ? 'Affirmed' : repair.status === 'revoked' ? 'Revoked' : 'Review'}
                           </button>
                         )}
                       </div>
@@ -254,7 +269,8 @@ export default function RepairsPage() {
                   </div>
                 );
               })
-            )}
+              );
+            })()}
           </div>
         </div>
 
@@ -408,14 +424,26 @@ export default function RepairsPage() {
                                     {activeRepairs.map((repair: any, idx: number) => (
                                       <button 
                                         key={idx}
-                                        className="w-full text-left px-4 py-2 text-sm hover:bg-bg-subtle flex items-center gap-2"
+                                        disabled={repair.status === 'approved' || repair.status === 'revoked'}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                          repair.status === 'approved' || repair.status === 'revoked'
+                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                                            : 'hover:bg-bg-subtle'
+                                        }`}
                                         onClick={() => {
-                                          setReviewModal({open: true, repair});
-                                          setOpenMenuIndex(null);
+                                          if (repair.status !== 'approved' && repair.status !== 'revoked') {
+                                            setReviewModal({open: true, repair});
+                                            setOpenMenuIndex(null);
+                                          }
                                         }}
+                                        title={repair.status === 'approved' ? 'Already affirmed' : repair.status === 'revoked' ? 'Already revoked' : ''}
                                       >
-                                        <i className="fa-solid fa-gavel text-primary"></i>
-                                        Review {repair.repairLevel}
+                                        <i className={`fa-solid fa-gavel ${
+                                          repair.status === 'approved' || repair.status === 'revoked'
+                                            ? 'text-gray-400'
+                                            : 'text-primary'
+                                        }`}></i>
+                                        Review {repair.repairLevel} {repair.status === 'approved' ? '(Affirmed)' : repair.status === 'revoked' ? '(Revoked)' : ''}
                                       </button>
                                     ))}
                                   </>

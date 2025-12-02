@@ -50,7 +50,7 @@ export default function SleepLogPage() {
             <div className="bg-white p-6 rounded-lg border border-bd">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-font-detail text-sm">Critical Watch</p>
+                  <p className="text-font-detail text-sm">Elevated Watch</p>
                   <p className="text-2xl font-bold text-error">2</p>
                 </div>
                 <div className="bg-error bg-opacity-10 p-3 rounded-lg">
@@ -61,7 +61,7 @@ export default function SleepLogPage() {
             <div className="bg-white p-6 rounded-lg border border-bd">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-font-detail text-sm">Elevated Watch</p>
+                  <p className="text-font-detail text-sm">Alert Watch</p>
                   <p className="text-2xl font-bold text-warning">3</p>
                 </div>
                 <div className="bg-warning bg-opacity-10 p-3 rounded-lg">
@@ -300,7 +300,6 @@ export default function SleepLogPage() {
                       <option>General Watch</option>
                       <option>Alert Watch</option>
                       <option>Elevated Watch</option>
-                      <option>Critical Watch</option>
                     </select>
                   </div>
                   <div>
@@ -345,21 +344,14 @@ export default function SleepLogPage() {
       {activeTab === 'archive' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-font-base flex items-center">
-                <i className="fa-solid fa-archive text-primary mr-3"></i>
-                Watch Archive
-              </h3>
-              <button className="bg-success text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90">
-                <i className="fa-solid fa-download mr-2"></i>
-                Export Archive
-              </button>
-            </div>
+            <h3 className="text-lg font-semibold text-font-base flex items-center mb-4">
+              <i className="fa-solid fa-archive text-primary mr-3"></i>
+              Watch Archive
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <input type="text" placeholder="Search resident..." className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
               <select className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                 <option>All Watch Types</option>
-                <option>Critical Watch</option>
                 <option>Elevated Watch</option>
                 <option>Alert Watch</option>
                 <option>General Watch</option>
