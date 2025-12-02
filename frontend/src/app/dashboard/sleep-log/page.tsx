@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
+import { generateWatchReportHTML } from '../pdfReports';
 
 interface WatchStats {
   totalActive: number;
@@ -25,6 +26,9 @@ interface WatchAssignment {
   totalLogEntries: number;
   duration?: string;
   outcome?: string;
+  endNotes?: string;
+  authorizedByClinician?: string;
+  endedByStaffName?: string;
   // Risk assessment fields
   selfHarmRisk?: boolean;
   suicidalIdeation?: boolean;
@@ -342,11 +346,50 @@ export default function SleepLogPage() {
   };
 
   const getWatchTypeBadge = (type: string) => {
-    switch (type) {
-      case 'ELEVATED': return 'Elevated';
-      case 'ALERT': return 'Alert';
-      case 'GENERAL': return 'General';
-      default: return type;
+    if (type === 'ELEVATED') {
+      return (
+        <span className="bg-error text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
+          🔴 ELEVATED
+        </span>
+      );
+    } else if (type === 'ALERT') {
+      return (
+        <span className="bg-warning text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
+          🟡 ALERT
+        </span>
+      );
+    } else {
+      return (
+        <span className="bg-success text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
+          🟢 GENERAL
+        </span>
+      );
+    }
+  };
+
+  // Print watch report
+  const printWatchReport = (watch: WatchAssignment) => {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        addToast('Please allow popups to print report', 'error');
+        return;
+      }
+      
+      const html = generateWatchReportHTML(watch);
+      
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+      
+      addToast('Report opened for printing', 'success');
+    } catch (error) {
+      console.error('Error printing report:', error);
+      addToast('Failed to print report', 'error');
     }
   };
 
@@ -378,6 +421,7 @@ export default function SleepLogPage() {
         body: JSON.stringify({
           endDateTime: new Date().toISOString(),
           status: endWatchForm.outcome,
+          outcome: endWatchForm.outcome,
           endNotes: endWatchForm.endNotes.trim()
         })
       });
@@ -388,6 +432,10 @@ export default function SleepLogPage() {
         setEndWatchForm({ outcome: '', endNotes: '' });
         fetchStats();
         fetchActiveWatches();
+        // Refresh archive if on that tab
+        if (activeTab === 'archive') {
+          fetchAllWatches();
+        }
       } else {
         const error = await res.text();
         addToast(error || 'Failed to end watch', 'error');
@@ -1476,19 +1524,20 @@ export default function SleepLogPage() {
                   <th className="text-left p-3 font-semibold text-font-base">Duration</th>
                   <th className="text-left p-3 font-semibold text-font-base">Entries</th>
                   <th className="text-left p-3 font-semibold text-font-base">Outcome</th>
+                  <th className="text-left p-3 font-semibold text-font-base">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center">
+                    <td colSpan={9} className="p-8 text-center">
                       <i className="fa-solid fa-spinner fa-spin text-primary text-2xl"></i>
                       <p className="text-font-detail mt-2">Loading archive...</p>
                     </td>
                   </tr>
                 ) : paginatedArchive.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center">
+                    <td colSpan={9} className="p-8 text-center">
                       <i className="fa-solid fa-archive text-font-detail text-4xl mb-3"></i>
                       <p className="text-font-base font-medium">No archived watches found</p>
                       <p className="text-font-detail text-sm mt-1">Try adjusting your filters</p>
@@ -1527,6 +1576,16 @@ export default function SleepLogPage() {
                           ) : (
                             <span className="text-font-detail">-</span>
                           )}
+                        </td>
+                        <td className="p-3 text-sm">
+                          <button
+                            onClick={() => printWatchReport(watch)}
+                            className="bg-primary text-white px-3 py-1 rounded text-xs hover:bg-primary-light transition-colors inline-flex items-center gap-1"
+                            title="Print Watch Report"
+                          >
+                            <i className="fa-solid fa-print"></i>
+                            Print
+                          </button>
                         </td>
                       </tr>
                     );
