@@ -15,7 +15,7 @@ public class VisitationRequest {
     private Instant scheduledEndTime;
     private String visitationRoom;
     private String specialInstructions;
-    private Long supervisingStaffId;
+    private List<Long> supervisingStaffIds;
 
     // Getters and Setters
     public Long getResidentId() {
@@ -98,11 +98,11 @@ public class VisitationRequest {
         this.specialInstructions = specialInstructions;
     }
 
-    public Long getSupervisingStaffId() {
-        return supervisingStaffId;
+    public List<Long> getSupervisingStaffIds() {
+        return supervisingStaffIds;
     }
 
-    public void setSupervisingStaffId(Long supervisingStaffId) {
-        this.supervisingStaffId = supervisingStaffId;
+    public void setSupervisingStaffIds(List<Long> supervisingStaffIds) {
+        this.supervisingStaffIds = supervisingStaffIds;
     }
 }

@@ -53,9 +53,13 @@ public class Visitation {
     @Column(name = "special_instructions", columnDefinition = "TEXT")
     private String specialInstructions;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supervising_staff_id")
-    private User supervisingStaff;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "visitation_supervising_staff",
+        joinColumns = @JoinColumn(name = "visitation_id"),
+        inverseJoinColumns = @JoinColumn(name = "staff_id")
+    )
+    private java.util.Set<User> supervisingStaff = new java.util.HashSet<>();
 
     @Column(name = "visit_notes", columnDefinition = "TEXT")
     private String visitNotes;
@@ -207,11 +211,11 @@ public class Visitation {
         this.specialInstructions = specialInstructions;
     }
 
-    public User getSupervisingStaff() {
+    public java.util.Set<User> getSupervisingStaff() {
         return supervisingStaff;
     }
 
-    public void setSupervisingStaff(User supervisingStaff) {
+    public void setSupervisingStaff(java.util.Set<User> supervisingStaff) {
         this.supervisingStaff = supervisingStaff;
     }
 

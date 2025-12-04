@@ -221,12 +221,17 @@ public class VisitationService {
         visitation.setVisitationRoom(getString(request, "visitationRoom"));
         visitation.setSpecialInstructions(getString(request, "specialInstructions"));
         
-        // Set supervising staff if provided
-        if (request.containsKey("supervisingStaffId")) {
-            Long supervisingStaffId = getLong(request, "supervisingStaffId");
-            User supervisingStaff = userRepository.findById(supervisingStaffId)
-                    .orElseThrow(() -> new IllegalArgumentException("Supervising staff not found"));
-            visitation.setSupervisingStaff(supervisingStaff);
+        // Set supervising staff if provided (multiple staff members)
+        if (request.containsKey("supervisingStaffIds") && request.get("supervisingStaffIds") instanceof java.util.List) {
+            @SuppressWarnings("unchecked")
+            java.util.List<Integer> staffIds = (java.util.List<Integer>) request.get("supervisingStaffIds");
+            java.util.Set<User> supervisingStaffSet = new java.util.HashSet<>();
+            for (Integer staffId : staffIds) {
+                User supervisingUser = userRepository.findById(staffId.longValue())
+                        .orElseThrow(() -> new IllegalArgumentException("Supervising staff not found: " + staffId));
+                supervisingStaffSet.add(supervisingUser);
+            }
+            visitation.setSupervisingStaff(supervisingStaffSet);
         }
         
         visitation.setScheduledByStaff(staff);
@@ -382,9 +387,22 @@ public class VisitationService {
         response.put("visitationRoom", visitation.getVisitationRoom());
         response.put("specialInstructions", visitation.getSpecialInstructions());
         
-        if (visitation.getSupervisingStaff() != null) {
-            response.put("supervisingStaffId", visitation.getSupervisingStaff().getId());
-            response.put("supervisingStaffName", getFullName(visitation.getSupervisingStaff()));
+        // Map supervising staff (multiple)
+        if (visitation.getSupervisingStaff() != null && !visitation.getSupervisingStaff().isEmpty()) {
+            java.util.List<java.util.Map<String, Object>> staffList = new java.util.ArrayList<>();
+            for (User staff : visitation.getSupervisingStaff()) {
+                java.util.Map<String, Object> staffInfo = new java.util.HashMap<>();
+                staffInfo.put("id", staff.getId());
+                staffInfo.put("fullName", getFullName(staff));
+                staffInfo.put("email", staff.getEmail());
+                staffList.add(staffInfo);
+            }
+            response.put("supervisingStaff", staffList);
+            // Also add a concatenated string of names for display
+            String staffNames = visitation.getSupervisingStaff().stream()
+                    .map(this::getFullName)
+                    .collect(java.util.stream.Collectors.joining(", "));
+            response.put("supervisingStaffName", staffNames);
         }
         
         response.put("visitNotes", visitation.getVisitNotes());

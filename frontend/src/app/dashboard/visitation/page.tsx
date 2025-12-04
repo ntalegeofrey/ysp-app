@@ -46,9 +46,11 @@ export default function VisitationPage() {
     scheduledEndTime: '',
     visitationRoom: '',
     specialInstructions: '',
-    supervisingStaffId: '',
     approvalStatus: 'PENDING_REVIEW'
   });
+  
+  // Selected staff for visitation
+  const [selectedSupervisingStaff, setSelectedSupervisingStaff] = useState<string[]>([]);
   
   // Form state for Phone Log
   const [phoneForm, setPhoneForm] = useState({
@@ -281,6 +283,10 @@ export default function VisitationPage() {
       addToast('Please enter complete schedule information', 'error');
       return;
     }
+    if (selectedSupervisingStaff.length === 0) {
+      addToast('Please select at least one supervising staff member', 'error');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -309,7 +315,7 @@ export default function VisitationPage() {
         scheduledEndTime: endTime,
         visitationRoom: visitForm.visitationRoom,
         specialInstructions: visitForm.specialInstructions,
-        ...(visitForm.supervisingStaffId ? { supervisingStaffId: parseInt(visitForm.supervisingStaffId) } : {})
+        supervisingStaffIds: selectedSupervisingStaff.map(id => parseInt(id))
       };
       
       const res = await fetch(`/api/programs/${programId}/visitations`, {
@@ -337,9 +343,9 @@ export default function VisitationPage() {
           scheduledEndTime: '',
           visitationRoom: '',
           specialInstructions: '',
-          supervisingStaffId: '',
-          approvalStatus: 'PENDING'
+          approvalStatus: 'PENDING_REVIEW'
         });
+        setSelectedSupervisingStaff([]);
         // Switch to visits tab
         setActiveTab('visits');
         fetchScheduledVisitations();
@@ -404,6 +410,19 @@ export default function VisitationPage() {
         ? `${now.toISOString().split('T')[0]}T${phoneForm.callTime}:00.000Z`
         : now.toISOString();
       
+      // Find user IDs from emails
+      const authStaff = staffDirectory.find(s => s.email.toLowerCase() === phoneForm.authorizingStaffId.toLowerCase());
+      const monStaff = staffDirectory.find(s => s.email.toLowerCase() === phoneForm.monitoringStaffId.toLowerCase());
+      
+      if (!authStaff) {
+        addToast('Authorizing staff not found', 'error');
+        return;
+      }
+      if (!monStaff) {
+        addToast('Monitoring staff not found', 'error');
+        return;
+      }
+      
       const payload = {
         residentId: parseInt(phoneForm.residentId),
         callType: phoneForm.callType,
@@ -412,8 +431,8 @@ export default function VisitationPage() {
         phoneNumber: phoneForm.phoneNumber,
         callDateTime,
         durationMinutes: parseInt(phoneForm.durationMinutes) || 0,
-        authorizingStaffId: parseInt(phoneForm.authorizingStaffId),
-        monitoringStaffId: parseInt(phoneForm.monitoringStaffId),
+        authorizingStaffId: parseInt(authStaff.id),
+        monitoringStaffId: parseInt(monStaff.id),
         behaviorDuringCall: phoneForm.behaviorDuringCall,
         postCallBehavior: phoneForm.postCallBehavior,
         additionalComments: phoneForm.additionalComments,
@@ -906,23 +925,45 @@ export default function VisitationPage() {
                     placeholder="Enter visitation room (e.g., Room A, Video Room, etc.)" 
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Supervising Staff (Optional)</label>
-                  <select 
-                    value={visitForm.supervisingStaffId}
-                    onChange={(e) => setVisitForm({...visitForm, supervisingStaffId: e.target.value})}
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option value="">Select Staff Member</option>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-font-base mb-3">Supervising Staff <span className="text-error">*</span></label>
+                  <div className="border border-bd rounded-lg p-4 bg-bg-subtle max-h-48 overflow-y-auto">
                     {staffWithIds.length === 0 ? (
-                      <option disabled>No staff members with user accounts</option>
+                      <p className="text-sm text-font-detail italic">No staff members with user accounts</p>
                     ) : (
-                      staffWithIds.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} - {s.role}
-                        </option>
-                      ))
+                      <div className="space-y-2">
+                        {staffWithIds.map((s) => {
+                          const staffId = String(s.id);
+                          const isChecked = selectedSupervisingStaff.includes(staffId);
+                          
+                          return (
+                            <label key={staffId} className="flex items-center hover:bg-primary-lightest p-2 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedSupervisingStaff([...selectedSupervisingStaff, staffId]);
+                                  } else {
+                                    setSelectedSupervisingStaff(selectedSupervisingStaff.filter(id => id !== staffId));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary border-bd rounded focus:ring-primary"
+                              />
+                              <span className="ml-3 text-sm text-font-base">
+                                {s.displayName || s.fullName}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
-                  </select>
+                  </div>
+                  {selectedSupervisingStaff.length > 0 && (
+                    <p className="text-xs text-primary mt-2">
+                      {selectedSupervisingStaff.length} staff member(s) selected
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Contact Information</label>
@@ -1301,14 +1342,28 @@ export default function VisitationPage() {
                     required
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                     <option value="">Select Staff Member</option>
-                    {staffWithIds.length === 0 ? (
-                      <option disabled>No staff members with user accounts</option>
+                    {uniqueProgramStaff.length === 0 ? (
+                      <option disabled>No staff members assigned to program</option>
                     ) : (
-                      staffWithIds.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} - {s.role}
-                        </option>
-                      ))
+                      uniqueProgramStaff.map((s, idx) => {
+                        const emailKey = (s.userEmail || '').toLowerCase();
+                        const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                        const baseName = fromDirectory?.fullName?.trim() || '';
+                        const fallbackName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+                        const emailFallback = (s.userEmail || '').trim();
+                        const name = baseName || fallbackName || emailFallback || 'Staff';
+                        const directoryTitle = fromDirectory?.jobTitle?.trim();
+                        const rawTitle = directoryTitle || (s.title || '').trim();
+                        let label = name;
+                        if (rawTitle) {
+                          label = `${name} (${rawTitle})`;
+                        }
+                        return (
+                          <option key={s.userEmail || idx} value={s.userEmail}>
+                            {label}
+                          </option>
+                        );
+                      })
                     )}
                   </select>
                 </div>
@@ -1320,14 +1375,28 @@ export default function VisitationPage() {
                     required
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
                     <option value="">Select Monitoring Staff</option>
-                    {staffWithIds.length === 0 ? (
-                      <option disabled>No staff members with user accounts</option>
+                    {uniqueProgramStaff.length === 0 ? (
+                      <option disabled>No staff members assigned to program</option>
                     ) : (
-                      staffWithIds.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} - {s.role}
-                        </option>
-                      ))
+                      uniqueProgramStaff.map((s, idx) => {
+                        const emailKey = (s.userEmail || '').toLowerCase();
+                        const fromDirectory = emailKey ? staffByEmail[emailKey] : undefined;
+                        const baseName = fromDirectory?.fullName?.trim() || '';
+                        const fallbackName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+                        const emailFallback = (s.userEmail || '').trim();
+                        const name = baseName || fallbackName || emailFallback || 'Staff';
+                        const directoryTitle = fromDirectory?.jobTitle?.trim();
+                        const rawTitle = directoryTitle || (s.title || '').trim();
+                        let label = name;
+                        if (rawTitle) {
+                          label = `${name} (${rawTitle})`;
+                        }
+                        return (
+                          <option key={s.userEmail || idx} value={s.userEmail}>
+                            {label}
+                          </option>
+                        );
+                      })
                     )}
                   </select>
                 </div>
