@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -323,6 +322,27 @@ public class VisitationService {
             }
         }
 
+        Visitation saved = visitationRepository.save(visitation);
+        return mapToVisitationResponse(saved);
+    }
+
+    /**
+     * Cancel a visitation
+     */
+    @Transactional
+    public Map<String, Object> cancelVisitation(Long visitationId) {
+        Visitation visitation = visitationRepository.findById(visitationId)
+                .orElseThrow(() -> new IllegalArgumentException("Visitation not found with id: " + visitationId));
+        
+        // Only allow cancellation if not already completed or cancelled
+        if ("COMPLETED".equals(visitation.getStatus()) || "CANCELLED".equals(visitation.getStatus())) {
+            throw new IllegalArgumentException("Cannot cancel a visit that is already " + visitation.getStatus().toLowerCase());
+        }
+        
+        // Set status to CANCELLED
+        visitation.setStatus("CANCELLED");
+        visitation.setUpdatedAt(Instant.now());
+        
         Visitation saved = visitationRepository.save(visitation);
         return mapToVisitationResponse(saved);
     }

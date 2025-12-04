@@ -240,6 +240,25 @@ public class VisitationController {
     }
 
     /**
+     * Cancel a visitation
+     */
+    @PatchMapping("/{visitationId}/cancel")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> cancelVisitation(
+            @PathVariable Long programId,
+            @PathVariable Long visitationId) {
+        try {
+            Map<String, Object> response = visitationService.cancelVisitation(visitationId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error cancelling visitation: " + e.getMessage());
+        }
+    }
+
+    /**
      * Delete a visitation (admin only)
      */
     @DeleteMapping("/{visitationId}")

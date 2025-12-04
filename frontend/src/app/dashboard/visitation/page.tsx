@@ -12,15 +12,17 @@ export default function VisitationPage() {
   const [activeTab, setActiveTab] = useState<'schedule' | 'visits' | 'phone' | 'archive'>('visits');
   const [programId, setProgramId] = useState<string | null>(null);
   
-  // Data state
+  const [loading, setLoading] = useState(false);
   const [residents, setResidents] = useState<any[]>([]);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [visitToCancel, setVisitToCancel] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
   const [staff, setStaff] = useState<any[]>([]);
   const [staffDirectory, setStaffDirectory] = useState<any[]>([]);
   const [programStaff, setProgramStaff] = useState<any[]>([]);
   const [scheduledVisitations, setScheduledVisitations] = useState<any[]>([]);
   const [phoneLogs, setPhoneLogs] = useState<any[]>([]);
   const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   
   // Historical records filters
   const [recordsFilter, setRecordsFilter] = useState({
@@ -46,7 +48,7 @@ export default function VisitationPage() {
     scheduledEndTime: '',
     visitationRoom: '',
     specialInstructions: '',
-    approvalStatus: 'PENDING_REVIEW'
+    approvalStatus: 'PENDING'
   });
   
   // Selected staff for visitation
@@ -67,6 +69,12 @@ export default function VisitationPage() {
     postCallBehavior: 'IMPROVED',
     additionalComments: ''
   });
+  
+  // Get user role from localStorage
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') || '';
+    setUserRole(role);
+  }, []);
   
   // Get programId from localStorage
   useEffect(() => {
@@ -343,7 +351,7 @@ export default function VisitationPage() {
           scheduledEndTime: '',
           visitationRoom: '',
           specialInstructions: '',
-          approvalStatus: 'PENDING_REVIEW'
+          approvalStatus: 'PENDING'
         });
         setSelectedSupervisingStaff([]);
         // Switch to visits tab
@@ -685,6 +693,38 @@ export default function VisitationPage() {
       }
     } catch (err) {
       addToast('Failed to complete visit', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle cancel visit
+  const handleCancelVisit = async () => {
+    if (!visitToCancel || !programId) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/visitations/${visitToCancel}/cancel`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (res.ok) {
+        addToast('Visit cancelled successfully', 'success');
+        setCancelModalOpen(false);
+        setVisitToCancel(null);
+        fetchScheduledVisitations();
+      } else {
+        const errorText = await res.text();
+        addToast(errorText || 'Failed to cancel visit', 'error');
+      }
+    } catch (err) {
+      addToast('Failed to cancel visit', 'error');
     } finally {
       setLoading(false);
     }
@@ -1045,7 +1085,18 @@ export default function VisitationPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {scheduledVisitations.map((visit: any) => {
+                {scheduledVisitations
+                  .filter((visit: any) => {
+                    // Filter out cancelled visits
+                    if (visit.status === 'CANCELLED') return false;
+                    
+                    // Filter out past visits
+                    const endTime = new Date(visit.scheduledEndTime);
+                    if (endTime < new Date()) return false;
+                    
+                    return true;
+                  })
+                  .map((visit: any) => {
                   const isToday = new Date(visit.scheduledDate).toDateString() === new Date().toDateString();
                   const visitDate = new Date(visit.scheduledDate);
                   const startTime = formatTime(visit.scheduledStartTime);
@@ -1056,11 +1107,11 @@ export default function VisitationPage() {
                   let statusTextColor = 'text-primary';
                   let statusBadgeColor = 'bg-primary';
                   
-                  // Check approval status first - pending review gets orange
-                  if (visit.approvalStatus === 'PENDING_REVIEW') {
-                    statusColor = 'bg-orange-50 border-orange-200';
-                    statusTextColor = 'text-orange-600';
-                    statusBadgeColor = 'bg-orange-500';
+                  // Check approval status first - pending gets orange
+                  if (visit.approvalStatus === 'PENDING') {
+                    statusColor = 'bg-warning-lightest border-warning/20';
+                    statusTextColor = 'text-warning';
+                    statusBadgeColor = 'bg-warning';
                   } else if (visit.status === 'COMPLETED') {
                     statusColor = 'bg-success-lightest border-success/20';
                     statusTextColor = 'text-success';
@@ -1090,10 +1141,16 @@ export default function VisitationPage() {
                             <span className={`${statusBadgeColor} text-white px-3 py-1 rounded-full text-xs font-medium`}>
                               {visit.status}
                             </span>
-                            {visit.approvalStatus === 'PENDING_REVIEW' && (
-                              <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium animate-pulse">
-                                <i className="fa-solid fa-exclamation-triangle mr-1"></i>
-                                PENDING REVIEW
+                            {visit.approvalStatus === 'PENDING' && (
+                              <span className="bg-warning text-white px-3 py-1 rounded-full text-xs font-medium">
+                                <i className="fa-solid fa-clock mr-1"></i>
+                                PENDING APPROVAL
+                              </span>
+                            )}
+                            {visit.approvalStatus === 'APPROVED' && (
+                              <span className="bg-success text-white px-3 py-1 rounded-full text-xs font-medium">
+                                <i className="fa-solid fa-check mr-1"></i>
+                                APPROVED
                               </span>
                             )}
                             {isToday && (
@@ -1163,43 +1220,35 @@ export default function VisitationPage() {
                         
                         {/* Action Buttons */}
                         <div className="ml-4 flex flex-col gap-2">
-                          {/* Pending Review - Show Approve/Deny buttons */}
-                          {visit.approvalStatus === 'PENDING_REVIEW' && (
-                            <div className="flex gap-2">
+                          {/* Pending - Show chip for regular staff, Approve button for admins */}
+                          {visit.approvalStatus === 'PENDING' && (
+                            ['ADMIN', 'ADMINISTRATOR', 'PROGRAM_ADMINISTRATOR', 'ASSISTANT_PROGRAM_ADMINISTRATOR', 'CLINICAL'].includes(userRole) ? (
                               <button 
                                 onClick={() => handleApproveVisit(visit.id)}
-                                className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success-dark text-sm font-medium transition-colors flex items-center">
+                                disabled={loading}
+                                className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success/90 text-sm font-medium transition-colors flex items-center disabled:opacity-50">
                                 <i className="fa-solid fa-check mr-2"></i>
-                                Approve
+                                Approve Visit
                               </button>
-                              <button 
-                                onClick={() => handleDenyVisit(visit.id)}
-                                className="bg-error text-white px-4 py-2 rounded-lg hover:bg-error-dark text-sm font-medium transition-colors flex items-center">
-                                <i className="fa-solid fa-times mr-2"></i>
-                                Deny
-                              </button>
-                            </div>
+                            ) : (
+                              <div className="bg-warning/10 border border-warning/20 text-warning px-4 py-2 rounded-lg text-sm font-medium flex items-center">
+                                <i className="fa-solid fa-clock mr-2"></i>
+                                Pending Approval
+                              </div>
+                            )
                           )}
                           
-                          {/* Start Visit - Only for today's approved/scheduled visits */}
-                          {isToday && visit.status === 'SCHEDULED' && visit.approvalStatus === 'APPROVED' && (
-                            <button 
-                              onClick={() => handleStartVisit(visit.id)}
-                              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark text-sm font-medium transition-colors">
-                              <i className="fa-solid fa-play mr-2"></i>
-                              Start Visit
-                            </button>
-                          )}
-                          
-                          {/* Complete Visit - For in-progress visits */}
-                          {visit.status === 'IN_PROGRESS' && (
-                            <button 
-                              onClick={() => handleCompleteVisit(visit.id)}
-                              className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success-dark text-sm font-medium transition-colors">
-                              <i className="fa-solid fa-check mr-2"></i>
-                              Complete Visit
-                            </button>
-                          )}
+                          {/* Cancel Button - Available for all visits */}
+                          <button 
+                            onClick={() => {
+                              setVisitToCancel(visit.id);
+                              setCancelModalOpen(true);
+                            }}
+                            disabled={loading}
+                            className="border border-error text-error px-4 py-2 rounded-lg hover:bg-error hover:text-white text-sm font-medium transition-colors flex items-center disabled:opacity-50">
+                            <i className="fa-solid fa-times mr-2"></i>
+                            Cancel Visit
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1605,6 +1654,52 @@ export default function VisitationPage() {
             {/* Records Count */}
             <div className="mt-4 text-center text-sm text-font-detail">
               Showing {displayedRecords.length} of {totalRecords} records
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Cancel Confirmation Modal */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center">
+                <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
+              </div>
+              <h3 className="text-xl font-semibold text-font-base">Cancel Visit?</h3>
+            </div>
+            
+            <p className="text-font-detail mb-6">
+              Are you sure you want to cancel this visit? This action cannot be undone and the visit will be permanently cancelled.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setVisitToCancel(null);
+                }}
+                disabled={loading}
+                className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleCancelVisit}
+                disabled={loading}
+                className="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-colors disabled:opacity-50 flex items-center gap-2">
+                {loading ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-times"></i>
+                    Confirm Cancellation
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
