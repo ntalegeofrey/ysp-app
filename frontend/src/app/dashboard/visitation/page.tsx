@@ -87,6 +87,47 @@ export default function VisitationPage() {
     }
   }, []);
   
+  // SSE for real-time visitation updates
+  useEffect(() => {
+    if (!programId) return;
+    
+    const eventSource = new EventSource('/api/events');
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Auto-refresh visitations when created, approved, or cancelled
+        if (data.type === 'visitations.created' || 
+            data.type === 'visitations.approved' || 
+            data.type === 'visitations.cancelled') {
+          // Only refresh if it's for the current program
+          if (data.programId && String(data.programId) === String(programId)) {
+            // Fetch updated visitations
+            const token = localStorage.getItem('token');
+            fetch(`/api/programs/${programId}/visitations/upcoming`, {
+              credentials: 'include',
+              headers: {
+                'Accept': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              }
+            }).then(res => {
+              if (res.ok) {
+                res.json().then(data => setScheduledVisitations(data));
+              }
+            }).catch(err => console.error('Failed to fetch visitations:', err));
+          }
+        }
+      } catch (err) {
+        console.error('SSE parse error:', err);
+      }
+    };
+    
+    return () => {
+      eventSource.close();
+    };
+  }, [programId]);
+  
   // Fetch residents
   const fetchResidents = async () => {
     if (!programId) return;

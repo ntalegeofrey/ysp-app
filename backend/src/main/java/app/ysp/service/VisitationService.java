@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import app.ysp.service.SseHub;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -27,15 +28,18 @@ public class VisitationService {
     private final ProgramRepository programRepository;
     private final ProgramResidentRepository residentRepository;
     private final UserRepository userRepository;
+    private final SseHub sseHub;
 
     public VisitationService(VisitationRepository visitationRepository,
                             ProgramRepository programRepository,
                             ProgramResidentRepository residentRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            SseHub sseHub) {
         this.visitationRepository = visitationRepository;
         this.programRepository = programRepository;
         this.residentRepository = residentRepository;
         this.userRepository = userRepository;
+        this.sseHub = sseHub;
     }
 
     // ============ VISITATION QUERIES ============
@@ -236,6 +240,7 @@ public class VisitationService {
         visitation.setScheduledByStaff(staff);
 
         Visitation saved = visitationRepository.save(visitation);
+        try { sseHub.broadcast(Map.of("type", "visitations.created", "programId", programId, "id", saved.getId())); } catch (Exception ignored) {}
         return mapToVisitationResponse(saved);
     }
 
@@ -295,6 +300,7 @@ public class VisitationService {
         }
 
         Visitation saved = visitationRepository.save(visitation);
+        try { sseHub.broadcast(Map.of("type", "visitations.approved", "programId", saved.getProgram().getId(), "id", saved.getId())); } catch (Exception ignored) {}
         return mapToVisitationResponse(saved);
     }
 
@@ -344,6 +350,7 @@ public class VisitationService {
         visitation.setUpdatedAt(Instant.now());
         
         Visitation saved = visitationRepository.save(visitation);
+        try { sseHub.broadcast(Map.of("type", "visitations.cancelled", "programId", saved.getProgram().getId(), "id", saved.getId())); } catch (Exception ignored) {}
         return mapToVisitationResponse(saved);
     }
 

@@ -39,11 +39,11 @@ public interface VisitationRepository extends JpaRepository<Visitation, Long> {
            "ORDER BY v.scheduledStartTime ASC")
     List<Visitation> findTodaysVisitationsByProgram(@Param("programId") Long programId, @Param("date") LocalDate date);
     
-    // Find upcoming approved visitations
+    // Find upcoming visitations (both pending and approved)
     @Query("SELECT v FROM Visitation v WHERE v.program.id = :programId " +
            "AND v.scheduledDate >= :startDate " +
-           "AND v.approvalStatus = 'APPROVED' " +
-           "AND v.status = 'SCHEDULED' " +
+           "AND v.approvalStatus IN ('APPROVED', 'PENDING') " +
+           "AND v.status IN ('SCHEDULED') " +
            "ORDER BY v.scheduledDate ASC, v.scheduledStartTime ASC")
     List<Visitation> findUpcomingVisitations(@Param("programId") Long programId, @Param("startDate") LocalDate startDate);
     
