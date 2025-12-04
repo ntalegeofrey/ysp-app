@@ -161,14 +161,20 @@ public class ProgramController {
             pa.setProgram(program);
             pa.setRoleType(item.roleType);
             pa.setUserEmail(item.userEmail);
-            pa.setUserId(item.userId);
 
-            final User assignedUser = (item.userId != null)
-                    ? users.findById(item.userId).orElse(null)
-                    : null;
+            // Lookup user by ID if provided, otherwise by email
+            User assignedUser = null;
+            if (item.userId != null) {
+                assignedUser = users.findById(item.userId).orElse(null);
+            } else if (item.userEmail != null && !item.userEmail.isBlank()) {
+                assignedUser = users.findByEmailIgnoreCase(item.userEmail).orElse(null);
+            }
 
-            // Enrich staff registry fields from User when available
+            // Set user_id from the found user (fixes NULL issue)
             if (assignedUser != null) {
+                pa.setUserId(assignedUser.getId());
+                
+                // Enrich staff registry fields from User
                 if (assignedUser.getFullName() != null && !assignedUser.getFullName().isBlank()) {
                     String[] parts = assignedUser.getFullName().trim().split(" ");
                     if (parts.length > 0) pa.setFirstName(parts[0]);
