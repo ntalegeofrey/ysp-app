@@ -163,11 +163,13 @@ public class ProgramController {
             pa.setUserEmail(item.userEmail);
 
             // Lookup user by ID if provided, otherwise by email
-            User assignedUser = null;
+            final User assignedUser;
             if (item.userId != null) {
                 assignedUser = users.findById(item.userId).orElse(null);
             } else if (item.userEmail != null && !item.userEmail.isBlank()) {
                 assignedUser = users.findByEmailIgnoreCase(item.userEmail).orElse(null);
+            } else {
+                assignedUser = null;
             }
 
             // Set user_id from the found user (fixes NULL issue)
