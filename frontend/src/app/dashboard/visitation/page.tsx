@@ -1027,11 +1027,11 @@ export default function VisitationPage() {
                       <input 
                         type="radio" 
                         name="approval" 
-                        value="PENDING_REVIEW"
-                        checked={visitForm.approvalStatus === 'PENDING_REVIEW'}
+                        value="PENDING"
+                        checked={visitForm.approvalStatus === 'PENDING'}
                         onChange={(e) => setVisitForm({...visitForm, approvalStatus: e.target.value})}
                         className="text-primary focus:ring-primary" />
-                      <span className="ml-2 text-sm text-warning">Pending Review</span>
+                      <span className="ml-2 text-sm text-warning">Pending Approval</span>
                     </label>
                     <label className="flex items-center">
                       <input 
