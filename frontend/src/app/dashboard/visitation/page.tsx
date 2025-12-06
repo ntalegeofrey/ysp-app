@@ -72,9 +72,17 @@ export default function VisitationPage() {
   
   // Get user role from localStorage
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || '';
-    console.log('[Visitation] User role from localStorage:', role);
-    setUserRole(role);
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const role = user.role || '';
+        console.log('[Visitation] User role from user object:', role);
+        setUserRole(role);
+      }
+    } catch (err) {
+      console.error('[Visitation] Failed to parse user from localStorage:', err);
+    }
   }, []);
   
   // Get programId from localStorage
@@ -92,7 +100,8 @@ export default function VisitationPage() {
   useEffect(() => {
     if (!programId) return;
     
-    const eventSource = new EventSource('/api/events');
+    const token = localStorage.getItem('token');
+    const eventSource = new EventSource(`/api/events${token ? `?token=${token}` : ''}`);
     
     eventSource.onmessage = (event) => {
       try {
@@ -1265,8 +1274,9 @@ export default function VisitationPage() {
                           {/* Pending - Show chip for regular staff, Approve button for admins */}
                           {visit.approvalStatus === 'PENDING' && (
                             (() => {
-                              const roleUpper = userRole.toUpperCase();
-                              const canApprove = ['ADMIN', 'ADMINISTRATOR', 'PROGRAM_ADMINISTRATOR', 'ASSISTANT_PROGRAM_ADMINISTRATOR', 'CLINICAL', 'PROGRAM_DIRECTOR', 'ASSISTANT_PROGRAM_DIRECTOR']
+                              const roleUpper = (userRole || '').toUpperCase();
+                              // Check if role contains any of these keywords (handles both "admin" and "ROLE_ADMIN" formats)
+                              const canApprove = ['ADMIN', 'ADMINISTRATOR', 'CLINICAL', 'DIRECTOR']
                                 .some(role => roleUpper.includes(role));
                               
                               return canApprove ? (
