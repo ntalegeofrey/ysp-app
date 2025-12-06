@@ -643,7 +643,7 @@ export default function VisitationPage() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/programs/${programId}/visitations/${visitId}/approval`, {
-        method: 'PUT',
+        method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
