@@ -30,7 +30,7 @@ export default function AdminOperationsPage() {
     "Inventory Management",
     "Off-Site Movements",
     // Resident Care
-    "Medication Count",
+    "Medication Management",
     "Visitation & Phone Log",
     "Sleep Log & Watch",
     "Repair Management",

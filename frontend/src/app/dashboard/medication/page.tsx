@@ -35,8 +35,8 @@ export default function MedicationPage() {
       id: 2,
       type: 'warning',
       time: '9:45 AM',
-      title: 'Medication Count Discrepancy: Sertraline 50mg - Expected: 45, Found: 43',
-      description: 'Discrepancy flagged during morning count. Requires supervisor review.',
+      title: 'Medication Inventory Discrepancy: Sertraline 50mg - Expected: 45, Found: 43',
+      description: 'Discrepancy flagged during morning inventory. Requires supervisor review.',
     },
     {
       id: 3,

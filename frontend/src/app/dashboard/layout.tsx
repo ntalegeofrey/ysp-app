@@ -40,7 +40,7 @@ const menuGroups = [
     id: 'resident',
     label: 'Resident Care',
     items: [
-      { icon: 'fa-pills', label: 'Medication Count', href: '/dashboard/medication', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/medication/all-medication-records', title: 'All Medication Records', breadcrumb: 'All Records' }, { path: '/dashboard/medication/medication-sheet', title: 'Resident Med Sheet', breadcrumb: 'Resident Med Sheet' } ] },
+      { icon: 'fa-pills', label: 'Medication Management', href: '/dashboard/medication', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/medication/all-medication-records', title: 'All Medication Records', breadcrumb: 'All Records' }, { path: '/dashboard/medication/medication-sheet', title: 'Resident Med Sheet', breadcrumb: 'Resident Med Sheet' } ] },
       { icon: 'fa-phone', label: 'Visitation & Phone Log', href: '/dashboard/visitation', roles: ['admin', 'manager', 'staff'] },
       { icon: 'fa-bed', label: 'Sleep Log & Watch', href: '/dashboard/sleep-log', roles: ['admin', 'manager', 'staff'] },
       { icon: 'fa-screwdriver-wrench', label: 'Repair Management', href: '/dashboard/repairs', roles: ['admin', 'manager', 'staff'], subPages: [ { path: '/dashboard/repairs/award', title: 'Manage Resident Credits', breadcrumb: 'Award Points' }, { path: '/dashboard/repairs/assign', title: 'Assign Repair Intervention', breadcrumb: 'Assign Repair' }, { path: '/dashboard/repairs/history', title: 'Repair History', breadcrumb: 'Repair History' } ] },
@@ -154,7 +154,7 @@ function HeaderWithParams({
     const residentId = searchParams.get('resident') || '';
     showBackButton = true;
     title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
-    breadcrumb = `Medication Count • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
+    breadcrumb = `Medication Management • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
   }
 
   // Show back button for repairs history dynamic route

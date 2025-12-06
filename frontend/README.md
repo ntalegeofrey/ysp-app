@@ -25,10 +25,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 - Staff Management
 - AI Insights
 - Analytics and Reporting
-- Medication Count Management
+- Medication Management
 - Incident Management
 - Inventory Management
-- Medical Run Coordination
+- Off-Site Movements
 - Fire Plan Management
 - UCR (Unusual Client Report)
 - Visitation and Phone Logs
