@@ -73,6 +73,7 @@ export default function VisitationPage() {
   // Get user role from localStorage
   useEffect(() => {
     const role = localStorage.getItem('userRole') || '';
+    console.log('[Visitation] User role from localStorage:', role);
     setUserRole(role);
   }, []);
   
@@ -1263,20 +1264,26 @@ export default function VisitationPage() {
                         <div className="ml-4 flex flex-col gap-2">
                           {/* Pending - Show chip for regular staff, Approve button for admins */}
                           {visit.approvalStatus === 'PENDING' && (
-                            ['ADMIN', 'ADMINISTRATOR', 'PROGRAM_ADMINISTRATOR', 'ASSISTANT_PROGRAM_ADMINISTRATOR', 'CLINICAL'].includes(userRole) ? (
-                              <button 
-                                onClick={() => handleApproveVisit(visit.id)}
-                                disabled={loading}
-                                className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success/90 text-sm font-medium transition-colors flex items-center disabled:opacity-50">
-                                <i className="fa-solid fa-check mr-2"></i>
-                                Approve Visit
-                              </button>
-                            ) : (
-                              <div className="bg-warning/10 border border-warning/20 text-warning px-4 py-2 rounded-lg text-sm font-medium flex items-center">
-                                <i className="fa-solid fa-clock mr-2"></i>
-                                Pending Approval
-                              </div>
-                            )
+                            (() => {
+                              const roleUpper = userRole.toUpperCase();
+                              const canApprove = ['ADMIN', 'ADMINISTRATOR', 'PROGRAM_ADMINISTRATOR', 'ASSISTANT_PROGRAM_ADMINISTRATOR', 'CLINICAL', 'PROGRAM_DIRECTOR', 'ASSISTANT_PROGRAM_DIRECTOR']
+                                .some(role => roleUpper.includes(role));
+                              
+                              return canApprove ? (
+                                <button 
+                                  onClick={() => handleApproveVisit(visit.id)}
+                                  disabled={loading}
+                                  className="bg-success text-white px-4 py-2 rounded-lg hover:bg-success/90 text-sm font-medium transition-colors flex items-center disabled:opacity-50">
+                                  <i className="fa-solid fa-check mr-2"></i>
+                                  Approve Visit
+                                </button>
+                              ) : (
+                                <div className="bg-warning/10 border border-warning/20 text-warning px-4 py-2 rounded-lg text-sm font-medium flex items-center">
+                                  <i className="fa-solid fa-clock mr-2"></i>
+                                  Pending Approval
+                                </div>
+                              );
+                            })()
                           )}
                           
                           {/* Cancel Button - Available for all visits */}
