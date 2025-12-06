@@ -33,7 +33,7 @@ const menuGroups = [
       { icon: 'fa-users', label: 'Staff Management', href: '/dashboard/staff-management', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/staff-management/edit-schedule', title: 'Create/Edit Schedule', breadcrumb: 'Schedule Builder' } ] },
       { icon: 'fa-clipboard-check', label: 'Residential Census', href: '/dashboard/residential-census', roles: ['admin', 'manager', 'supervisor'] },
       { icon: 'fa-boxes-stacked', label: 'Inventory Management', href: '/dashboard/inventory', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/inventory/refill-request', title: 'Inventory Refill Request', breadcrumb: 'Create Refill Request' }, { path: '/dashboard/inventory/reorganize', title: 'Storage Reorganization', breadcrumb: 'Plan Reorganization' } ] },
-      { icon: 'fa-truck-medical', label: 'Medical Run Coordination', href: '/dashboard/medical-runs', roles: ['admin', 'manager', 'staff'] },
+      { icon: 'fa-route', label: 'Off-Site Movements', href: '/dashboard/offsite-movements', roles: ['admin', 'manager', 'staff'] },
     ],
   },
   {

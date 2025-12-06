@@ -591,7 +591,7 @@ export default function SystemAdminPage() {
                 <td className="px-3 py-2 text-center"><span className="bg-primary text-white px-2 py-1 rounded text-xs">View</span></td>
               </tr>
               <tr className="bg-white hover:bg-gray-50">
-                <td className="px-3 py-2 font-medium">Medical Runs</td>
+                <td className="px-3 py-2 font-medium">Off-Site Movements</td>
                 <td className="px-3 py-2 text-center"><span className="bg-success text-white px-2 py-1 rounded text-xs">Full</span></td>
                 <td className="px-3 py-2 text-center"><span className="bg-success text-white px-2 py-1 rounded text-xs">Full</span></td>
                 <td className="px-3 py-2 text-center"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Edit</span></td>

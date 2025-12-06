@@ -28,7 +28,7 @@ export default function AdminOperationsPage() {
     "Staff Management",
     "Residential Census",
     "Inventory Management",
-    "Medical Run Coordination",
+    "Off-Site Movements",
     // Resident Care
     "Medication Count",
     "Visitation & Phone Log",
