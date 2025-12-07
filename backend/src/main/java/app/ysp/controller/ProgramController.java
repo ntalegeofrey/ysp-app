@@ -124,17 +124,17 @@ public class ProgramController {
 
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         
-        // Total credits from points diary cards
+        // Total credits from points diary cards (sum of current_balance)
         try {
             @SuppressWarnings("unchecked")
             List<Object> diaryCards = (List<Object>) entityManager.createQuery(
-                "SELECT p FROM PointsDiaryCard p WHERE p.residentId = :residentId"
+                "SELECT p FROM PointsDiaryCard p WHERE p.resident.id = :residentId"
             ).setParameter("residentId", residentPk).getResultList();
             
             int totalCredits = 0;
             for (Object card : diaryCards) {
                 try {
-                    java.lang.reflect.Method method = card.getClass().getMethod("getTotalPoints");
+                    java.lang.reflect.Method method = card.getClass().getMethod("getCurrentBalance");
                     Integer points = (Integer) method.invoke(card);
                     if (points != null) totalCredits += points;
                 } catch (Exception ignored) {}
