@@ -22,6 +22,12 @@ function MedicationSheetInner() {
   const [medications, setMedications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [resident, setResident] = useState<any>(null);
+  const [allergies, setAllergies] = useState('');
+  const [lastMedicalReview, setLastMedicalReview] = useState('');
+  const [primaryPhysician, setPrimaryPhysician] = useState('');
+  const [editingReview, setEditingReview] = useState(false);
+  const [editingPhysician, setEditingPhysician] = useState(false);
+  const [administrationLogs, setAdministrationLogs] = useState<any[]>([]);
 
   // Get logged-in staff name and program ID
   useEffect(() => {
@@ -34,9 +40,10 @@ function MedicationSheetInner() {
         setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
       }
       
-      const selectedProgramId = localStorage.getItem('selectedProgramId');
-      if (selectedProgramId) {
-        setProgramId(parseInt(selectedProgramId));
+      const selectedProgram = localStorage.getItem('selectedProgram');
+      if (selectedProgram) {
+        const program = JSON.parse(selectedProgram);
+        setProgramId(program.id);
       }
     } catch (err) {
       console.error('Failed to parse user:', err);
@@ -48,6 +55,7 @@ function MedicationSheetInner() {
     if (programId && residentId) {
       fetchMedications();
       fetchResidentInfo();
+      fetchAdministrationLogs();
     }
   }, [programId, residentId]);
 
@@ -79,11 +87,38 @@ function MedicationSheetInner() {
         const foundResident = residents.find((r: any) => r.id.toString() === residentId);
         if (foundResident) {
           setResident(foundResident);
+          // Set allergies from resident data if available
+          setAllergies(foundResident.allergies || foundResident.medicalAllergies || 'None reported');
+          setPrimaryPhysician(foundResident.primaryPhysician || 'Not assigned');
+          setLastMedicalReview(foundResident.lastMedicalReview || 'Not recorded');
         }
       }
     } catch (err) {
       console.error('Failed to fetch resident info:', err);
     }
+  };
+
+  const fetchAdministrationLogs = async () => {
+    // Placeholder - will implement when backend endpoint is ready
+    setAdministrationLogs([]);
+  };
+
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Not available';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const handleAddMedication = async () => {
@@ -151,7 +186,7 @@ function MedicationSheetInner() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Resident ID</label>
-                <div className="text-lg font-semibold text-primary">{residentId}</div>
+                <div className="text-lg font-semibold text-primary">#{resident?.id || residentId}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Full Name</label>
@@ -160,20 +195,44 @@ function MedicationSheetInner() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Unit Assignment</label>
+                <label className="block text-sm font-medium text-font-base mb-1">Room Number</label>
                 <div className="text-font-base">
-                  {resident?.unitAssignment || resident?.roomNumber || 'Not assigned'}
+                  {resident?.room || resident?.roomNumber || resident?.unitAssignment || 'Not assigned'}
                 </div>
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Age</label>
-                <div className="text-font-base">17 years</div>
+                <label className="block text-sm font-medium text-font-base mb-1">Date of Birth & Age</label>
+                <div className="text-font-base">
+                  {resident?.dateOfBirth ? (
+                    <>
+                      {formatDate(resident.dateOfBirth)} ({calculateAge(resident.dateOfBirth)} years)
+                    </>
+                  ) : 'Not available'}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Primary Physician</label>
-                <div className="text-font-base">Dr. Sarah Wilson</div>
+                <label className="block text-sm font-medium text-font-base mb-1">
+                  Primary Physician
+                  <button 
+                    onClick={() => setEditingPhysician(!editingPhysician)}
+                    className="ml-2 text-primary hover:text-primary/80 text-xs"
+                  >
+                    <i className="fa-solid fa-pencil"></i>
+                  </button>
+                </label>
+                {editingPhysician ? (
+                  <input
+                    value={primaryPhysician}
+                    onChange={(e) => setPrimaryPhysician(e.target.value)}
+                    onBlur={() => setEditingPhysician(false)}
+                    className="w-full border border-bd rounded px-2 py-1 text-sm"
+                    autoFocus
+                  />
+                ) : (
+                  <div className="text-font-base">{primaryPhysician}</div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Medical Status</label>
@@ -183,11 +242,32 @@ function MedicationSheetInner() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Known Allergies</label>
-                <div className="text-font-base bg-error-lightest p-2 rounded border-l-4 border-error">Penicillin, Shellfish</div>
+                <div className={`text-font-base p-2 rounded border-l-4 ${allergies && allergies !== 'None reported' ? 'bg-error-lightest border-error' : 'bg-bg-subtle border-bd'}`}>
+                  {allergies}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Last Medical Review</label>
-                <div className="text-font-base">October 15, 2024</div>
+                <label className="block text-sm font-medium text-font-base mb-1">
+                  Last Medical Review
+                  <button 
+                    onClick={() => setEditingReview(!editingReview)}
+                    className="ml-2 text-primary hover:text-primary/80 text-xs"
+                  >
+                    <i className="fa-solid fa-pencil"></i>
+                  </button>
+                </label>
+                {editingReview ? (
+                  <input
+                    type="date"
+                    value={lastMedicalReview}
+                    onChange={(e) => setLastMedicalReview(e.target.value)}
+                    onBlur={() => setEditingReview(false)}
+                    className="w-full border border-bd rounded px-2 py-1 text-sm"
+                    autoFocus
+                  />
+                ) : (
+                  <div className="text-font-base">{lastMedicalReview === 'Not recorded' ? lastMedicalReview : formatDate(lastMedicalReview)}</div>
+                )}
               </div>
             </div>
           </div>
@@ -267,110 +347,71 @@ function MedicationSheetInner() {
                 <i className="fa-solid fa-clock-rotate-left text-primary mr-3"></i>
                 Medication Administration Log
               </h3>
-              <div className="mt-2 text-sm text-font-detail">Complete history of medication administration for Resident {residentId}</div>
+              <div className="mt-2 text-sm text-font-detail">
+                Complete history of medication administration for {resident ? `${resident.firstName} ${resident.lastName}` : `Resident ${residentId}`}
+              </div>
             </div>
-            <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-              <option value="">All Time</option>
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
+            {administrationLogs.length > 0 && (
+              <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                <option value="">All Time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            )}
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-bg-subtle border-b border-bd">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Time</th>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Medication</th>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Action</th>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Staff</th>
-                <th className="px-4 py-3 text-left font-medium text-font-base">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-05</td>
-                <td className="px-4 py-3 text-font-detail">8:15 AM</td>
-                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">J. Smith</td>
-                <td className="px-4 py-3 text-font-detail">Taken with breakfast, no issues</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-05</td>
-                <td className="px-4 py-3 text-font-detail">8:20 AM</td>
-                <td className="px-4 py-3 text-font-detail">Sertraline 50mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">J. Smith</td>
-                <td className="px-4 py-3 text-font-detail">Morning dose administered</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-04</td>
-                <td className="px-4 py-3 text-font-detail">9:30 PM</td>
-                <td className="px-4 py-3 text-font-detail">Melatonin 3mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">M. Davis</td>
-                <td className="px-4 py-3 text-font-detail">Bedtime dose, resident cooperative</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-04</td>
-                <td className="px-4 py-3 text-font-detail">8:00 PM</td>
-                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-error/10 text-error">Refused</span></td>
-                <td className="px-4 py-3 text-font-detail">M. Davis</td>
-                <td className="px-4 py-3 text-font-detail">Resident refused medication, clinician notified</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-04</td>
-                <td className="px-4 py-3 text-font-detail">8:15 AM</td>
-                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">T. Wilson</td>
-                <td className="px-4 py-3 text-font-detail">Morning dose administered with food</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-04</td>
-                <td className="px-4 py-3 text-font-detail">8:20 AM</td>
-                <td className="px-4 py-3 text-font-detail">Sertraline 50mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">T. Wilson</td>
-                <td className="px-4 py-3 text-font-detail">-</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-03</td>
-                <td className="px-4 py-3 text-font-detail">9:30 PM</td>
-                <td className="px-4 py-3 text-font-detail">Melatonin 3mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">K. Johnson</td>
-                <td className="px-4 py-3 text-font-detail">Bedtime dose, resident settled well</td>
-              </tr>
-              <tr className="border-b border-bd hover:bg-bg-subtle">
-                <td className="px-4 py-3 text-font-base">2024-12-03</td>
-                <td className="px-4 py-3 text-font-detail">8:00 PM</td>
-                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
-                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
-                <td className="px-4 py-3 text-font-detail">K. Johnson</td>
-                <td className="px-4 py-3 text-font-detail">Evening dose with dinner</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-6 py-4 border-t border-bd bg-bg-subtle">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-font-detail">Showing 8 of 45 entries</div>
-            <div className="flex space-x-2">
-              <button className="px-3 py-2 border border-bd rounded text-sm text-font-detail hover:bg-primary-lightest">Previous</button>
-              <button className="px-3 py-2 bg-primary text-white rounded text-sm hover:bg-primary-light">1</button>
-              <button className="px-3 py-2 border border-bd rounded text-sm text-font-detail hover:bg-primary-lightest">2</button>
-              <button className="px-3 py-2 border border-bd rounded text-sm text-font-detail hover:bg-primary-lightest">3</button>
-              <button className="px-3 py-2 border border-bd rounded text-sm text-font-detail hover:bg-primary-lightest">Next</button>
+        {administrationLogs.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+              <i className="fa-solid fa-clock-rotate-left text-4xl text-primary opacity-50"></i>
             </div>
+            <h4 className="text-xl font-semibold text-font-base mb-2">No Administrations Yet</h4>
+            <p className="text-font-detail">No medication administrations have been logged for this resident yet.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-bg-subtle border-b border-bd">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Date</th>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Time</th>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Medication</th>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Action</th>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Staff</th>
+                    <th className="px-4 py-3 text-left font-medium text-font-base">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {administrationLogs.map((log, idx) => (
+                    <tr key={idx} className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="px-4 py-3 text-font-base">{log.date}</td>
+                      <td className="px-4 py-3 text-font-detail">{log.time}</td>
+                      <td className="px-4 py-3 text-font-detail">{log.medication}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          log.action === 'Administered' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                        }`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-font-detail">{log.staff}</td>
+                      <td className="px-4 py-3 text-font-detail">{log.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-6 py-4 border-t border-bd bg-bg-subtle">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-font-detail">Showing {administrationLogs.length} entries</div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Add Medication Modal */}
@@ -381,7 +422,7 @@ function MedicationSheetInner() {
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-font-base flex items-center">
                   <i className="fa-solid fa-plus-circle text-primary mr-3"></i>
-                  Add New Medication for Resident {residentId}
+                  Add New Medication for {resident ? `${resident.firstName} ${resident.lastName}` : `Resident ${residentId}`}
                 </h3>
                 <button
                   onClick={() => setShowAddMedicationModal(false)}
@@ -396,7 +437,7 @@ function MedicationSheetInner() {
               <div className="mb-4 bg-primary-lightest border border-primary/20 rounded-lg p-3">
                 <div className="text-sm">
                   <span className="text-font-detail">Adding medication for:</span>{' '}
-                  <span className="font-semibold text-font-base">Resident {residentId}</span>
+                  <span className="font-semibold text-font-base">{resident ? `${resident.firstName} ${resident.lastName}` : `Resident ${residentId}`}</span>
                   <span className="mx-2">•</span>
                   <span className="text-font-detail">Added by:</span>{' '}
                   <span className="font-semibold text-font-base">{currentStaff}</span>
