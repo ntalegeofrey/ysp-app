@@ -55,6 +55,9 @@ public class ProgramResident {
     @Column(name = "clinician")
     private String clinician;
 
+    @Column(name = "profile_picture_url")
+    private String profilePictureUrl;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -99,6 +102,9 @@ public class ProgramResident {
 
     public String getClinician() { return clinician; }
     public void setClinician(String clinician) { this.clinician = clinician; }
+
+    public String getProfilePictureUrl() { return profilePictureUrl; }
+    public void setProfilePictureUrl(String profilePictureUrl) { this.profilePictureUrl = profilePictureUrl; }
 
     public String getFullName() { return ((lastName!=null?lastName:"") + ", " + (firstName!=null?firstName:" ")).trim(); }
 }

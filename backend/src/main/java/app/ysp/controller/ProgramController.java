@@ -9,12 +9,16 @@ import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.UserRepository;
 import app.ysp.repo.ProgramResidentRepository;
 import app.ysp.repo.RegionRepository;
+import app.ysp.repo.ResidentDocumentRepository;
+import app.ysp.entity.ResidentDocument;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import app.ysp.service.SseHub;
+import app.ysp.service.StorageService;
 import jakarta.persistence.EntityManager;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.*;
@@ -30,8 +34,10 @@ public class ProgramController {
     private final RegionRepository regions;
     private final SseHub sseHub;
     private final EntityManager entityManager;
+    private final StorageService storageService;
+    private final ResidentDocumentRepository documents;
 
-    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, RegionRepository regions, SseHub sseHub, EntityManager entityManager) {
+    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, RegionRepository regions, SseHub sseHub, EntityManager entityManager, StorageService storageService, ResidentDocumentRepository documents) {
         this.programs = programs;
         this.assignments = assignments;
         this.users = users;
@@ -39,6 +45,8 @@ public class ProgramController {
         this.regions = regions;
         this.sseHub = sseHub;
         this.entityManager = entityManager;
+        this.storageService = storageService;
+        this.documents = documents;
     }
 
     @GetMapping
@@ -363,6 +371,178 @@ public class ProgramController {
         int next = (max == null ? 0 : max) + 1;
         String rid = String.format("%06d", next);
         return ResponseEntity.ok(java.util.Map.of("nextId", rid));
+    }
+
+    @PostMapping("/{id}/residents/{residentPk}/profile-picture")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or (@securityService.isProgramMember(#id, authentication) and @securityService.hasOperation('op.EDIT_RESIDENT', authentication))")
+    public ResponseEntity<?> uploadProfilePicture(
+            @PathVariable Long id,
+            @PathVariable("residentPk") Long residentPk,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            Optional<ProgramResident> opt = residents.findById(residentPk);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            ProgramResident pr = opt.get();
+            if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Delete old profile picture if exists
+            if (pr.getProfilePictureUrl() != null && !pr.getProfilePictureUrl().isEmpty()) {
+                storageService.deleteFile(pr.getProfilePictureUrl());
+            }
+
+            // Upload new profile picture
+            String fileUrl = storageService.uploadFile(file, "resident-profiles");
+            pr.setProfilePictureUrl(fileUrl);
+            ProgramResident saved = residents.save(pr);
+
+            try { sseHub.broadcast(java.util.Map.of("type","programs.residents.updated","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
+
+            // Return presigned URL for better compatibility with high-security networks
+            String presignedUrl = storageService.generatePresignedUrl(fileUrl, java.time.Duration.ofHours(24));
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("fileUrl", presignedUrl);
+            response.put("storageUrl", fileUrl);
+            response.put("message", "Profile picture uploaded successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to upload profile picture: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    @GetMapping("/{id}/residents/{residentPk}/profile-picture-url")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getProfilePictureUrl(
+            @PathVariable Long id,
+            @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String profilePicUrl = pr.getProfilePictureUrl();
+        if (profilePicUrl == null || profilePicUrl.isEmpty()) {
+            return ResponseEntity.ok(java.util.Map.of("fileUrl", ""));
+        }
+
+        // Generate presigned URL for secure access
+        String presignedUrl = storageService.generatePresignedUrl(profilePicUrl, java.time.Duration.ofHours(24));
+        return ResponseEntity.ok(java.util.Map.of("fileUrl", presignedUrl));
+    }
+
+    @PostMapping("/{id}/residents/{residentPk}/documents")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> uploadDocument(
+            @PathVariable Long id,
+            @PathVariable("residentPk") Long residentPk,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "documentType", required = false) String documentType,
+            @RequestParam(value = "description", required = false) String description,
+            Authentication authentication) {
+        try {
+            Optional<ProgramResident> opt = residents.findById(residentPk);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            ProgramResident pr = opt.get();
+            if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Upload file to storage
+            String fileUrl = storageService.uploadFile(file, "resident-documents");
+
+            // Create document record
+            ResidentDocument doc = new ResidentDocument();
+            doc.setResidentId(residentPk);
+            doc.setProgramId(id);
+            doc.setFileName(file.getOriginalFilename());
+            doc.setFileUrl(fileUrl);
+            doc.setFileType(file.getContentType());
+            doc.setFileSize(file.getSize());
+            doc.setDocumentType(documentType);
+            doc.setDescription(description);
+            doc.setUploadedBy(authentication.getName());
+            doc.setUploadedAt(java.time.Instant.now());
+
+            ResidentDocument saved = documents.save(doc);
+
+            // Return presigned URL
+            String presignedUrl = storageService.generatePresignedUrl(fileUrl, java.time.Duration.ofHours(24));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", saved.getId());
+            response.put("fileName", saved.getFileName());
+            response.put("fileUrl", presignedUrl);
+            response.put("documentType", saved.getDocumentType());
+            response.put("uploadedAt", saved.getUploadedAt());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to upload document: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    @GetMapping("/{id}/residents/{residentPk}/documents")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getDocuments(
+            @PathVariable Long id,
+            @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<ResidentDocument> docs = documents.findByResidentIdAndProgramIdOrderByUploadedAtDesc(residentPk, id);
+        
+        // Generate presigned URLs for all documents
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ResidentDocument doc : docs) {
+            String presignedUrl = storageService.generatePresignedUrl(doc.getFileUrl(), java.time.Duration.ofHours(24));
+            Map<String, Object> docMap = new HashMap<>();
+            docMap.put("id", doc.getId());
+            docMap.put("fileName", doc.getFileName());
+            docMap.put("fileUrl", presignedUrl);
+            docMap.put("fileType", doc.getFileType());
+            docMap.put("fileSize", doc.getFileSize());
+            docMap.put("documentType", doc.getDocumentType());
+            docMap.put("description", doc.getDescription());
+            docMap.put("uploadedBy", doc.getUploadedBy());
+            docMap.put("uploadedAt", doc.getUploadedAt());
+            result.add(docMap);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/{id}/residents/{residentPk}/documents/{documentId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication)")
+    public ResponseEntity<?> deleteDocument(
+            @PathVariable Long id,
+            @PathVariable("residentPk") Long residentPk,
+            @PathVariable Long documentId) {
+        Optional<ResidentDocument> docOpt = documents.findById(documentId);
+        if (docOpt.isEmpty()) return ResponseEntity.notFound().build();
+        
+        ResidentDocument doc = docOpt.get();
+        if (!doc.getResidentId().equals(residentPk) || !doc.getProgramId().equals(id)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Delete from storage
+        storageService.deleteFile(doc.getFileUrl());
+        
+        // Delete record
+        documents.delete(doc);
+
+        return ResponseEntity.noContent().build();
     }
 
     public static class AssignmentsPayload {

@@ -24,6 +24,11 @@ export default function ResidentProfilePage() {
   const [repairs, setRepairs] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [profilePicUrl, setProfilePicUrl] = useState('');
+  const [selectedDocType, setSelectedDocType] = useState('Legal');
   const [editForm, setEditForm] = useState({
     dateOfBirth: '',
     admissionDate: '',
@@ -47,10 +52,13 @@ export default function ResidentProfilePage() {
     loadResidentStats();
     loadTabData();
     loadProgramStaff();
+    loadProfilePicture();
   }, [residentId]);
 
   useEffect(() => {
-    if (activeTab !== 'overview' && activeTab !== 'files') {
+    if (activeTab === 'files') {
+      loadDocuments();
+    } else if (activeTab !== 'overview') {
       loadTabData();
     }
   }, [activeTab]);
@@ -138,6 +146,175 @@ export default function ResidentProfilePage() {
       }
     } catch (error) {
       console.error('Failed to load program staff:', error);
+    }
+  };
+
+  const loadProfilePicture = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/profile-picture-url`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setProfilePicUrl(data.fileUrl || '');
+      }
+    } catch (error) {
+      console.error('Failed to load profile picture:', error);
+    }
+  };
+
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', 'error');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      addToast('Image must be less than 5MB', 'error');
+      return;
+    }
+
+    setUploadingProfilePic(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/profile-picture`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProfilePicUrl(data.fileUrl);
+        addToast('Profile picture updated successfully', 'success');
+      } else {
+        addToast('Failed to upload profile picture', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to upload profile picture:', error);
+      addToast('Error uploading profile picture', 'error');
+    } finally {
+      setUploadingProfilePic(false);
+    }
+  };
+
+  const loadDocuments = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/documents`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setDocuments(data);
+      }
+    } catch (error) {
+      console.error('Failed to load documents:', error);
+    }
+  };
+
+  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('File must be less than 10MB', 'error');
+      return;
+    }
+
+    setUploadingDocument(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', selectedDocType);
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData
+      });
+
+      if (res.ok) {
+        addToast('Document uploaded successfully', 'success');
+        loadDocuments();
+      } else {
+        addToast('Failed to upload document', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      addToast('Error uploading document', 'error');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: number) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/documents/${documentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+
+      if (res.ok) {
+        addToast('Document deleted successfully', 'success');
+        loadDocuments();
+      } else {
+        addToast('Failed to delete document', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      addToast('Error deleting document', 'error');
     }
   };
 
@@ -282,18 +459,36 @@ export default function ResidentProfilePage() {
   return (
     <div className="flex-1 p-6 overflow-auto">
       {/* Profile Header */}
-      <div className="bg-white rounded-lg border border-bd p-6 mb-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-6">
+      <div className="bg-white rounded-lg border border-bd mb-8">
+        <div className="p-6 flex items-center justify-between">
+          <div className="flex items-center space-x-6">
             <div className="relative">
-              <img 
-                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" 
-                alt="Resident Photo" 
-                className="w-24 h-24 rounded-full border-4 border-primary"
+              <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+                {profilePicUrl ? (
+                  <img src={profilePicUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{resident.firstName?.charAt(0)}{resident.lastName?.charAt(0)}</span>
+                )}
+              </div>
+              <label 
+                htmlFor="profile-pic-upload" 
+                className="absolute bottom-0 right-0 bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary-light transition-colors"
+                title="Upload profile picture"
+              >
+                {uploadingProfilePic ? (
+                  <i className="fa-solid fa-spinner fa-spin text-xs"></i>
+                ) : (
+                  <i className="fa-solid fa-camera text-xs"></i>
+                )}
+              </label>
+              <input
+                id="profile-pic-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfilePictureUpload}
+                disabled={uploadingProfilePic}
               />
-              <button className="absolute bottom-0 right-0 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-primary-light">
-                <i className="fa-solid fa-camera text-xs"></i>
-              </button>
             </div>
             <div>
               <h3 className="text-2xl font-bold text-font-base">{residentName}</h3>
@@ -700,13 +895,103 @@ export default function ResidentProfilePage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-lg font-semibold text-font-base">Document Archive</h4>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedDocType}
+                  onChange={(e) => setSelectedDocType(e.target.value)}
+                  className="px-3 py-2 border border-bd-input rounded-lg text-sm"
+                >
+                  <option value="Legal">Legal</option>
+                  <option value="Medical">Medical</option>
+                  <option value="Clinical">Clinical</option>
+                  <option value="Administrative">Administrative</option>
+                </select>
+                <label className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm cursor-pointer inline-flex items-center gap-2">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleDocumentUpload}
+                    disabled={uploadingDocument}
+                  />
+                  {uploadingDocument ? (
+                    <><i className="fa-solid fa-spinner fa-spin"></i>Uploading...</>
+                  ) : (
+                    <><i className="fa-solid fa-upload"></i>Upload Document</>
+                  )}
+                </label>
+              </div>
             </div>
-            <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
-              <i className="fa-solid fa-folder-open text-6xl text-font-detail mb-4"></i>
-              <h5 className="text-lg font-semibold text-font-base mb-2">Document Management Coming Soon</h5>
-              <p className="text-sm text-font-detail mb-4">Secure document storage and management for resident files will be available here.</p>
-              <p className="text-xs text-font-detail">Features: Court documents, medical records, treatment plans, and more.</p>
-            </div>
+            {documents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                <i className="fa-solid fa-folder-open text-6xl text-font-detail mb-4"></i>
+                <h5 className="text-lg font-semibold text-font-base mb-2">No Documents Yet</h5>
+                <p className="text-sm text-font-detail mb-4">Upload court documents, medical records, treatment plans, and more.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {documents.map((doc) => {
+                  const fileSize = doc.fileSize ? (doc.fileSize / 1024).toFixed(2) : 'Unknown';
+                  const isImage = doc.fileType?.startsWith('image/');
+                  const isPDF = doc.fileType === 'application/pdf';
+                  
+                  return (
+                    <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 border border-bd group">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          isImage ? 'bg-primary/10' : isPDF ? 'bg-error/10' : 'bg-gray-200'
+                        }`}>
+                          <i className={`fa-solid text-2xl ${
+                            isImage ? 'fa-image text-primary' : 
+                            isPDF ? 'fa-file-pdf text-error' : 
+                            'fa-file text-font-detail'
+                          }`}></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-font-base truncate" title={doc.fileName}>
+                            {doc.fileName || 'Untitled'}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-font-detail">{fileSize} KB</span>
+                            {doc.documentType && (
+                              <>
+                                <span className="text-xs text-font-detail">•</span>
+                                <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">{doc.documentType}</span>
+                              </>
+                            )}
+                            {doc.uploadedAt && (
+                              <>
+                                <span className="text-xs text-font-detail">•</span>
+                                <span className="text-xs text-font-detail">
+                                  {new Date(doc.uploadedAt).toLocaleDateString()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary-light p-2"
+                          title="View document"
+                        >
+                          <i className="fa-solid fa-eye"></i>
+                        </a>
+                        <button
+                          onClick={() => handleDeleteDocument(doc.id)}
+                          className="text-error hover:text-error-darker p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete document"
+                        >
+                          <i className="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
