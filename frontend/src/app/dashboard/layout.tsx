@@ -60,7 +60,8 @@ const menuGroups = [
     id: 'admin',
     label: 'Administration',
     items: [
-      { icon: 'fa-user-plus', label: 'Unit Registry', href: '/dashboard/unit-registry', roles: ['admin', 'manager'] },
+      { icon: 'fa-user-tie', label: 'Staff Registry', href: '/dashboard/staff-registry', roles: ['admin', 'manager'] },
+      { icon: 'fa-users', label: 'Resident Registry', href: '/dashboard/resident-registry', roles: ['admin', 'manager'] },
     ],
   },
 ];
