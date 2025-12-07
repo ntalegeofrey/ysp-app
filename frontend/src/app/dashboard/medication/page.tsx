@@ -83,6 +83,7 @@ export default function MedicationPage() {
   const [nurseApprovalNotes, setNurseApprovalNotes] = useState('');
   const [programId, setProgramId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [residentsWithMeds, setResidentsWithMeds] = useState<any[]>([]);
 
   // Load user info and program ID
   useEffect(() => {
@@ -93,16 +94,28 @@ export default function MedicationPage() {
         const firstName = user.firstName || '';
         const lastName = user.lastName || '';
         const role = user.role || '';
-        setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
+        const fullName = `${firstName} ${lastName}`.trim();
+        console.log('[Medication] Loading user:', { firstName, lastName, fullName, role });
+        setCurrentStaff(fullName || 'Staff Member');
         setUserRole(role.toUpperCase());
       }
-      
-      const selectedProgramId = localStorage.getItem('selectedProgramId');
-      if (selectedProgramId) {
-        setProgramId(parseInt(selectedProgramId));
-      }
     } catch (err) {
-      console.error('Failed to parse user:', err);
+      console.error('[Medication] Failed to parse user:', err);
+    }
+  }, []);
+
+  // Get programId from localStorage
+  useEffect(() => {
+    const selectedProgram = localStorage.getItem('selectedProgram');
+    if (selectedProgram) {
+      try {
+        const program = JSON.parse(selectedProgram);
+        const id = program.id || program.programId;
+        console.log('[Medication] Loading program:', { program, id });
+        setProgramId(id);
+      } catch (err) {
+        console.error('[Medication] Failed to parse selectedProgram:', err);
+      }
     }
   }, []);
 
@@ -127,8 +140,19 @@ export default function MedicationPage() {
     }
   }, [programId, activeTab]);
 
+  // Fetch residents with medications for Med Sheets tab
+  useEffect(() => {
+    if (programId && activeTab === 'med-sheets') {
+      fetchResidentsWithMedications();
+    }
+  }, [programId, activeTab]);
+
   const fetchResidents = async () => {
-    if (!programId) return;
+    if (!programId) {
+      console.log('[Medication] Cannot fetch residents - no programId');
+      return;
+    }
+    console.log('[Medication] Fetching residents for program:', programId);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/programs/${programId}/residents`, {
@@ -139,15 +163,66 @@ export default function MedicationPage() {
         },
       });
       
+      console.log('[Medication] Residents response status:', res.status);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('[Medication] Residents loaded:', data.length, 'residents');
         setResidents(data);
       } else {
+        const errorText = await res.text();
+        console.error('[Medication] Failed to load residents:', res.status, errorText);
         addToast('Failed to load residents', 'error');
       }
     } catch (err) {
-      console.error('Failed to fetch residents:', err);
+      console.error('[Medication] Failed to fetch residents:', err);
       addToast('Failed to load residents', 'error');
+    }
+  };
+
+  const fetchResidentsWithMedications = async () => {
+    if (!programId) return;
+    try {
+      const allMeds = await medicationApi.getProgramMedications(programId);
+      
+      // Group medications by resident
+      const residentMedsMap = new Map<number, any[]>();
+      allMeds.forEach((med: any) => {
+        const residentId = med.residentId;
+        if (!residentMedsMap.has(residentId)) {
+          residentMedsMap.set(residentId, []);
+        }
+        residentMedsMap.get(residentId)?.push(med);
+      });
+      
+      // Fetch resident details and combine with medications
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const allResidents = await res.json();
+        const residentsWithMedications = allResidents
+          .filter((r: any) => residentMedsMap.has(r.id))
+          .map((r: any) => ({
+            id: r.id,
+            name: `${r.firstName} ${r.lastName}`,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            medications: residentMedsMap.get(r.id) || [],
+            activeMedCount: residentMedsMap.get(r.id)?.filter((m: any) => m.status === 'ACTIVE').length || 0,
+          }));
+        
+        console.log('[Medication] Residents with meds:', residentsWithMedications.length);
+        setResidentsWithMeds(residentsWithMedications);
+      }
+    } catch (err) {
+      console.error('[Medication] Failed to fetch residents with medications:', err);
     }
   };
 
@@ -552,6 +627,9 @@ export default function MedicationPage() {
         setResidentRoom('');
         setAllergies('');
         setMeds([{ name: '', dosage: '', frequency: 'Once Daily', initialCount: '', physician: '', instructions: '' }]);
+        
+        // Refresh med sheets data
+        fetchResidentsWithMedications();
       }
 
       if (failCount > 0) {
@@ -564,72 +642,6 @@ export default function MedicationPage() {
       setLoading(false);
     }
   };
-
-  // Demo residents grid for med sheets
-  const demoResidentsGrid = [
-    {
-      id: 'A01',
-      name: 'Resident A01',
-      badge: { text: '3 Meds', cls: 'bg-success text-white' },
-      meds: [
-        { name: 'Risperidone 2mg', status: '✓ Given', cls: 'text-success' },
-        { name: 'Sertraline 50mg', status: '✓ Given', cls: 'text-success' },
-        { name: 'Melatonin 3mg', status: 'Pending', cls: 'text-warning' },
-      ],
-      footer: 'Last Updated: 2:30 PM by J. Smith',
-      highlightCls: 'border-bd',
-    },
-    {
-      id: 'A02',
-      name: 'Resident A02',
-      badge: { text: 'Alert', cls: 'bg-error text-white' },
-      meds: [
-        { name: 'Risperidone 2mg', status: 'Refused', cls: 'text-error' },
-        { name: 'Clonazepam 0.5mg', status: '✓ Given', cls: 'text-success' },
-      ],
-      footer: 'Last Updated: 10:30 AM by M. Johnson',
-      highlightCls: 'border-error bg-error-lightest',
-    },
-    {
-      id: 'B01',
-      name: 'Resident B01',
-      badge: { text: '2 Meds', cls: 'bg-primary text-white' },
-      meds: [
-        { name: 'Lithium 300mg', status: '✓ Given', cls: 'text-success' },
-        { name: 'Abilify 10mg', status: 'Pending', cls: 'text-warning' },
-      ],
-      footer: 'Last Updated: 1:15 PM by K. Williams',
-      highlightCls: 'border-bd',
-    },
-    {
-      id: 'B03',
-      name: 'Resident B03',
-      badge: { text: 'New', cls: 'bg-highlight text-white' },
-      meds: [{ name: 'Melatonin 3mg', status: 'Scheduled', cls: 'text-warning' }],
-      footer: 'Added: 8:15 AM by Dr. S. Wilson',
-      highlightCls: 'border-bd',
-    },
-    {
-      id: 'C02',
-      name: 'Resident C02',
-      badge: { text: '4 Meds', cls: 'bg-success text-white' },
-      meds: [
-        { name: 'Prozac 20mg', status: '✓ Given', cls: 'text-success' },
-        { name: 'Adderall 15mg', status: '✓ Given', cls: 'text-success' },
-        { name: 'Trazodone 50mg', status: 'Pending', cls: 'text-warning' },
-      ],
-      footer: 'Last Updated: 2:45 PM by L. Davis',
-      highlightCls: 'border-bd',
-    },
-    {
-      id: 'D01',
-      name: 'Resident D01',
-      badge: { text: '1 Med', cls: 'bg-primary text-white' },
-      meds: [{ name: 'Ibuprofen 400mg', status: '✓ Given', cls: 'text-success' }],
-      footer: 'Last Updated: 11:00 AM by R. Martinez',
-      highlightCls: 'border-bd',
-    },
-  ];
 
   // Demo admin archive data
   const adminArchiveData = [
@@ -930,29 +942,53 @@ export default function MedicationPage() {
             <div className="mt-2 text-sm text-font-detail">Click on a resident to view and manage their medication records</div>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {demoResidentsGrid.map((r) => (
-                <div key={r.id} className={`border rounded-lg p-4 hover:shadow-lg cursor-pointer transition-shadow ${r.highlightCls}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-font-base">{r.name}</h4>
-                    <span className={`text-xs px-2 py-1 rounded ${r.badge.cls}`}>{r.badge.text}</span>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    {r.meds.map((m, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span className="text-font-detail">{m.name}</span>
-                        <span className={m.cls}>{m.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-xs text-font-detail">{r.footer}</div>
-                  <Link href={`/dashboard/medication/medication-sheet?resident=${encodeURIComponent(r.id)}`} className="w-full mt-3 bg-primary text-white py-2 px-3 rounded-lg hover:bg-primary-light text-sm font-medium transition-colors text-center inline-block">
-                    <i className="fa-solid fa-file-medical mr-2"></i>
-                    View Med Sheet
-                  </Link>
+            {residentsWithMeds.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                  <i className="fa-solid fa-pills text-4xl text-primary opacity-50"></i>
                 </div>
-              ))}
-            </div>
+                <h4 className="text-xl font-semibold text-font-base mb-2">No Residents on Medication</h4>
+                <p className="text-font-detail mb-6">There are currently no residents with active medications in this program.</p>
+                <button 
+                  onClick={() => setActiveTab('add-medication')}
+                  className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 font-medium transition-colors inline-flex items-center"
+                >
+                  <i className="fa-solid fa-plus mr-2"></i>
+                  Add Resident Medication
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {residentsWithMeds.map((r) => (
+                  <div key={r.id} className="border rounded-lg p-4 hover:shadow-lg cursor-pointer transition-shadow bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-font-base">{r.name}</h4>
+                      <span className="text-xs px-2 py-1 rounded bg-success text-white">
+                        {r.activeMedCount} Med{r.activeMedCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm mb-4">
+                      {r.medications.slice(0, 3).map((med: any) => (
+                        <div key={med.id} className="flex justify-between items-center">
+                          <span className="text-font-detail truncate mr-2">{med.medicationName} {med.dosage}</span>
+                          <span className="text-xs text-success">Active</span>
+                        </div>
+                      ))}
+                      {r.medications.length > 3 && (
+                        <div className="text-xs text-font-detail italic">+ {r.medications.length - 3} more...</div>
+                      )}
+                    </div>
+                    <Link 
+                      href={`/dashboard/medication/medication-sheet?resident=${r.id}`} 
+                      className="w-full mt-3 bg-primary text-white py-2 px-3 rounded-lg hover:bg-primary-light text-sm font-medium transition-colors text-center inline-block"
+                    >
+                      <i className="fa-solid fa-file-medical mr-2"></i>
+                      View Med Sheet
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
