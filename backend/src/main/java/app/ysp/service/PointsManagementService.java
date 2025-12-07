@@ -50,7 +50,16 @@ public class PointsManagementService {
     @Transactional
     public Optional<PointsDiaryCardResponse> getCurrentWeekDiaryCard(Long residentId) {
         LocalDate now = LocalDate.now();
-        LocalDate weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        // Week runs Monday-Sunday. Get the Monday of the current week.
+        // For Sunday, we want the Monday that started THIS week (6 days ago)
+        LocalDate weekStart;
+        if (now.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            // Sunday: get Monday from 6 days ago (start of current week Mon-Sun)
+            weekStart = now.minusDays(6);
+        } else {
+            // Mon-Sat: get the Monday of current week
+            weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        }
         LocalDate weekEnd = weekStart.plusDays(6);
         
         Optional<PointsDiaryCard> existing = diaryCardRepo.findByResident_IdAndWeekStartDate(residentId, weekStart);
