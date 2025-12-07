@@ -1,11 +1,34 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function MedicationSheetInner() {
   const searchParams = useSearchParams();
   const residentId = searchParams.get('resident') || 'A01';
+  const [showAddMedicationModal, setShowAddMedicationModal] = useState(false);
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('');
+  const [newMedFrequency, setNewMedFrequency] = useState('Once Daily');
+  const [newMedInitialCount, setNewMedInitialCount] = useState('');
+  const [newMedPhysician, setNewMedPhysician] = useState('');
+  const [newMedInstructions, setNewMedInstructions] = useState('');
+
+  const handleAddMedication = () => {
+    if (!newMedName || !newMedDosage || !newMedInitialCount) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    alert(`Medication ${newMedName} added successfully for Resident ${residentId}`);
+    // Reset form
+    setNewMedName('');
+    setNewMedDosage('');
+    setNewMedFrequency('Once Daily');
+    setNewMedInitialCount('');
+    setNewMedPhysician('');
+    setNewMedInstructions('');
+    setShowAddMedicationModal(false);
+  };
 
   return (
     <main id="medication-main" className="flex-1 p-6 overflow-auto">
@@ -80,7 +103,10 @@ function MedicationSheetInner() {
               </h3>
               <div className="mt-2 text-sm text-font-detail">Active prescriptions and administration schedule</div>
             </div>
-            <button className="bg-success text-white px-4 py-2 rounded-lg hover:bg-primary-alt-dark font-medium text-sm">
+            <button 
+              onClick={() => setShowAddMedicationModal(true)}
+              className="bg-success text-white px-4 py-2 rounded-lg hover:bg-primary-alt-dark font-medium text-sm"
+            >
               <i className="fa-solid fa-plus mr-2"></i>
               Add New Medication
             </button>
@@ -346,6 +372,122 @@ function MedicationSheetInner() {
           </div>
         </div>
       </div>
+
+      {/* Add Medication Modal */}
+      {showAddMedicationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-bd sticky top-0 bg-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-font-base flex items-center">
+                  <i className="fa-solid fa-plus-circle text-primary mr-3"></i>
+                  Add New Medication for Resident {residentId}
+                </h3>
+                <button
+                  onClick={() => setShowAddMedicationModal(false)}
+                  className="text-font-detail hover:text-error transition-colors"
+                >
+                  <i className="fa-solid fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Medication Name <span className="text-error">*</span>
+                  </label>
+                  <input
+                    value={newMedName}
+                    onChange={(e) => setNewMedName(e.target.value)}
+                    type="text"
+                    placeholder="e.g., Risperidone"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Dosage <span className="text-error">*</span>
+                  </label>
+                  <input
+                    value={newMedDosage}
+                    onChange={(e) => setNewMedDosage(e.target.value)}
+                    type="text"
+                    placeholder="e.g., 2mg"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Frequency</label>
+                  <select
+                    value={newMedFrequency}
+                    onChange={(e) => setNewMedFrequency(e.target.value)}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option>Once Daily</option>
+                    <option>Twice Daily</option>
+                    <option>Three Times Daily</option>
+                    <option>As Needed (PRN)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Initial Count <span className="text-error">*</span>
+                  </label>
+                  <input
+                    value={newMedInitialCount}
+                    onChange={(e) => setNewMedInitialCount(e.target.value)}
+                    type="number"
+                    placeholder="30"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Prescribing Physician</label>
+                  <input
+                    value={newMedPhysician}
+                    onChange={(e) => setNewMedPhysician(e.target.value)}
+                    type="text"
+                    placeholder="Dr. Name"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-font-base mb-2">Special Instructions</label>
+                  <textarea
+                    value={newMedInstructions}
+                    onChange={(e) => setNewMedInstructions(e.target.value)}
+                    placeholder="Take with food, etc..."
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-bd bg-bg-subtle flex justify-end gap-3">
+              <button
+                onClick={() => setShowAddMedicationModal(false)}
+                className="px-6 py-2 border border-bd rounded-lg text-font-base hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddMedication}
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors"
+              >
+                <i className="fa-solid fa-check mr-2"></i>
+                Add Medication
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

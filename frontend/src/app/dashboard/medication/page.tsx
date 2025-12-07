@@ -47,6 +47,18 @@ type PendingAudit = {
   residentCount: number;
   medicationCount: number;
   hasDiscrepancies: boolean;
+  auditData: {
+    residentId: string;
+    residentName: string;
+    medications: {
+      name: string;
+      dosage: string;
+      previousCount: number;
+      currentCount: number;
+      variance: number;
+      notes: string;
+    }[];
+  }[];
 };
 
 export default function MedicationPage() {
@@ -165,6 +177,42 @@ export default function MedicationPage() {
       residentCount: 4,
       medicationCount: 12,
       hasDiscrepancies: true,
+      auditData: [
+        {
+          residentId: 'A01',
+          residentName: 'Resident A01',
+          medications: [
+            { name: 'Risperidone', dosage: '2mg', previousCount: 45, currentCount: 42, variance: -3, notes: 'Administered as scheduled' },
+            { name: 'Sertraline', dosage: '50mg', previousCount: 30, currentCount: 30, variance: 0, notes: '' },
+            { name: 'Melatonin', dosage: '3mg', previousCount: 60, currentCount: 58, variance: -2, notes: '' },
+          ],
+        },
+        {
+          residentId: 'A02',
+          residentName: 'Resident A02',
+          medications: [
+            { name: 'Risperidone', dosage: '2mg', previousCount: 28, currentCount: 27, variance: -1, notes: '' },
+            { name: 'Clonazepam', dosage: '0.5mg', previousCount: 42, currentCount: 42, variance: 0, notes: '' },
+          ],
+        },
+        {
+          residentId: 'B01',
+          residentName: 'Resident B01',
+          medications: [
+            { name: 'Lithium', dosage: '300mg', previousCount: 55, currentCount: 53, variance: -2, notes: '' },
+            { name: 'Abilify', dosage: '10mg', previousCount: 38, currentCount: 38, variance: 0, notes: '' },
+          ],
+        },
+        {
+          residentId: 'C02',
+          residentName: 'Resident C02',
+          medications: [
+            { name: 'Prozac', dosage: '20mg', previousCount: 48, currentCount: 47, variance: -1, notes: '' },
+            { name: 'Adderall', dosage: '15mg', previousCount: 35, currentCount: 35, variance: 0, notes: '' },
+            { name: 'Trazodone', dosage: '50mg', previousCount: 52, currentCount: 52, variance: 0, notes: '' },
+          ],
+        },
+      ],
     },
     {
       id: 2,
@@ -175,6 +223,32 @@ export default function MedicationPage() {
       residentCount: 3,
       medicationCount: 8,
       hasDiscrepancies: false,
+      auditData: [
+        {
+          residentId: 'A01',
+          residentName: 'Resident A01',
+          medications: [
+            { name: 'Risperidone', dosage: '2mg', previousCount: 50, currentCount: 45, variance: -5, notes: 'Evening dose administered' },
+            { name: 'Sertraline', dosage: '50mg', previousCount: 35, currentCount: 30, variance: -5, notes: '' },
+          ],
+        },
+        {
+          residentId: 'A02',
+          residentName: 'Resident A02',
+          medications: [
+            { name: 'Risperidone', dosage: '2mg', previousCount: 30, currentCount: 28, variance: -2, notes: '' },
+            { name: 'Clonazepam', dosage: '0.5mg', previousCount: 44, currentCount: 42, variance: -2, notes: '' },
+          ],
+        },
+        {
+          residentId: 'C02',
+          residentName: 'Resident C02',
+          medications: [
+            { name: 'Prozac', dosage: '20mg', previousCount: 50, currentCount: 48, variance: -2, notes: '' },
+            { name: 'Trazodone', dosage: '50mg', previousCount: 54, currentCount: 52, variance: -2, notes: '' },
+          ],
+        },
+      ],
     },
   ]);
 
@@ -792,10 +866,10 @@ export default function MedicationPage() {
                 <div className="lg:col-span-1 flex items-end">
                   <button
                     onClick={handleSubmitAudit}
-                    className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 font-medium transition-colors h-24 flex flex-col items-center justify-center"
+                    className="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium transition-colors flex items-center justify-center"
                   >
-                    <i className="fa-solid fa-check text-lg mb-1"></i>
-                    <span className="text-sm">Submit Audit</span>
+                    <i className="fa-solid fa-check mr-2"></i>
+                    <span>Submit Audit</span>
                   </button>
                 </div>
               </div>
@@ -825,14 +899,15 @@ export default function MedicationPage() {
                   <p className="text-font-detail">No pending audits requiring approval at this time.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {pendingAudits.map((audit) => (
-                    <div key={audit.id} className={`border rounded-lg p-6 ${audit.hasDiscrepancies ? 'border-warning bg-warning/5' : 'border-bd'}`}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                    <div key={audit.id} className={`border rounded-lg ${audit.hasDiscrepancies ? 'border-warning bg-warning/5' : 'border-bd'}`}>
+                      {/* Header */}
+                      <div className="p-4 border-b border-bd bg-bg-subtle">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
                             <h4 className="text-lg font-semibold text-font-base">
-                              {audit.shift} Shift Audit
+                              {audit.shift} Shift - {audit.date}
                             </h4>
                             {audit.hasDiscrepancies && (
                               <span className="bg-warning/20 text-warning px-3 py-1 rounded-full text-xs font-medium flex items-center">
@@ -841,78 +916,111 @@ export default function MedicationPage() {
                               </span>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="text-font-detail">Date:</span>
-                              <span className="ml-2 text-font-base font-medium">{audit.date}</span>
-                            </div>
-                            <div>
-                              <span className="text-font-detail">Time:</span>
-                              <span className="ml-2 text-font-base font-medium">{audit.time}</span>
-                            </div>
-                            <div>
-                              <span className="text-font-detail">Submitted By:</span>
-                              <span className="ml-2 text-font-base font-medium">{audit.submittedBy}</span>
-                            </div>
-                            <div>
-                              <span className="text-font-detail">Medications:</span>
-                              <span className="ml-2 text-font-base font-medium">{audit.medicationCount} counted</span>
-                            </div>
+                          <div className="text-sm text-font-detail">
+                            Submitted by <span className="font-medium text-font-base">{audit.submittedBy}</span> at {audit.time}
                           </div>
                         </div>
                       </div>
 
-                      {selectedAuditForApproval === audit.id ? (
-                        <div className="mt-4 pt-4 border-t border-bd">
-                          <div className="mb-4">
-                            <label className="block text-sm font-medium text-font-base mb-2">
-                              Nurse Approval Notes
-                              <span className="text-error ml-1">*</span>
-                            </label>
-                            <textarea
-                              value={nurseApprovalNotes}
-                              onChange={(e) => setNurseApprovalNotes(e.target.value)}
-                              placeholder="Add your review notes, comments on discrepancies, or approval remarks..."
-                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
-                            ></textarea>
-                          </div>
-                          <div className="flex gap-3">
-                            <button
-                              onClick={() => handleApproveAudit(audit.id)}
-                              className="flex-1 bg-success text-white py-2 px-4 rounded-lg hover:bg-success/90 font-medium transition-colors flex items-center justify-center"
-                            >
-                              <i className="fa-solid fa-check mr-2"></i>
-                              Approve Audit
-                            </button>
-                            <button
-                              onClick={() => handleDenyAudit(audit.id)}
-                              className="flex-1 bg-error text-white py-2 px-4 rounded-lg hover:bg-error/90 font-medium transition-colors flex items-center justify-center"
-                            >
-                              <i className="fa-solid fa-times mr-2"></i>
-                              Deny Audit
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedAuditForApproval(null);
-                                setNurseApprovalNotes('');
-                              }}
-                              className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                      {/* Medication Count Table */}
+                      <div className="p-4">
+                        <div className="overflow-x-auto mb-4">
+                          <table className="w-full text-sm">
+                            <thead className="bg-bg-subtle border-b border-bd">
+                              <tr>
+                                <th className="px-4 py-2 text-left font-medium text-font-base">Resident</th>
+                                <th className="px-4 py-2 text-left font-medium text-font-base">Medication</th>
+                                <th className="px-4 py-2 text-center font-medium text-font-base">Previous</th>
+                                <th className="px-4 py-2 text-center font-medium text-font-base">Counted</th>
+                                <th className="px-4 py-2 text-center font-medium text-font-base">Variance</th>
+                                <th className="px-4 py-2 text-left font-medium text-font-base">Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {audit.auditData.map((resident) =>
+                                resident.medications.map((med, idx) => (
+                                  <tr key={`${resident.residentId}-${idx}`} className="border-b border-bd last:border-0">
+                                    {idx === 0 && (
+                                      <td 
+                                        rowSpan={resident.medications.length} 
+                                        className="px-4 py-3 font-medium text-font-base border-r border-bd bg-bg-subtle"
+                                      >
+                                        {resident.residentName}
+                                      </td>
+                                    )}
+                                    <td className="px-4 py-3 text-font-detail">{med.name} {med.dosage}</td>
+                                    <td className="px-4 py-3 text-center text-font-base">{med.previousCount}</td>
+                                    <td className="px-4 py-3 text-center text-font-base font-medium">{med.currentCount}</td>
+                                    <td className="px-4 py-3 text-center">
+                                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                        med.variance === 0 ? 'bg-success/10 text-success' :
+                                        med.variance < 0 ? 'bg-error/10 text-error' :
+                                        'bg-warning/10 text-warning'
+                                      }`}>
+                                        {med.variance === 0 ? 'Match' : med.variance > 0 ? `+${med.variance}` : med.variance}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-font-detail text-xs">{med.notes || '-'}</td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
                         </div>
-                      ) : (
-                        <div className="mt-4 pt-4 border-t border-bd flex justify-end">
-                          <button
-                            onClick={() => setSelectedAuditForApproval(audit.id)}
-                            className="bg-primary text-white py-2 px-6 rounded-lg hover:bg-primary/90 font-medium transition-colors"
-                          >
-                            <i className="fa-solid fa-clipboard-check mr-2"></i>
-                            Review & Approve
-                          </button>
-                        </div>
-                      )}
+
+                        {/* Approval Section */}
+                        {selectedAuditForApproval === audit.id ? (
+                          <div className="pt-4 border-t border-bd">
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-font-base mb-2">
+                                Nurse Review & Approval Notes
+                                <span className="text-error ml-1">*</span>
+                              </label>
+                              <textarea
+                                value={nurseApprovalNotes}
+                                onChange={(e) => setNurseApprovalNotes(e.target.value)}
+                                placeholder="Document your review findings, verify discrepancies, and add approval remarks..."
+                                className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                              ></textarea>
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleApproveAudit(audit.id)}
+                                className="flex-1 bg-success text-white py-2 px-4 rounded-lg hover:bg-success/90 font-medium transition-colors flex items-center justify-center"
+                              >
+                                <i className="fa-solid fa-check mr-2"></i>
+                                Approve Audit
+                              </button>
+                              <button
+                                onClick={() => handleDenyAudit(audit.id)}
+                                className="flex-1 bg-error text-white py-2 px-4 rounded-lg hover:bg-error/90 font-medium transition-colors flex items-center justify-center"
+                              >
+                                <i className="fa-solid fa-times mr-2"></i>
+                                Deny Audit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedAuditForApproval(null);
+                                  setNurseApprovalNotes('');
+                                }}
+                                className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="pt-4 border-t border-bd flex justify-end">
+                            <button
+                              onClick={() => setSelectedAuditForApproval(audit.id)}
+                              className="bg-primary text-white py-2 px-6 rounded-lg hover:bg-primary/90 font-medium transition-colors"
+                            >
+                              <i className="fa-solid fa-clipboard-check mr-2"></i>
+                              Review & Approve
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
