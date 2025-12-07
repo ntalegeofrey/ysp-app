@@ -756,39 +756,49 @@ export default function MedicationPage() {
           </div>
         </div>
         <div className="p-6 space-y-4">
-          {alerts.map((a) => (
-            <div
-              key={a.id}
-              className={`${
-                a.type === 'critical'
-                  ? 'border-error bg-error-lightest'
-                  : a.type === 'warning'
-                  ? 'border-warning bg-highlight-lightest'
-                  : 'border-primary bg-primary-lightest'
-              } border-l-4 p-4 rounded-r-lg`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className={`font-semibold ${
-                  a.type === 'critical' ? 'text-error' : a.type === 'warning' ? 'text-warning' : 'text-primary'
-                }`}>
-                  {a.type === 'critical' ? 'Critical Alert' : a.type === 'warning' ? 'Inventory Warning' : 'Information'}
-                </span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-font-detail">{a.time}</span>
-                  <button
-                    onClick={() => resolveAlert(a.id)}
-                    disabled={a.resolved}
-                    className={`px-3 py-1 rounded text-xs text-white transition-colors ${a.resolved ? 'bg-bg-subtle text-font-detail cursor-not-allowed' : 'bg-success hover:bg-primary-alt-dark'}`}
-                  >
-                    <i className="fa-solid fa-check mr-1"></i>
-                    {a.resolved ? 'Resolved' : 'Resolve'}
+          {alerts.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success-lightest mb-4">
+                <i className="fa-solid fa-shield-check text-4xl text-success opacity-50"></i>
+              </div>
+              <h4 className="text-xl font-semibold text-font-base mb-2">All Clear!</h4>
+              <p className="text-font-detail">No active medication alerts or issues at this time.</p>
+            </div>
+          ) : (
+            alerts.map((a) => (
+              <div
+                key={a.id}
+                className={`${
+                  a.type === 'critical'
+                    ? 'border-error bg-error-lightest'
+                    : a.type === 'warning'
+                    ? 'border-warning bg-highlight-lightest'
+                    : 'border-primary bg-primary-lightest'
+                } border-l-4 p-4 rounded-r-lg`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`font-semibold ${
+                    a.type === 'critical' ? 'text-error' : a.type === 'warning' ? 'text-warning' : 'text-primary'
+                  }`}>
+                    {a.type === 'critical' ? 'Critical Alert' : a.type === 'warning' ? 'Inventory Warning' : 'Information'}
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-font-detail">{a.time}</span>
+                    <button
+                      onClick={() => resolveAlert(a.id)}
+                      disabled={a.resolved}
+                      className={`px-3 py-1 rounded text-xs text-white transition-colors ${a.resolved ? 'bg-bg-subtle text-font-detail cursor-not-allowed' : 'bg-success hover:bg-primary-alt-dark'}`}
+                    >
+                      <i className="fa-solid fa-check mr-1"></i>
+                      {a.resolved ? 'Resolved' : 'Resolve'}
                   </button>
                 </div>
               </div>
-              <div className="text-sm text-font-base"><strong>{a.title.split(':')[0]}{a.title.includes(':') ? ':' : ''}</strong>{a.title.includes(':') ? a.title.substring(a.title.indexOf(':') + 1) : ''}</div>
-              <div className="text-xs text-font-detail mt-1">{a.description}</div>
-            </div>
-          ))}
+                <div className="text-sm text-font-base"><strong>{a.title.split(':')[0]}{a.title.includes(':') ? ':' : ''}</strong>{a.title.includes(':') ? a.title.substring(a.title.indexOf(':') + 1) : ''}</div>
+                <div className="text-xs text-font-detail mt-1">{a.description}</div>
+              </div>
+            ))
+          )}
         </div>
         </section>
       )}
@@ -1167,9 +1177,11 @@ export default function MedicationPage() {
             </div>
             <div className="p-6">
               {pendingAudits.length === 0 ? (
-                <div className="text-center py-12">
-                  <i className="fa-solid fa-check-circle text-success text-5xl mb-4"></i>
-                  <h4 className="text-lg font-semibold text-font-base mb-2">All Caught Up!</h4>
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success-lightest mb-4">
+                    <i className="fa-solid fa-clipboard-check text-4xl text-success opacity-50"></i>
+                  </div>
+                  <h4 className="text-xl font-semibold text-font-base mb-2">All Caught Up!</h4>
                   <p className="text-font-detail">No pending audits requiring approval at this time.</p>
                 </div>
               ) : (
@@ -1357,25 +1369,39 @@ export default function MedicationPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAdminArchive.map((record) => (
-                  <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
-                    <td className="px-4 py-3 text-font-base">{record.date}</td>
-                    <td className="px-4 py-3 text-font-detail">{record.time}</td>
-                    <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
-                    <td className="px-4 py-3 text-font-detail">{record.medication}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        record.action === 'Administered' 
-                          ? 'bg-success/10 text-success' 
-                          : 'bg-error/10 text-error'
-                      }`}>
-                        {record.action}
-                      </span>
+                {filteredAdminArchive.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-16">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                          <i className="fa-solid fa-box-archive text-4xl text-primary opacity-50"></i>
+                        </div>
+                        <h4 className="text-xl font-semibold text-font-base mb-2">No Records Found</h4>
+                        <p className="text-font-detail">No medication administration records match your filters.</p>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-font-detail">{record.staff}</td>
-                    <td className="px-4 py-3 text-font-detail">{record.notes || '-'}</td>
                   </tr>
-                ))}
+                ) : (
+                  filteredAdminArchive.map((record) => (
+                    <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="px-4 py-3 text-font-base">{record.date}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.time}</td>
+                      <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.medication}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          record.action === 'Administered' 
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-error/10 text-error'
+                        }`}>
+                          {record.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-font-detail">{record.staff}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.notes || '-'}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1437,35 +1463,49 @@ export default function MedicationPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAuditArchive.map((record) => (
-                  <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
-                    <td className="px-4 py-3 text-font-base">{record.date}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
-                        {record.shift}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-font-detail">{record.staff}</td>
-                    <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
-                    <td className="px-4 py-3 text-font-detail">{record.medication}</td>
-                    <td className="px-4 py-3 text-center text-font-base">{record.previousCount}</td>
-                    <td className="px-4 py-3 text-center text-font-base">{record.auditedCount}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        record.discrepancy === 0 
-                          ? 'bg-success/10 text-success' 
-                          : 'bg-warning/10 text-warning'
-                      }`}>
-                        {record.discrepancy === 0 ? 'Match' : record.discrepancy}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button className="text-primary hover:text-primary/80 transition-colors" title="Print Audit">
-                        <i className="fa-solid fa-print text-lg"></i>
-                      </button>
+                {filteredAuditArchive.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-16">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                          <i className="fa-solid fa-clipboard-list text-4xl text-primary opacity-50"></i>
+                        </div>
+                        <h4 className="text-xl font-semibold text-font-base mb-2">No Audit Records Found</h4>
+                        <p className="text-font-detail">No medication audit records match your filters.</p>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredAuditArchive.map((record) => (
+                    <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="px-4 py-3 text-font-base">{record.date}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
+                          {record.shift}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-font-detail">{record.staff}</td>
+                      <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.medication}</td>
+                      <td className="px-4 py-3 text-center text-font-base">{record.previousCount}</td>
+                      <td className="px-4 py-3 text-center text-font-base">{record.auditedCount}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          record.discrepancy === 0 
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-warning/10 text-warning'
+                        }`}>
+                          {record.discrepancy === 0 ? 'Match' : record.discrepancy}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button className="text-primary hover:text-primary/80 transition-colors" title="Print Audit">
+                          <i className="fa-solid fa-print text-lg"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
