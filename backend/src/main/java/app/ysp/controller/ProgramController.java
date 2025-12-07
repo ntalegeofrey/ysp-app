@@ -88,6 +88,18 @@ public class ProgramController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/residents/{residentPk}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(pr);
+    }
+
     @PutMapping("/{id}/residents/{residentPk}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_ADMINISTRATOR') or @securityService.isProgramManager(#id, authentication) or (@securityService.isProgramMember(#id, authentication) and @securityService.hasOperation('op.EDIT_RESIDENT', authentication))")
     public ResponseEntity<?> updateResident(@PathVariable Long id, @PathVariable("residentPk") Long residentPk, @RequestBody Map<String, Object> body) {
