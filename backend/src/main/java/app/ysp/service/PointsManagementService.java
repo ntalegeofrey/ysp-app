@@ -75,9 +75,15 @@ public class PointsManagementService {
         newCard.setWeekEndDate(weekEnd);
         
         // Get previous week's balance for starting points
-        LocalDate prevWeekStart = weekStart.minusWeeks(1);
-        Optional<PointsDiaryCard> prevCard = diaryCardRepo.findByResident_IdAndWeekStartDate(residentId, prevWeekStart);
-        int startingPoints = prevCard.map(PointsDiaryCard::getCurrentBalance).orElse(0);
+        // Find the most recent card before this week to handle transition from Mon-Sun to Sun-Sat weeks
+        List<PointsDiaryCard> previousCards = diaryCardRepo.findByResident_IdOrderByWeekStartDateDesc(residentId);
+        int startingPoints = 0;
+        for (PointsDiaryCard card : previousCards) {
+            if (card.getWeekStartDate().isBefore(weekStart)) {
+                startingPoints = card.getCurrentBalance();
+                break;
+            }
+        }
         
         newCard.setStartingPoints(startingPoints);
         newCard.setCurrentBalance(startingPoints);
