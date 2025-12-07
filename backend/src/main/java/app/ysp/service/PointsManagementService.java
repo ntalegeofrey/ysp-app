@@ -49,7 +49,8 @@ public class PointsManagementService {
 
     @Transactional
     public Optional<PointsDiaryCardResponse> getCurrentWeekDiaryCard(Long residentId) {
-        LocalDate now = LocalDate.now();
+        // Use Massachusetts timezone (America/New_York) for diary card weeks
+        LocalDate now = LocalDate.now(java.time.ZoneId.of("America/New_York"));
         // Week runs Monday-Sunday. Get the Monday of the current week.
         // For Sunday, we want the Monday that started THIS week (6 days ago)
         LocalDate weekStart;
