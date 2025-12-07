@@ -47,12 +47,44 @@ public class PointsManagementService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public Optional<PointsDiaryCardResponse> getCurrentWeekDiaryCard(Long residentId) {
         LocalDate now = LocalDate.now();
         LocalDate weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = weekStart.plusDays(6);
         
-        return diaryCardRepo.findByResident_IdAndWeekStartDate(residentId, weekStart)
-                .map(this::toResponse);
+        Optional<PointsDiaryCard> existing = diaryCardRepo.findByResident_IdAndWeekStartDate(residentId, weekStart);
+        
+        if (existing.isPresent()) {
+            return existing.map(this::toResponse);
+        }
+        
+        // Auto-create diary card for current week if it doesn't exist
+        ProgramResident resident = residentRepo.findById(residentId).orElse(null);
+        if (resident == null || resident.getProgram() == null) {
+            return Optional.empty();
+        }
+        
+        PointsDiaryCard newCard = new PointsDiaryCard();
+        newCard.setProgram(resident.getProgram());
+        newCard.setResident(resident);
+        newCard.setWeekStartDate(weekStart);
+        newCard.setWeekEndDate(weekEnd);
+        
+        // Get previous week's balance for starting points
+        LocalDate prevWeekStart = weekStart.minusWeeks(1);
+        Optional<PointsDiaryCard> prevCard = diaryCardRepo.findByResident_IdAndWeekStartDate(residentId, prevWeekStart);
+        int startingPoints = prevCard.map(PointsDiaryCard::getCurrentBalance).orElse(0);
+        
+        newCard.setStartingPoints(startingPoints);
+        newCard.setCurrentBalance(startingPoints);
+        newCard.setTotalPointsEarned(0);
+        newCard.setStatus("active");
+        newCard.setCreatedAt(Instant.now());
+        newCard.setUpdatedAt(Instant.now());
+        
+        PointsDiaryCard saved = diaryCardRepo.save(newCard);
+        return Optional.of(toResponse(saved));
     }
 
     public Optional<PointsDiaryCard> getCurrentWeekDiaryCardEntity(Long residentId) {
