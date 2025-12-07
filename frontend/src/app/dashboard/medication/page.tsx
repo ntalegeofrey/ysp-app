@@ -261,43 +261,8 @@ export default function MedicationPage() {
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  // Demo resident medication counts
-  const [residentMedCounts, setResidentMedCounts] = useState<ResidentMedCount[]>([
-    {
-      residentId: 'A01',
-      residentName: 'Resident A01',
-      medications: [
-        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 45, currentCount: '', previousStaff: 'John Smith', notes: '' },
-        { medicationName: 'Sertraline', dosage: '50mg', previousCount: 30, currentCount: '', previousStaff: 'John Smith', notes: '' },
-        { medicationName: 'Melatonin', dosage: '3mg', previousCount: 60, currentCount: '', previousStaff: 'John Smith', notes: '' },
-      ],
-    },
-    {
-      residentId: 'A02',
-      residentName: 'Resident A02',
-      medications: [
-        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 28, currentCount: '', previousStaff: 'Maria Johnson', notes: '' },
-        { medicationName: 'Clonazepam', dosage: '0.5mg', previousCount: 42, currentCount: '', previousStaff: 'Maria Johnson', notes: '' },
-      ],
-    },
-    {
-      residentId: 'B01',
-      residentName: 'Resident B01',
-      medications: [
-        { medicationName: 'Lithium', dosage: '300mg', previousCount: 55, currentCount: '', previousStaff: 'Kevin Williams', notes: '' },
-        { medicationName: 'Abilify', dosage: '10mg', previousCount: 38, currentCount: '', previousStaff: 'Kevin Williams', notes: '' },
-      ],
-    },
-    {
-      residentId: 'C02',
-      residentName: 'Resident C02',
-      medications: [
-        { medicationName: 'Prozac', dosage: '20mg', previousCount: 48, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
-        { medicationName: 'Adderall', dosage: '15mg', previousCount: 35, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
-        { medicationName: 'Trazodone', dosage: '50mg', previousCount: 52, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
-      ],
-    },
-  ]);
+  // Resident medication counts for audit (will be fetched from backend)
+  const [residentMedCounts, setResidentMedCounts] = useState<ResidentMedCount[]>([]);
 
   const updateMedCount = (residentId: string, medIndex: number, count: string) => {
     setResidentMedCounts(prev =>
@@ -645,21 +610,11 @@ export default function MedicationPage() {
     }
   };
 
-  // Demo admin archive data
-  const adminArchiveData = [
-    { id: 1, date: '2024-12-05', time: '10:30 AM', shift: 'Morning', resident: 'A02', medication: 'Risperidone 2mg', action: 'Refused', staff: 'M. Johnson', notes: 'Resident became agitated' },
-    { id: 2, date: '2024-12-05', time: '08:15 AM', shift: 'Morning', resident: 'B03', medication: 'Melatonin 3mg', action: 'Administered', staff: 'Dr. S. Wilson', notes: 'First dose' },
-    { id: 3, date: '2024-12-04', time: '02:30 PM', shift: 'Evening', resident: 'A01', medication: 'Sertraline 50mg', action: 'Administered', staff: 'J. Smith', notes: '' },
-    { id: 4, date: '2024-12-04', time: '01:15 PM', shift: 'Evening', resident: 'B01', medication: 'Lithium 300mg', action: 'Administered', staff: 'K. Williams', notes: '' },
-  ];
+  // Admin archive data (will be fetched from backend)
+  const adminArchiveData: any[] = [];
 
-  // Demo audit archive data
-  const auditArchiveData = [
-    { id: 1, date: '2024-12-05', shift: 'Evening', staff: 'J. Smith', resident: 'A01', medication: 'Risperidone 2mg', previousCount: 50, auditedCount: 45, discrepancy: -5 },
-    { id: 2, date: '2024-12-05', shift: 'Evening', staff: 'J. Smith', resident: 'A01', medication: 'Sertraline 50mg', previousCount: 35, auditedCount: 30, discrepancy: -5 },
-    { id: 3, date: '2024-12-05', shift: 'Morning', staff: 'M. Johnson', resident: 'A02', medication: 'Risperidone 2mg', previousCount: 30, auditedCount: 28, discrepancy: -2 },
-    { id: 4, date: '2024-12-04', shift: 'Night', staff: 'L. Davis', resident: 'C02', medication: 'Prozac 20mg', previousCount: 50, auditedCount: 48, discrepancy: -2 },
-  ];
+  // Audit archive data (will be fetched from backend)
+  const auditArchiveData: any[] = [];
 
   const filteredAdminArchive = adminArchiveData.filter(record => {
     const matchesSearch = !adminArchiveFilter ||
