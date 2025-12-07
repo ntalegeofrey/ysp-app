@@ -154,6 +154,7 @@ function HeaderWithParams({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [programName, setProgramName] = useState<string | null>(null);
+  const [residentName, setResidentName] = useState<string | null>(null);
 
   let title = baseTitle;
   let breadcrumb = baseBreadcrumb;
@@ -174,6 +175,35 @@ function HeaderWithParams({
     showBackButton = true;
   }
 
+  // Handle resident profile page
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/resident-registry/') && pathname.split('/').length > 4) {
+      const residentId = pathname.split('/')[3];
+      (async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const spRaw = localStorage.getItem('selectedProgram');
+          const sp = spRaw ? JSON.parse(spRaw) : null;
+          const programId = sp?.id || '';
+          if (!programId || !residentId) return;
+          
+          const res = await fetch(`/api/programs/${programId}/residents/${residentId}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            const name = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Resident';
+            setResidentName(name);
+          }
+        } catch {}
+      })();
+    } else {
+      setResidentName(null);
+    }
+  }, [pathname]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('selectedProgram');
@@ -183,6 +213,14 @@ function HeaderWithParams({
       }
     } catch {}
   }, []);
+
+  // Override title and breadcrumb for resident profile
+  if (pathname.startsWith('/dashboard/resident-registry/') && pathname.split('/').length > 4) {
+    if (residentName) {
+      title = residentName;
+      breadcrumb = 'Resident Registry • Resident Profile';
+    }
+  }
 
   return (
     <header className="bg-white border-b border-bd px-4 sm:px-6 py-4">
