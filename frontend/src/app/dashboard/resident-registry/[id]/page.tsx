@@ -11,6 +11,13 @@ export default function ResidentProfilePage() {
   const [resident, setResident] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [stats, setStats] = useState({
+    totalCredits: 0,
+    activeRepairs: 0,
+    sleepLogDays: 0,
+    incidents30d: 0,
+    activeMedications: 0
+  });
   const [editForm, setEditForm] = useState({
     dateOfBirth: '',
     admissionDate: '',
@@ -31,6 +38,7 @@ export default function ResidentProfilePage() {
 
   useEffect(() => {
     loadResidentProfile();
+    loadResidentStats();
   }, [residentId]);
 
   const loadResidentProfile = async () => {
@@ -64,6 +72,35 @@ export default function ResidentProfilePage() {
       console.error('Failed to load resident:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadResidentStats = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}/stats`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setStats({
+          totalCredits: data.totalCredits || 0,
+          activeRepairs: data.activeRepairs || 0,
+          sleepLogDays: data.sleepLogDays || 0,
+          incidents30d: data.incidents30d || 0,
+          activeMedications: data.activeMedications || 0
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load resident stats:', error);
     }
   };
 
@@ -190,7 +227,7 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-success">285</p>
+              <p className="text-2xl font-bold text-success">{stats.totalCredits}</p>
               <p className="text-sm text-font-detail">Total Credits</p>
             </div>
             <i className="fa-solid fa-coins text-success text-xl"></i>
@@ -199,7 +236,7 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-error">3</p>
+              <p className="text-2xl font-bold text-error">{stats.activeRepairs}</p>
               <p className="text-sm text-font-detail">Active Repairs</p>
             </div>
             <i className="fa-solid fa-wrench text-error text-xl"></i>
@@ -208,7 +245,7 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-primary">8</p>
+              <p className="text-2xl font-bold text-primary">{stats.sleepLogDays}</p>
               <p className="text-sm text-font-detail">Sleep Log Days</p>
             </div>
             <i className="fa-solid fa-bed text-primary text-xl"></i>
@@ -217,7 +254,7 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-warning">2</p>
+              <p className="text-2xl font-bold text-warning">{stats.incidents30d}</p>
               <p className="text-sm text-font-detail">Incidents (30d)</p>
             </div>
             <i className="fa-solid fa-triangle-exclamation text-warning text-xl"></i>
@@ -226,7 +263,7 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-primary-alt">4</p>
+              <p className="text-2xl font-bold text-primary-alt">{stats.activeMedications}</p>
               <p className="text-sm text-font-detail">Medications</p>
             </div>
             <i className="fa-solid fa-pills text-primary-alt text-xl"></i>

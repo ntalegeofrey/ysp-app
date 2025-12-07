@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import app.ysp.service.SseHub;
+import jakarta.persistence.EntityManager;
 
 import java.net.URI;
 import java.util.*;
@@ -28,14 +29,16 @@ public class ProgramController {
     private final ProgramResidentRepository residents;
     private final RegionRepository regions;
     private final SseHub sseHub;
+    private final EntityManager entityManager;
 
-    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, RegionRepository regions, SseHub sseHub) {
+    public ProgramController(ProgramRepository programs, ProgramAssignmentRepository assignments, UserRepository users, ProgramResidentRepository residents, RegionRepository regions, SseHub sseHub, EntityManager entityManager) {
         this.programs = programs;
         this.assignments = assignments;
         this.users = users;
         this.residents = residents;
         this.regions = regions;
         this.sseHub = sseHub;
+        this.entityManager = entityManager;
     }
 
     @GetMapping
@@ -98,6 +101,85 @@ public class ProgramController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(pr);
+    }
+
+    @GetMapping("/{id}/residents/{residentPk}/stats")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getResidentStats(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // Total credits from points diary cards
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object> diaryCards = (List<Object>) entityManager.createQuery(
+                "SELECT p FROM PointsDiaryCard p WHERE p.residentId = :residentId"
+            ).setParameter("residentId", residentPk).getResultList();
+            
+            int totalCredits = 0;
+            for (Object card : diaryCards) {
+                try {
+                    java.lang.reflect.Method method = card.getClass().getMethod("getTotalPoints");
+                    Integer points = (Integer) method.invoke(card);
+                    if (points != null) totalCredits += points;
+                } catch (Exception ignored) {}
+            }
+            stats.put("totalCredits", totalCredits);
+        } catch (Exception e) {
+            stats.put("totalCredits", 0);
+        }
+
+        // Active repairs count
+        try {
+            Long activeRepairs = (Long) entityManager.createQuery(
+                "SELECT COUNT(r) FROM RepairIntervention r WHERE r.residentId = :residentId AND r.status IN ('ACTIVE', 'IN_PROGRESS', 'PENDING')"
+            ).setParameter("residentId", residentPk).getSingleResult();
+            stats.put("activeRepairs", activeRepairs != null ? activeRepairs.intValue() : 0);
+        } catch (Exception e) {
+            stats.put("activeRepairs", 0);
+        }
+
+        // Sleep log days (count of distinct dates in watch log entries for last 30 days)
+        try {
+            Long sleepLogDays = (Long) entityManager.createQuery(
+                "SELECT COUNT(DISTINCT DATE(w.observedAt)) FROM WatchLogEntry w WHERE w.watch.residentId = :residentId AND w.observedAt >= :thirtyDaysAgo"
+            ).setParameter("residentId", residentPk)
+             .setParameter("thirtyDaysAgo", java.time.LocalDateTime.now().minusDays(30))
+             .getSingleResult();
+            stats.put("sleepLogDays", sleepLogDays != null ? sleepLogDays.intValue() : 0);
+        } catch (Exception e) {
+            stats.put("sleepLogDays", 0);
+        }
+
+        // Incidents in last 30 days
+        try {
+            Long incidents = (Long) entityManager.createQuery(
+                "SELECT COUNT(i) FROM IncidentReport i WHERE i.residentId = :residentId AND i.incidentDate >= :thirtyDaysAgo"
+            ).setParameter("residentId", residentPk)
+             .setParameter("thirtyDaysAgo", java.time.LocalDate.now().minusDays(30))
+             .getSingleResult();
+            stats.put("incidents30d", incidents != null ? incidents.intValue() : 0);
+        } catch (Exception e) {
+            stats.put("incidents30d", 0);
+        }
+
+        // Active medications count
+        try {
+            Long medications = (Long) entityManager.createQuery(
+                "SELECT COUNT(m) FROM ResidentMedication m WHERE m.residentId = :residentId AND m.status = 'ACTIVE'"
+            ).setParameter("residentId", residentPk).getSingleResult();
+            stats.put("activeMedications", medications != null ? medications.intValue() : 0);
+        } catch (Exception e) {
+            stats.put("activeMedications", 0);
+        }
+
+        return ResponseEntity.ok(stats);
     }
 
     @PutMapping("/{id}/residents/{residentPk}")
