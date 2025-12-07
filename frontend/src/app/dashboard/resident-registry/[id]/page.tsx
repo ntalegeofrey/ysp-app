@@ -253,13 +253,32 @@ export default function ResidentProfilePage() {
     }
   };
 
-  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       addToast('File must be less than 10MB', 'error');
+      return;
+    }
+
+    setSelectedFile(file);
+    setCustomFileName(file.name.replace(/\.[^/.]+$/, '')); // Remove extension
+    setShowUploadModal(true);
+  };
+
+  const handleDocumentUpload = async () => {
+    if (!selectedFile) return;
+
+    const finalDocType = selectedDocType === 'Other' ? customDocType : selectedDocType;
+    if (!finalDocType) {
+      addToast('Please specify document type', 'error');
+      return;
+    }
+
+    if (!customFileName.trim()) {
+      addToast('Please enter a file name', 'error');
       return;
     }
 
@@ -272,9 +291,14 @@ export default function ResidentProfilePage() {
       
       if (!programId) return;
 
+      // Create a new file with custom name
+      const fileExtension = selectedFile.name.split('.').pop();
+      const newFileName = `${customFileName}.${fileExtension}`;
+      const renamedFile = new File([selectedFile], newFileName, { type: selectedFile.type });
+
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('documentType', selectedDocType);
+      formData.append('file', renamedFile);
+      formData.append('documentType', finalDocType);
 
       const res = await fetch(`/api/programs/${programId}/residents/${residentId}/documents`, {
         method: 'POST',
@@ -285,6 +309,11 @@ export default function ResidentProfilePage() {
 
       if (res.ok) {
         addToast('Document uploaded successfully', 'success');
+        setShowUploadModal(false);
+        setSelectedFile(null);
+        setCustomFileName('');
+        setCustomDocType('');
+        setSelectedDocType('Legal');
         loadDocuments();
       } else {
         addToast('Failed to upload document', 'error');
@@ -901,32 +930,51 @@ export default function ResidentProfilePage() {
         {/* Files & Documents Tab Content */}
         {activeTab === 'files' && (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-font-base">Document Archive</h4>
-              <div className="flex items-center gap-3">
+              <label className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm cursor-pointer inline-flex items-center gap-2">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  disabled={uploadingDocument}
+                />
+                <i className="fa-solid fa-upload"></i>Upload Document
+              </label>
+            </div>
+            
+            {/* Filters and Sort */}
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-font-detail">Filter:</label>
                 <select
-                  value={selectedDocType}
-                  onChange={(e) => setSelectedDocType(e.target.value)}
-                  className="px-3 py-2 border border-bd-input rounded-lg text-sm"
+                  value={docFilterType}
+                  onChange={(e) => { setDocFilterType(e.target.value); setCurrentDocPage(1); }}
+                  className="px-3 py-1.5 border border-bd-input rounded-lg text-sm"
                 >
+                  <option value="All">All Types</option>
                   <option value="Legal">Legal</option>
                   <option value="Medical">Medical</option>
                   <option value="Clinical">Clinical</option>
                   <option value="Administrative">Administrative</option>
+                  <option value="Other">Other</option>
                 </select>
-                <label className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm cursor-pointer inline-flex items-center gap-2">
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleDocumentUpload}
-                    disabled={uploadingDocument}
-                  />
-                  {uploadingDocument ? (
-                    <><i className="fa-solid fa-spinner fa-spin"></i>Uploading...</>
-                  ) : (
-                    <><i className="fa-solid fa-upload"></i>Upload Document</>
-                  )}
-                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-font-detail">Sort:</label>
+                <select
+                  value={docSortBy}
+                  onChange={(e) => setDocSortBy(e.target.value)}
+                  className="px-3 py-1.5 border border-bd-input rounded-lg text-sm"
+                >
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="type">By Type</option>
+                  <option value="name">By Name</option>
+                </select>
+              </div>
+              <div className="text-sm text-font-detail ml-auto">
+                Total: {documents.length} document{documents.length !== 1 ? 's' : ''}
               </div>
             </div>
             {documents.length === 0 ? (
@@ -936,8 +984,46 @@ export default function ResidentProfilePage() {
                 <p className="text-sm text-font-detail mb-4">Upload court documents, medical records, treatment plans, and more.</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {documents.map((doc) => {
+              <>
+                {(() => {
+                  // Filter documents
+                  let filtered = documents;
+                  if (docFilterType !== 'All') {
+                    filtered = documents.filter(d => d.documentType === docFilterType);
+                  }
+
+                  // Sort documents
+                  const sorted = [...filtered].sort((a, b) => {
+                    if (docSortBy === 'date-desc') {
+                      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+                    } else if (docSortBy === 'date-asc') {
+                      return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+                    } else if (docSortBy === 'type') {
+                      return (a.documentType || '').localeCompare(b.documentType || '');
+                    } else if (docSortBy === 'name') {
+                      return (a.fileName || '').localeCompare(b.fileName || '');
+                    }
+                    return 0;
+                  });
+
+                  // Paginate - show 5 per page
+                  const startIdx = (currentDocPage - 1) * docsPerPage;
+                  const endIdx = startIdx + docsPerPage;
+                  const paginated = sorted.slice(startIdx, endIdx);
+                  const totalPages = Math.ceil(sorted.length / docsPerPage);
+
+                  if (paginated.length === 0 && docFilterType !== 'All') {
+                    return (
+                      <div className="text-center py-8 text-font-detail">
+                        No documents found with type "{docFilterType}"
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="space-y-3">
+                        {paginated.map((doc) => {
                   const fileSize = doc.fileSize ? (doc.fileSize / 1024).toFixed(2) : 'Unknown';
                   const isImage = doc.fileType?.startsWith('image/');
                   const isPDF = doc.fileType === 'application/pdf';
@@ -997,12 +1083,125 @@ export default function ResidentProfilePage() {
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                        })}
+                      </div>
+                
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                          <button
+                            onClick={() => setCurrentDocPage(p => Math.max(1, p - 1))}
+                            disabled={currentDocPage === 1}
+                            className="px-3 py-1.5 border border-bd rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <i className="fa-solid fa-chevron-left"></i>
+                          </button>
+                          <span className="text-sm text-font-detail">
+                            Page {currentDocPage} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setCurrentDocPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentDocPage === totalPages}
+                            className="px-3 py-1.5 border border-bd rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <i className="fa-solid fa-chevron-right"></i>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* Upload Document Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-bd w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-font-base">Upload Document</h3>
+              <button 
+                className="text-font-detail hover:text-primary" 
+                onClick={() => { setShowUploadModal(false); setSelectedFile(null); }}
+              >
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-1">Selected File</label>
+                <p className="text-sm text-font-detail bg-gray-50 p-2 rounded border border-bd">
+                  {selectedFile?.name}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-1">Document Name <span className="text-error">*</span></label>
+                <input
+                  type="text"
+                  value={customFileName}
+                  onChange={(e) => setCustomFileName(e.target.value)}
+                  placeholder="Enter a descriptive name"
+                  className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                <p className="text-xs text-font-detail mt-1">This name will be used to identify the document</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-font-base mb-1">Document Type <span className="text-error">*</span></label>
+                <select
+                  value={selectedDocType}
+                  onChange={(e) => setSelectedDocType(e.target.value)}
+                  className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="Legal">Legal</option>
+                  <option value="Medical">Medical</option>
+                  <option value="Clinical">Clinical</option>
+                  <option value="Administrative">Administrative</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {selectedDocType === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Specify Type <span className="text-error">*</span></label>
+                  <input
+                    type="text"
+                    value={customDocType}
+                    onChange={(e) => setCustomDocType(e.target.value)}
+                    placeholder="Enter document type"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 rounded-lg border border-bd text-sm hover:bg-gray-50"
+                onClick={() => { setShowUploadModal(false); setSelectedFile(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm disabled:opacity-50"
+                onClick={handleDocumentUpload}
+                disabled={uploadingDocument || !customFileName.trim()}
+              >
+                {uploadingDocument ? (
+                  <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Uploading...</>
+                ) : (
+                  <><i className="fa-solid fa-upload mr-2"></i>Upload</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Resident Info Modal */}
       {showEditModal && (
