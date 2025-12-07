@@ -561,4 +561,13 @@ public class MedicationService {
         response.setCreatedAt(alert.getCreatedAt());
         return response;
     }
+
+    /**
+     * Get user ID by email
+     */
+    public Long getUserIdByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+        return user.getId();
+    }
 }

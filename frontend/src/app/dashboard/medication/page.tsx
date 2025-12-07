@@ -964,50 +964,54 @@ export default function MedicationPage() {
               </div>
             </div>
             <div className="p-6">
-              {/* Shift Selection & Staff Info */}
-              <div className="bg-primary-lightest border border-primary/20 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Select Shift</label>
-                    <select 
-                      value={selectedShift}
-                      onChange={(e) => setSelectedShift(e.target.value as 'Morning' | 'Evening' | 'Night')}
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="Morning">Morning Shift</option>
-                      <option value="Evening">Evening Shift</option>
-                      <option value="Night">Night Shift</option>
-                    </select>
+              {residentMedCounts.length > 0 && (
+                <>
+                  {/* Shift Selection & Staff Info */}
+                  <div className="bg-primary-lightest border border-primary/20 rounded-lg p-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Select Shift</label>
+                        <select 
+                          value={selectedShift}
+                          onChange={(e) => setSelectedShift(e.target.value as 'Morning' | 'Evening' | 'Night')}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
+                          <option value="Morning">Morning Shift</option>
+                          <option value="Evening">Evening Shift</option>
+                          <option value="Night">Night Shift</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Audit Date</label>
+                        <input 
+                          type="date" 
+                          value={auditDate}
+                          onChange={(e) => setAuditDate(e.target.value)}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Audit Time</label>
+                        <input 
+                          type="time" 
+                          value={auditTime}
+                          onChange={(e) => setAuditTime(e.target.value)}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Staff Member</label>
+                        <input 
+                          type="text" 
+                          value={currentStaff}
+                          disabled
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Audit Date</label>
-                    <input 
-                      type="date" 
-                      value={auditDate}
-                      onChange={(e) => setAuditDate(e.target.value)}
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Audit Time</label>
-                    <input 
-                      type="time" 
-                      value={auditTime}
-                      onChange={(e) => setAuditTime(e.target.value)}
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Staff Member</label>
-                    <input 
-                      type="text" 
-                      value={currentStaff}
-                      disabled
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail"
-                    />
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Medication Count Table */}
               <div className="space-y-6">
@@ -1101,26 +1105,28 @@ export default function MedicationPage() {
               </div>
 
               {/* Notes & Submit */}
-              <div className="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-3">
-                  <label className="block text-sm font-medium text-font-base mb-2">Audit Notes</label>
-                  <textarea
-                    value={auditNotes}
-                    onChange={(e) => setAuditNotes(e.target.value)}
-                    placeholder="Add any discrepancies, concerns, or observations..."
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
-                  ></textarea>
+              {residentMedCounts.length > 0 && (
+                <div className="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
+                  <div className="lg:col-span-3">
+                    <label className="block text-sm font-medium text-font-base mb-2">Audit Notes</label>
+                    <textarea
+                      value={auditNotes}
+                      onChange={(e) => setAuditNotes(e.target.value)}
+                      placeholder="Add any discrepancies, concerns, or observations..."
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                    ></textarea>
+                  </div>
+                  <div className="lg:col-span-1 flex items-end">
+                    <button
+                      onClick={handleSubmitAudit}
+                      className="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium transition-colors flex items-center justify-center"
+                    >
+                      <i className="fa-solid fa-check mr-2"></i>
+                      <span>Submit Audit</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="lg:col-span-1 flex items-end">
-                  <button
-                    onClick={handleSubmitAudit}
-                    className="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium transition-colors flex items-center justify-center"
-                  >
-                    <i className="fa-solid fa-check mr-2"></i>
-                    <span>Submit Audit</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

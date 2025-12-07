@@ -315,14 +315,7 @@ public class MedicationController {
      * Extract user ID from authentication
      */
     private Long getUserIdFromAuth(Authentication auth) {
-        // This assumes the user ID is stored in the principal
-        // Adjust based on your actual authentication setup
-        Object principal = auth.getPrincipal();
-        if (principal instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> userMap = (Map<String, Object>) principal;
-            return ((Number) userMap.get("id")).longValue();
-        }
-        throw new IllegalStateException("Unable to extract user ID from authentication");
+        String email = auth.getName();
+        return medicationService.getUserIdByEmail(email);
     }
 }
