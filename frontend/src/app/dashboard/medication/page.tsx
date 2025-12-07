@@ -848,10 +848,10 @@ export default function MedicationPage() {
                   <label className="block text-sm font-medium text-font-base mb-2">Resident Room</label>
                   <input 
                     value={residentRoom} 
-                    onChange={(e) => setResidentRoom(e.target.value)} 
+                    disabled
                     type="text" 
-                    placeholder="e.g., Room 12, Unit A" 
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                    placeholder="Select a resident first" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail" 
                   />
                 </div>
                 <div>
