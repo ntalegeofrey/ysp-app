@@ -1066,8 +1066,24 @@ export default function MedicationPage() {
 
               {/* Medication Count Table */}
               <div className="space-y-6">
-                {residentMedCounts.map((resident) => (
-                  <div key={resident.residentId} className="border border-bd rounded-lg overflow-hidden">
+                {residentMedCounts.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                      <i className="fa-solid fa-clipboard-list text-4xl text-primary opacity-50"></i>
+                    </div>
+                    <h4 className="text-xl font-semibold text-font-base mb-2">No Medications to Audit</h4>
+                    <p className="text-font-detail mb-4">There are no residents with medications to count for this audit.</p>
+                    <button 
+                      onClick={() => setActiveTab('add-medication')}
+                      className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 font-medium transition-colors inline-flex items-center"
+                    >
+                      <i className="fa-solid fa-plus mr-2"></i>
+                      Add Resident Medication
+                    </button>
+                  </div>
+                ) : (
+                  residentMedCounts.map((resident) => (
+                    <div key={resident.residentId} className="border border-bd rounded-lg overflow-hidden">
                     <div className="bg-bg-subtle px-4 py-3 border-b border-bd">
                       <h4 className="font-semibold text-font-base">{resident.residentName}</h4>
                     </div>
@@ -1135,7 +1151,8 @@ export default function MedicationPage() {
                       </table>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Notes & Submit */}
