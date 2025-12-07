@@ -144,10 +144,12 @@ public class ProgramController {
             stats.put("totalCredits", 0);
         }
 
-        // Active repairs count
+        // Active repairs count (approved or pending_review, not revoked, not expired)
         try {
             Long activeRepairs = (Long) entityManager.createQuery(
-                "SELECT COUNT(r) FROM RepairIntervention r WHERE r.residentId = :residentId AND r.status IN ('ACTIVE', 'IN_PROGRESS', 'PENDING')"
+                "SELECT COUNT(r) FROM RepairIntervention r WHERE r.resident.id = :residentId " +
+                "AND r.status IN ('approved', 'pending_review') " +
+                "AND (r.repairEndDate IS NULL OR r.repairEndDate >= CURRENT_DATE)"
             ).setParameter("residentId", residentPk).getSingleResult();
             stats.put("activeRepairs", activeRepairs != null ? activeRepairs.intValue() : 0);
         } catch (Exception e) {

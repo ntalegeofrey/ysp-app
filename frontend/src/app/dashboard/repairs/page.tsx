@@ -167,7 +167,24 @@ export default function RepairsPage() {
             <div>
               <p className="text-font-detail text-sm">Residents with Repairs</p>
               <p className="text-2xl font-bold text-success">
-                {loading ? '-' : residents.filter(r => repairs.some(rep => rep.residentId === r.id)).length}
+                {loading ? '-' : residents.filter(r => {
+                  const residentRepairs = repairs.filter(rep => rep.residentId === r.id);
+                  return residentRepairs.some(rep => {
+                    // Only count active repairs (not revoked, not expired)
+                    const isActiveStatus = rep.status === 'approved' || rep.status === 'pending_review';
+                    if (!isActiveStatus) return false;
+                    
+                    // Check if expired
+                    if (rep.repairEndDate) {
+                      const endDate = new Date(rep.repairEndDate);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      if (endDate < today) return false;
+                    }
+                    
+                    return true;
+                  });
+                }).length}
               </p>
             </div>
             <div className="bg-success bg-opacity-10 p-3 rounded-lg">

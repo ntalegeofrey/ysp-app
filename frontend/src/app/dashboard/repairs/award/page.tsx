@@ -72,16 +72,28 @@ export default function AwardPointsPage() {
 
   // Helper to determine which day column is TODAY
   const getTodayColumn = () => {
-    if (!diaryCard?.weekStartDate) return -1;
+    if (!diaryCard?.weekStartDate) {
+      console.log('No diary card weekStartDate available');
+      return -1;
+    }
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const weekStart = new Date(diaryCard.weekStartDate);
+    // Parse week start date carefully to avoid timezone issues
+    const weekStartParts = diaryCard.weekStartDate.split('-');
+    const weekStart = new Date(parseInt(weekStartParts[0]), parseInt(weekStartParts[1]) - 1, parseInt(weekStartParts[2]));
     weekStart.setHours(0, 0, 0, 0);
     
     const diffTime = today.getTime() - weekStart.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    console.log('Today column calculation:', {
+      today: today.toISOString().split('T')[0],
+      weekStart: weekStart.toISOString().split('T')[0],
+      diffDays,
+      result: diffDays >= 0 && diffDays < 7 ? diffDays : -1
+    });
     
     return diffDays >= 0 && diffDays < 7 ? diffDays : -1;
   };
@@ -90,16 +102,23 @@ export default function AwardPointsPage() {
   const getRepairForDay = (day: number, repairs: any[]) => {
     if (!diaryCard?.weekStartDate) return null;
     
-    const weekStart = new Date(diaryCard.weekStartDate);
+    // Parse dates carefully to avoid timezone issues
+    const weekStartParts = diaryCard.weekStartDate.split('-');
+    const weekStart = new Date(parseInt(weekStartParts[0]), parseInt(weekStartParts[1]) - 1, parseInt(weekStartParts[2]));
+    
     const checkDate = new Date(weekStart);
     checkDate.setDate(weekStart.getDate() + day);
     checkDate.setHours(0, 0, 0, 0);
+    
+    console.log('Checking repair for day', day, 'checkDate:', checkDate.toISOString().split('T')[0]);
     
     for (const repair of repairs) {
       // Only show repairs that are active (pending_review or approved, not revoked/superseded)
       const isActive = repair.status === 'approved' || repair.status === 'pending_review';
       if (isActive && repair.repairStartDate) {
-        const startDate = new Date(repair.repairStartDate);
+        // Parse repair start date carefully
+        const startParts = repair.repairStartDate.split('-');
+        const startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
         startDate.setHours(0, 0, 0, 0);
         
         // Calculate correct end date based on repair level (ignores stored endDate for old records)
@@ -113,6 +132,14 @@ export default function AwardPointsPage() {
           correctEndDate.setDate(startDate.getDate() + 2);
         }
         correctEndDate.setHours(0, 0, 0, 0);
+        
+        console.log('Repair check:', {
+          repairLevel: repair.repairLevel,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: correctEndDate.toISOString().split('T')[0],
+          checkDate: checkDate.toISOString().split('T')[0],
+          inRange: checkDate >= startDate && checkDate <= correctEndDate
+        });
         
         // Check if repair is active and is within date range
         if (checkDate >= startDate && checkDate <= correctEndDate) {
