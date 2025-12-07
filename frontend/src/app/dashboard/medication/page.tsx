@@ -533,7 +533,6 @@ export default function MedicationPage() {
 
   // New Resident & Medications form state
   const [selectedResident, setSelectedResident] = useState('');
-  const [residentRoom, setResidentRoom] = useState('');
   const [allergies, setAllergies] = useState('');
   const [residents, setResidents] = useState<any[]>([]);
   const [meds, setMeds] = useState<NewMed[]>([
@@ -591,7 +590,6 @@ export default function MedicationPage() {
         
         // Reset form
         setSelectedResident('');
-        setResidentRoom('');
         setAllergies('');
         setMeds([{ name: '', dosage: '', frequency: 'Once Daily', initialCount: '', physician: '', instructions: '' }]);
         
@@ -780,15 +778,7 @@ export default function MedicationPage() {
                   <label className="block text-sm font-medium text-font-base mb-2">Select Resident</label>
                   <select 
                     value={selectedResident} 
-                    onChange={(e) => {
-                      const residentId = e.target.value;
-                      setSelectedResident(residentId);
-                      // Auto-fill room if available
-                      const resident = residents.find(r => r.id.toString() === residentId);
-                      if (resident) {
-                        setResidentRoom(resident.roomNumber || resident.unitAssignment || '');
-                      }
-                    }} 
+                    onChange={(e) => setSelectedResident(e.target.value)} 
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select a resident</option>
@@ -800,13 +790,13 @@ export default function MedicationPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Resident Room</label>
+                  <label className="block text-sm font-medium text-font-base mb-2">Room Number</label>
                   <input 
-                    value={residentRoom} 
-                    disabled
+                    value={residents.find(r => r.id === parseInt(selectedResident))?.room || residents.find(r => r.id === parseInt(selectedResident))?.roomNumber || residents.find(r => r.id === parseInt(selectedResident))?.unitAssignment || ''}
+                    readOnly
                     type="text" 
-                    placeholder="Select a resident first" 
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail" 
+                    placeholder="Will auto-fill after selecting resident" 
+                    className="w-full border-2 border-bd rounded-lg px-4 py-3 text-sm font-medium text-font-detail bg-bg-subtle/70" 
                   />
                 </div>
                 <div>
