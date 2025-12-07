@@ -109,6 +109,16 @@ public class ProgramController {
             }
         }
         if (body.containsKey("temporaryLocation")) pr.setTemporaryLocation(Objects.toString(body.get("temporaryLocation"), null));
+        if (body.containsKey("medicalAllergies")) pr.setMedicalAllergies(Objects.toString(body.get("medicalAllergies"), null));
+        if (body.containsKey("primaryPhysician")) pr.setPrimaryPhysician(Objects.toString(body.get("primaryPhysician"), null));
+        if (body.containsKey("lastMedicalReview")) {
+            Object v = body.get("lastMedicalReview");
+            if (v != null) {
+                try {
+                    pr.setLastMedicalReview(java.time.LocalDate.parse(v.toString()));
+                } catch (Exception ignored) {}
+            }
+        }
         ProgramResident saved = residents.save(pr);
         try { sseHub.broadcast(java.util.Map.of("type","programs.residents.updated","programId", id, "id", saved.getId())); } catch (Exception ignored) {}
         return ResponseEntity.ok(saved);

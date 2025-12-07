@@ -936,7 +936,7 @@ export default function MedicationPage() {
                       )}
                     </div>
                     <Link 
-                      href={`/dashboard/medication/medication-sheet?resident=${r.id}`} 
+                      href={`/dashboard/medication/medication-sheet?resident=${r.id}&firstName=${encodeURIComponent(r.firstName)}&lastName=${encodeURIComponent(r.lastName)}`} 
                       className="w-full mt-3 bg-primary text-white py-2 px-3 rounded-lg hover:bg-primary-light text-sm font-medium transition-colors text-center inline-block"
                     >
                       <i className="fa-solid fa-file-medical mr-2"></i>

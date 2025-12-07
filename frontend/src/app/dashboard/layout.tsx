@@ -152,9 +152,12 @@ function HeaderWithParams({
 
   if (pathname.startsWith('/dashboard/medication/medication-sheet')) {
     const residentId = searchParams.get('resident') || '';
+    const firstName = searchParams.get('firstName') || '';
+    const lastName = searchParams.get('lastName') || '';
+    const residentName = firstName && lastName ? `${firstName} ${lastName}` : (residentId || 'Resident');
     showBackButton = true;
-    title = residentId ? `${residentId} - Medication Sheet` : 'Resident Med Sheet';
-    breadcrumb = `Medication Management • ${residentId ? `${residentId} Med Sheet` : 'Resident Med Sheet'}`;
+    title = `${residentName} - Medication Sheet`;
+    breadcrumb = `Medication Management • ${residentName} Med Sheet`;
   }
 
   // Show back button for repairs history dynamic route

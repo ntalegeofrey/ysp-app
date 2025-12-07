@@ -87,8 +87,8 @@ function MedicationSheetInner() {
         const foundResident = residents.find((r: any) => r.id.toString() === residentId);
         if (foundResident) {
           setResident(foundResident);
-          // Set allergies from resident data if available
-          setAllergies(foundResident.allergies || foundResident.medicalAllergies || 'None reported');
+          // Set medical info from resident data if available
+          setAllergies(foundResident.medicalAllergies || foundResident.allergies || 'None reported');
           setPrimaryPhysician(foundResident.primaryPhysician || 'Not assigned');
           setLastMedicalReview(foundResident.lastMedicalReview || 'Not recorded');
         }
@@ -119,6 +119,39 @@ function MedicationSheetInner() {
     if (!dateString) return 'Not available';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const updateResidentMedicalInfo = async (field: string, value: string) => {
+    if (!programId || !resident?.id) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents/${resident.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ [field]: value }),
+      });
+      
+      if (res.ok) {
+        addToast(`${field === 'primaryPhysician' ? 'Primary Physician' : 'Last Medical Review'} updated successfully`, 'success');
+        // Update local state
+        if (field === 'primaryPhysician') {
+          setPrimaryPhysician(value);
+        } else if (field === 'lastMedicalReview') {
+          setLastMedicalReview(value);
+        }
+      } else {
+        addToast('Failed to update information', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to update resident info:', err);
+      addToast('Failed to update information', 'error');
+    }
   };
 
   const handleAddMedication = async () => {
@@ -226,7 +259,16 @@ function MedicationSheetInner() {
                   <input
                     value={primaryPhysician}
                     onChange={(e) => setPrimaryPhysician(e.target.value)}
-                    onBlur={() => setEditingPhysician(false)}
+                    onBlur={() => {
+                      setEditingPhysician(false);
+                      updateResidentMedicalInfo('primaryPhysician', primaryPhysician);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setEditingPhysician(false);
+                        updateResidentMedicalInfo('primaryPhysician', primaryPhysician);
+                      }
+                    }}
                     className="w-full border border-bd rounded px-2 py-1 text-sm"
                     autoFocus
                   />
@@ -261,7 +303,20 @@ function MedicationSheetInner() {
                     type="date"
                     value={lastMedicalReview}
                     onChange={(e) => setLastMedicalReview(e.target.value)}
-                    onBlur={() => setEditingReview(false)}
+                    onBlur={() => {
+                      setEditingReview(false);
+                      if (lastMedicalReview && lastMedicalReview !== 'Not recorded') {
+                        updateResidentMedicalInfo('lastMedicalReview', lastMedicalReview);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setEditingReview(false);
+                        if (lastMedicalReview && lastMedicalReview !== 'Not recorded') {
+                          updateResidentMedicalInfo('lastMedicalReview', lastMedicalReview);
+                        }
+                      }
+                    }}
                     className="w-full border border-bd rounded px-2 py-1 text-sm"
                     autoFocus
                   />

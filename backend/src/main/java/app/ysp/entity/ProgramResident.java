@@ -43,6 +43,15 @@ public class ProgramResident {
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
+    @Column(name = "medical_allergies", columnDefinition = "TEXT")
+    private String medicalAllergies;
+
+    @Column(name = "primary_physician")
+    private String primaryPhysician;
+
+    @Column(name = "last_medical_review")
+    private LocalDate lastMedicalReview;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -75,6 +84,15 @@ public class ProgramResident {
 
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getMedicalAllergies() { return medicalAllergies; }
+    public void setMedicalAllergies(String medicalAllergies) { this.medicalAllergies = medicalAllergies; }
+
+    public String getPrimaryPhysician() { return primaryPhysician; }
+    public void setPrimaryPhysician(String primaryPhysician) { this.primaryPhysician = primaryPhysician; }
+
+    public LocalDate getLastMedicalReview() { return lastMedicalReview; }
+    public void setLastMedicalReview(LocalDate lastMedicalReview) { this.lastMedicalReview = lastMedicalReview; }
 
     public String getFullName() { return ((lastName!=null?lastName:"") + ", " + (firstName!=null?firstName:" ")).trim(); }
 }
