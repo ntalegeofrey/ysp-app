@@ -10,6 +10,24 @@ export default function ResidentProfilePage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [resident, setResident] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    dateOfBirth: '',
+    admissionDate: '',
+    room: '',
+    status: '',
+    advocate: '',
+    clinician: ''
+  });
+
+  // Local toasts
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'info' | 'success' | 'error' }>>([]);
+  const removeToast = (id: string) => setToasts(t => t.filter(x => x.id !== id));
+  const addToast = (title: string, tone: 'info' | 'success' | 'error' = 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 3500);
+  };
 
   useEffect(() => {
     loadResidentProfile();
@@ -32,11 +50,66 @@ export default function ResidentProfilePage() {
       if (res.ok) {
         const data = await res.json();
         setResident(data);
+        // Populate edit form
+        setEditForm({
+          dateOfBirth: data.dateOfBirth || '',
+          admissionDate: data.admissionDate || '',
+          room: data.room || '',
+          status: data.status || 'General Population',
+          advocate: data.advocate || '',
+          clinician: data.clinician || ''
+        });
       }
     } catch (error) {
       console.error('Failed to load resident:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateResident = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const payload: any = {
+        room: editForm.room || undefined,
+        status: editForm.status || undefined,
+        advocate: editForm.advocate || undefined,
+        clinician: editForm.clinician || undefined,
+        admissionDate: editForm.admissionDate || undefined,
+      };
+
+      // Add dateOfBirth if changed
+      if (editForm.dateOfBirth) {
+        payload.dateOfBirth = editForm.dateOfBirth;
+      }
+
+      const res = await fetch(`/api/programs/${programId}/residents/${residentId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json', 
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Resident information updated successfully', 'success');
+        setShowEditModal(false);
+        await loadResidentProfile();
+      } else {
+        addToast('Failed to update resident information', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update resident:', error);
+      addToast('Failed to update resident information', 'error');
     }
   };
 
@@ -94,16 +167,16 @@ export default function ResidentProfilePage() {
                   </span>
                 </div>
                 <div><span className="font-medium text-font-base">Advocate:</span> <span className="text-font-detail">{resident.advocate || 'N/A'}</span></div>
-                <div><span className="font-medium text-font-base">Clinician:</span> <span className="text-font-detail">N/A</span></div>
+                <div><span className="font-medium text-font-base">Clinician:</span> <span className="text-font-detail">{resident.clinician || 'N/A'}</span></div>
               </div>
             </div>
           </div>
           <div className="flex space-x-3">
             <button 
               className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm"
-              onClick={() => router.back()}
+              onClick={() => setShowEditModal(true)}
             >
-              <i className="fa-solid fa-arrow-left mr-2"></i>Back
+              <i className="fa-solid fa-edit mr-2"></i>Update Resident Info
             </button>
             <button className="bg-warning text-white px-4 py-2 rounded-lg hover:bg-yellow-500 text-sm">
               <i className="fa-solid fa-file-pdf mr-2"></i>Generate Report
@@ -524,6 +597,116 @@ export default function ResidentProfilePage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Edit Resident Info Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-bd w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-font-base">Update Resident Information</h3>
+              <button className="text-font-detail hover:text-primary" onClick={() => setShowEditModal(false)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editForm.dateOfBirth}
+                    onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Date of Entry (Admission)</label>
+                  <input
+                    type="date"
+                    value={editForm.admissionDate}
+                    onChange={(e) => setEditForm({ ...editForm, admissionDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Room</label>
+                  <input
+                    type="text"
+                    value={editForm.room}
+                    onChange={(e) => setEditForm({ ...editForm, room: e.target.value })}
+                    placeholder="e.g. 101"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Track / Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="General Population">General Population</option>
+                    <option value="ALOYO">ALOYO</option>
+                    <option value="Restricted">Restricted</option>
+                    <option value="Team Leader">Team Leader</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Advocate</label>
+                  <input
+                    type="text"
+                    value={editForm.advocate}
+                    onChange={(e) => setEditForm({ ...editForm, advocate: e.target.value })}
+                    placeholder="e.g. Davis, Linda"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-1">Clinician</label>
+                  <input
+                    type="text"
+                    value={editForm.clinician}
+                    onChange={(e) => setEditForm({ ...editForm, clinician: e.target.value })}
+                    placeholder="e.g. Johnson, Sarah"
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 rounded-lg border border-bd text-sm hover:bg-gray-50"
+                onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-success text-white text-sm hover:bg-green-600"
+                onClick={handleUpdateResident}
+              >
+                <i className="fa-solid fa-check mr-2"></i>Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toasts */}
+      <div className="fixed top-4 right-4 z-[60] space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`min-w-[260px] max-w-sm shadow-lg rounded-lg border p-3 flex items-start gap-3 bg-white ${t.tone === 'success' ? 'border-success' : t.tone === 'error' ? 'border-error' : 'border-bd'}`}>
+            <i className={`fa-solid ${t.tone === 'success' ? 'fa-circle-check text-success' : t.tone === 'error' ? 'fa-circle-exclamation text-error' : 'fa-circle-info text-primary'} mt-1`}></i>
+            <div className="flex-1 text-sm text-font-base">{t.title}</div>
+            <button className="text-font-detail hover:text-primary" onClick={() => removeToast(t.id)}>
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

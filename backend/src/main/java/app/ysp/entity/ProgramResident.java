@@ -52,6 +52,9 @@ public class ProgramResident {
     @Column(name = "last_medical_review")
     private LocalDate lastMedicalReview;
 
+    @Column(name = "clinician")
+    private String clinician;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -93,6 +96,9 @@ public class ProgramResident {
 
     public LocalDate getLastMedicalReview() { return lastMedicalReview; }
     public void setLastMedicalReview(LocalDate lastMedicalReview) { this.lastMedicalReview = lastMedicalReview; }
+
+    public String getClinician() { return clinician; }
+    public void setClinician(String clinician) { this.clinician = clinician; }
 
     public String getFullName() { return ((lastName!=null?lastName:"") + ", " + (firstName!=null?firstName:" ")).trim(); }
 }

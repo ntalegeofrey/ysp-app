@@ -112,11 +112,20 @@ public class ProgramController {
         if (body.containsKey("room")) pr.setRoom(Objects.toString(body.get("room"), null));
         if (body.containsKey("status")) pr.setStatus(Objects.toString(body.get("status"), null));
         if (body.containsKey("advocate")) pr.setAdvocate(Objects.toString(body.get("advocate"), null));
+        if (body.containsKey("clinician")) pr.setClinician(Objects.toString(body.get("clinician"), null));
         if (body.containsKey("admissionDate")) {
             Object v = body.get("admissionDate");
             if (v != null) {
                 try {
                     pr.setAdmissionDate(java.time.LocalDate.parse(v.toString()));
+                } catch (Exception ignored) {}
+            }
+        }
+        if (body.containsKey("dateOfBirth")) {
+            Object v = body.get("dateOfBirth");
+            if (v != null) {
+                try {
+                    pr.setDateOfBirth(java.time.LocalDate.parse(v.toString()));
                 } catch (Exception ignored) {}
             }
         }
