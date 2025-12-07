@@ -18,6 +18,10 @@ export default function ResidentProfilePage() {
     incidents30d: 0,
     activeMedications: 0
   });
+  const [medications, setMedications] = useState<any[]>([]);
+  const [repairs, setRepairs] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [loadingTabs, setLoadingTabs] = useState(false);
   const [editForm, setEditForm] = useState({
     dateOfBirth: '',
     admissionDate: '',
@@ -39,7 +43,14 @@ export default function ResidentProfilePage() {
   useEffect(() => {
     loadResidentProfile();
     loadResidentStats();
+    loadTabData();
   }, [residentId]);
+
+  useEffect(() => {
+    if (activeTab !== 'overview' && activeTab !== 'files') {
+      loadTabData();
+    }
+  }, [activeTab]);
 
   const loadResidentProfile = async () => {
     try {
@@ -101,6 +112,78 @@ export default function ResidentProfilePage() {
       }
     } catch (error) {
       console.error('Failed to load resident stats:', error);
+    }
+  };
+
+  const loadTabData = async () => {
+    if (loadingTabs) return;
+    setLoadingTabs(true);
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      // Load medications
+      if (activeTab === 'medications' || activeTab === 'overview') {
+        try {
+          const medRes = await fetch(`/api/programs/${programId}/medications/resident/${residentId}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          if (medRes.ok) {
+            const medData = await medRes.json();
+            setMedications(medData.filter((m: any) => m.status === 'ACTIVE'));
+          }
+        } catch (err) {
+          console.error('Failed to load medications:', err);
+        }
+      }
+
+      // Load repairs
+      if (activeTab === 'incidents' || activeTab === 'overview') {
+        try {
+          const repairRes = await fetch(`/api/programs/${programId}/interventions/resident/${residentId}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          if (repairRes.ok) {
+            const repairData = await repairRes.json();
+            setRepairs(repairData.filter((r: any) => ['ACTIVE', 'IN_PROGRESS', 'PENDING'].includes(r.status)));
+          }
+        } catch (err) {
+          console.error('Failed to load repairs:', err);
+        }
+      }
+
+      // Load incidents
+      if (activeTab === 'incidents' || activeTab === 'overview') {
+        try {
+          const incidentRes = await fetch(`/api/programs/${programId}/incident-reports`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          if (incidentRes.ok) {
+            const incidentData = await incidentRes.json();
+            // Filter for this resident and last 30 days
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            setIncidents(incidentData.filter((i: any) => 
+              i.residentId === parseInt(residentId) && 
+              new Date(i.incidentDate) >= thirtyDaysAgo
+            ));
+          }
+        } catch (err) {
+          console.error('Failed to load incidents:', err);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load tab data:', error);
+    } finally {
+      setLoadingTabs(false);
     }
   };
 
@@ -443,36 +526,41 @@ export default function ResidentProfilePage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-lg font-semibold text-font-base">Current Medications</h4>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
+              <button 
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm"
+                onClick={() => router.push(`/dashboard/medication/medication-sheet?resident=${residentId}&firstName=${resident?.firstName}&lastName=${resident?.lastName}`)}
+              >
                 <i className="fa-solid fa-external-link mr-2"></i>View Full Med Sheet
               </button>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-font-base mb-2">Sertraline 50mg</h5>
-                <p className="text-sm text-font-detail mb-2">Once daily, morning</p>
-                <p className="text-xs text-font-detail">Prescribed by: Dr. Smith</p>
-                <p className="text-xs text-font-detail">Last administered: Today, 8:00 AM</p>
+            {loadingTabs ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-font-detail">Loading medications...</div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-font-base mb-2">Risperidone 1mg</h5>
-                <p className="text-sm text-font-detail mb-2">Twice daily, morning & evening</p>
-                <p className="text-xs text-font-detail">Prescribed by: Dr. Johnson</p>
-                <p className="text-xs text-font-detail">Last administered: Today, 8:00 AM</p>
+            ) : medications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                <i className="fa-solid fa-pills text-6xl text-font-detail mb-4"></i>
+                <h5 className="text-lg font-semibold text-font-base mb-2">No Active Medications</h5>
+                <p className="text-sm text-font-detail mb-4">This resident currently has no active medications on file.</p>
+                <button 
+                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm"
+                  onClick={() => router.push('/dashboard/medication')}
+                >
+                  <i className="fa-solid fa-plus mr-2"></i>Add Medication
+                </button>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-font-base mb-2">Multivitamin</h5>
-                <p className="text-sm text-font-detail mb-2">Once daily, morning</p>
-                <p className="text-xs text-font-detail">Prescribed by: Dr. Smith</p>
-                <p className="text-xs text-font-detail">Last administered: Today, 8:00 AM</p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {medications.map((med) => (
+                  <div key={med.id} className="bg-gray-50 rounded-lg p-4 border border-bd">
+                    <h5 className="font-medium text-font-base mb-2">{med.medicationName} {med.dosage}</h5>
+                    <p className="text-sm text-font-detail mb-2">{med.frequency || 'As prescribed'}</p>
+                    <p className="text-xs text-font-detail">Prescribed by: {med.prescribedBy || 'N/A'}</p>
+                    <p className="text-xs text-font-detail">Route: {med.routeOfAdministration || 'N/A'}</p>
+                  </div>
+                ))}
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-font-base mb-2">Melatonin 3mg</h5>
-                <p className="text-sm text-font-detail mb-2">As needed for sleep</p>
-                <p className="text-xs text-font-detail">Prescribed by: Dr. Johnson</p>
-                <p className="text-xs text-font-detail">Last administered: Nov 16, 9:00 PM</p>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -482,68 +570,74 @@ export default function ResidentProfilePage() {
             <div className="space-y-6">
               <div>
                 <h4 className="text-lg font-semibold text-font-base mb-4">Active Repairs</h4>
-                <div className="space-y-3">
-                  <div className="bg-error-lightest border border-error-lighter rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-medium text-font-base">Disrespectful Behavior</h5>
-                        <p className="text-sm text-font-detail mt-1">Assigned: Nov 17, 2024</p>
-                        <p className="text-sm text-font-detail">Due: Nov 24, 2024</p>
-                      </div>
-                      <span className="px-2 py-1 bg-error text-white text-xs rounded-full">Active</span>
-                    </div>
+                {loadingTabs ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-font-detail">Loading repairs...</div>
                   </div>
-                  <div className="bg-warning-lightest border border-warning-lighter rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-medium text-font-base">Room Maintenance</h5>
-                        <p className="text-sm text-font-detail mt-1">Assigned: Nov 15, 2024</p>
-                        <p className="text-sm text-font-detail">Due: Nov 22, 2024</p>
-                      </div>
-                      <span className="px-2 py-1 bg-warning text-white text-xs rounded-full">In Progress</span>
-                    </div>
+                ) : repairs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                    <i className="fa-solid fa-wrench text-4xl text-font-detail mb-3"></i>
+                    <h5 className="text-base font-semibold text-font-base mb-1">No Active Repairs</h5>
+                    <p className="text-sm text-font-detail">This resident has no active repair interventions.</p>
                   </div>
-                  <div className="bg-warning-lightest border border-warning-lighter rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-medium text-font-base">Incomplete Homework</h5>
-                        <p className="text-sm text-font-detail mt-1">Assigned: Nov 16, 2024</p>
-                        <p className="text-sm text-font-detail">Due: Nov 23, 2024</p>
+                ) : (
+                  <div className="space-y-3">
+                    {repairs.map((repair) => (
+                      <div key={repair.id} className={`rounded-lg p-4 border ${
+                        repair.status === 'ACTIVE' ? 'bg-error-lightest border-error-lighter' : 'bg-warning-lightest border-warning-lighter'
+                      }`}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="font-medium text-font-base">{repair.behaviorType || 'Repair Intervention'}</h5>
+                            <p className="text-sm text-font-detail mt-1">Assigned: {repair.assignedDate ? new Date(repair.assignedDate).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-sm text-font-detail">Due: {repair.dueDate ? new Date(repair.dueDate).toLocaleDateString() : 'N/A'}</p>
+                          </div>
+                          <span className={`px-2 py-1 text-white text-xs rounded-full ${
+                            repair.status === 'ACTIVE' ? 'bg-error' : repair.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-warning'
+                          }`}>{repair.status}</span>
+                        </div>
                       </div>
-                      <span className="px-2 py-1 bg-warning text-white text-xs rounded-full">Pending</span>
-                    </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
 
               <div>
-                <h4 className="text-lg font-semibold text-font-base mb-4">Recent Incidents</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full border border-bd">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Type</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Description</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-bd">
-                      <tr>
-                        <td className="px-4 py-3 text-sm text-font-base">Nov 17, 2024</td>
-                        <td className="px-4 py-3 text-sm text-font-base">Behavioral</td>
-                        <td className="px-4 py-3 text-sm text-font-detail">Verbal altercation with peer</td>
-                        <td className="px-4 py-3"><span className="px-2 py-1 bg-warning text-white text-xs rounded-full">Resolved</span></td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm text-font-base">Nov 14, 2024</td>
-                        <td className="px-4 py-3 text-sm text-font-base">Rule Violation</td>
-                        <td className="px-4 py-3 text-sm text-font-detail">Out of bounds area</td>
-                        <td className="px-4 py-3"><span className="px-2 py-1 bg-success text-white text-xs rounded-full">Closed</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <h4 className="text-lg font-semibold text-font-base mb-4">Recent Incidents (Last 30 Days)</h4>
+                {loadingTabs ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-font-detail">Loading incidents...</div>
+                  </div>
+                ) : incidents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                    <i className="fa-solid fa-triangle-exclamation text-4xl text-font-detail mb-3"></i>
+                    <h5 className="text-base font-semibold text-font-base mb-1">No Recent Incidents</h5>
+                    <p className="text-sm text-font-detail">This resident has no incidents in the last 30 days.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border border-bd">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-bd">
+                        {incidents.map((incident) => (
+                          <tr key={incident.id}>
+                            <td className="px-4 py-3 text-sm text-font-base">{incident.incidentDate ? new Date(incident.incidentDate).toLocaleDateString() : 'N/A'}</td>
+                            <td className="px-4 py-3 text-sm text-font-base">{incident.incidentType || 'N/A'}</td>
+                            <td className="px-4 py-3 text-sm text-font-detail">{incident.description || 'No description'}</td>
+                            <td className="px-4 py-3"><span className="px-2 py-1 bg-primary text-white text-xs rounded-full">{incident.status || 'Reported'}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -553,21 +647,23 @@ export default function ResidentProfilePage() {
         {activeTab === 'behavior' && (
           <div className="p-6">
             <h4 className="text-lg font-semibold text-font-base mb-4">Behavior Trend Analysis</h4>
-            <div className="h-64 bg-gray-50 rounded-lg mb-6 flex items-center justify-center">
-              <p className="text-font-detail">Behavior trend chart would be displayed here</p>
+            <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd mb-6">
+              <i className="fa-solid fa-chart-line text-6xl text-font-detail mb-4"></i>
+              <h5 className="text-lg font-semibold text-font-base mb-2">Behavior Analytics Coming Soon</h5>
+              <p className="text-sm text-font-detail">Detailed behavior trend charts and analysis will be available here.</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="bg-primary-alt-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-success">42</p>
+                <p className="text-2xl font-bold text-success">{stats.totalCredits > 0 ? Math.floor(stats.totalCredits / 10) : 0}</p>
                 <p className="text-sm text-font-detail">Positive Behaviors</p>
               </div>
               <div className="bg-warning-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-warning">8</p>
-                <p className="text-sm text-font-detail">Minor Incidents</p>
+                <p className="text-2xl font-bold text-warning">{repairs.length}</p>
+                <p className="text-sm text-font-detail">Active Repairs</p>
               </div>
               <div className="bg-error-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-error">2</p>
-                <p className="text-sm text-font-detail">Major Incidents</p>
+                <p className="text-2xl font-bold text-error">{incidents.length}</p>
+                <p className="text-sm text-font-detail">Recent Incidents (30d)</p>
               </div>
             </div>
           </div>
@@ -578,59 +674,12 @@ export default function ResidentProfilePage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-lg font-semibold text-font-base">Document Archive</h4>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
-                <i className="fa-solid fa-upload mr-2"></i>Upload Document
-              </button>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
-                <div className="flex items-center space-x-3">
-                  <i className="fa-solid fa-file-pdf text-error text-xl"></i>
-                  <div>
-                    <p className="text-sm font-medium text-font-base">Court Documents - Nov 2024</p>
-                    <p className="text-xs text-font-detail">Uploaded: Nov 10, 2024 • Type: Legal</p>
-                  </div>
-                </div>
-                <button className="text-primary hover:text-primary-light">
-                  <i className="fa-solid fa-download"></i>
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
-                <div className="flex items-center space-x-3">
-                  <i className="fa-solid fa-file-medical text-primary-alt text-xl"></i>
-                  <div>
-                    <p className="text-sm font-medium text-font-base">Medical Records - Initial Assessment</p>
-                    <p className="text-xs text-font-detail">Uploaded: Nov 10, 2024 • Type: Medical</p>
-                  </div>
-                </div>
-                <button className="text-primary hover:text-primary-light">
-                  <i className="fa-solid fa-download"></i>
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
-                <div className="flex items-center space-x-3">
-                  <i className="fa-solid fa-file-alt text-primary text-xl"></i>
-                  <div>
-                    <p className="text-sm font-medium text-font-base">Treatment Plan - Q4 2024</p>
-                    <p className="text-xs text-font-detail">Uploaded: Nov 11, 2024 • Type: Clinical</p>
-                  </div>
-                </div>
-                <button className="text-primary hover:text-primary-light">
-                  <i className="fa-solid fa-download"></i>
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
-                <div className="flex items-center space-x-3">
-                  <i className="fa-solid fa-file-image text-warning text-xl"></i>
-                  <div>
-                    <p className="text-sm font-medium text-font-base">Identification Photos</p>
-                    <p className="text-xs text-font-detail">Uploaded: Nov 10, 2024 • Type: Administrative</p>
-                  </div>
-                </div>
-                <button className="text-primary hover:text-primary-light">
-                  <i className="fa-solid fa-download"></i>
-                </button>
-              </div>
+            <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+              <i className="fa-solid fa-folder-open text-6xl text-font-detail mb-4"></i>
+              <h5 className="text-lg font-semibold text-font-base mb-2">Document Management Coming Soon</h5>
+              <p className="text-sm text-font-detail mb-4">Secure document storage and management for resident files will be available here.</p>
+              <p className="text-xs text-font-detail">Features: Court documents, medical records, treatment plans, and more.</p>
             </div>
           </div>
         )}
