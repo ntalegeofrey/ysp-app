@@ -231,7 +231,7 @@ export default function ResidentRegistryPage() {
                           {(canEditResident || canDischargeResident) && (
                             <td className="px-4 py-3 text-sm">
                               <button className="text-primary hover:text-primary-light mr-2" title="View Profile" onClick={() => {
-                                router.push(`/dashboard/resident-registry/${r.id}`);
+                                router.push(`/dashboard/resident-registry/${r.id}?firstName=${encodeURIComponent(r.firstName || '')}&lastName=${encodeURIComponent(r.lastName || '')}`);
                               }}>
                                 <i className="fa-solid fa-user"></i>
                               </button>

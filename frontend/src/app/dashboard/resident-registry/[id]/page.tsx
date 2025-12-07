@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 export default function ResidentProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const residentId = params.id as string;
   const [activeTab, setActiveTab] = useState('overview');
   const [resident, setResident] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [programStaff, setProgramStaff] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalCredits: 0,
     activeRepairs: 0,
@@ -44,6 +46,7 @@ export default function ResidentProfilePage() {
     loadResidentProfile();
     loadResidentStats();
     loadTabData();
+    loadProgramStaff();
   }, [residentId]);
 
   useEffect(() => {
@@ -115,6 +118,29 @@ export default function ResidentProfilePage() {
     }
   };
 
+  const loadProgramStaff = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const spRaw = typeof window !== 'undefined' ? localStorage.getItem('selectedProgram') : null;
+      const sp = spRaw ? JSON.parse(spRaw) as { id?: number|string } : null;
+      const programId = sp?.id ? String(sp.id) : '';
+      
+      if (!programId) return;
+
+      const res = await fetch(`/api/programs/${programId}/assignments`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      
+      if (res.ok) {
+        const assignments = await res.json();
+        setProgramStaff(assignments);
+      }
+    } catch (error) {
+      console.error('Failed to load program staff:', error);
+    }
+  };
+
   const loadTabData = async () => {
     if (loadingTabs) return;
     setLoadingTabs(true);
@@ -146,7 +172,7 @@ export default function ResidentProfilePage() {
       // Load repairs
       if (activeTab === 'incidents' || activeTab === 'overview') {
         try {
-          const repairRes = await fetch(`/api/programs/${programId}/interventions/resident/${residentId}`, {
+          const repairRes = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${residentId}`, {
             credentials: 'include',
             headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
           });
@@ -162,7 +188,7 @@ export default function ResidentProfilePage() {
       // Load incidents
       if (activeTab === 'incidents' || activeTab === 'overview') {
         try {
-          const incidentRes = await fetch(`/api/programs/${programId}/incident-reports`, {
+          const incidentRes = await fetch(`/api/programs/${programId}/incidents/incident-reports`, {
             credentials: 'include',
             headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
           });
@@ -744,13 +770,18 @@ export default function ResidentProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Advocate</label>
-                  <input
-                    type="text"
+                  <select
                     value={editForm.advocate}
                     onChange={(e) => setEditForm({ ...editForm, advocate: e.target.value })}
-                    placeholder="e.g. Davis, Linda"
                     className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
+                  >
+                    <option value="">Select Advocate</option>
+                    {programStaff.map((staff) => (
+                      <option key={staff.id} value={`${staff.user?.lastName || ''}, ${staff.user?.firstName || ''}`}>
+                        {staff.user?.firstName || ''} {staff.user?.lastName || ''} ({staff.role || 'Staff'})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Clinician</label>
