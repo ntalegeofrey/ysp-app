@@ -19,9 +19,9 @@ function MedicationSheetInner() {
               </h3>
               <div className="mt-2 text-sm text-font-detail">Complete medical and medication profile</div>
             </div>
-            <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
-              <i className="fa-solid fa-edit mr-2"></i>
-              Edit Profile
+            <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium text-sm">
+              <i className="fa-solid fa-print mr-2"></i>
+              Print Medsheet
             </button>
           </div>
         </div>
@@ -243,96 +243,91 @@ function MedicationSheetInner() {
               </h3>
               <div className="mt-2 text-sm text-font-detail">Complete history of medication administration for Resident {residentId}</div>
             </div>
-            <div className="flex space-x-3">
-              <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                <option>Last 7 days</option>
-                <option>Last 30 days</option>
-                <option>Last 90 days</option>
-              </select>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light font-medium text-sm">
-                <i className="fa-solid fa-download mr-2"></i>
-                Export Log
-              </button>
-            </div>
+            <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+              <option value="">All Time</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-bg-section">
+          <table className="w-full text-sm">
+            <thead className="bg-bg-subtle border-b border-bd">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Date & Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Medication</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Dosage</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Staff</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-font-detail uppercase tracking-wider">Notes</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Date</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Time</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Medication</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Action</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Staff</th>
+                <th className="px-4 py-3 text-left font-medium text-font-base">Notes</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-bd">
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 28, 2024 8:15 AM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Risperidone</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">2mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">J. Smith</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Taken with breakfast, no issues</td>
+            <tbody>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-05</td>
+                <td className="px-4 py-3 text-font-detail">8:15 AM</td>
+                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">J. Smith</td>
+                <td className="px-4 py-3 text-font-detail">Taken with breakfast, no issues</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 28, 2024 8:20 AM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Sertraline</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">50mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">J. Smith</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Morning dose administered</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-05</td>
+                <td className="px-4 py-3 text-font-detail">8:20 AM</td>
+                <td className="px-4 py-3 text-font-detail">Sertraline 50mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">J. Smith</td>
+                <td className="px-4 py-3 text-font-detail">Morning dose administered</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 27, 2024 9:30 PM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Melatonin</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">3mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">M. Davis</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Bedtime dose, resident cooperative</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-04</td>
+                <td className="px-4 py-3 text-font-detail">9:30 PM</td>
+                <td className="px-4 py-3 text-font-detail">Melatonin 3mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">M. Davis</td>
+                <td className="px-4 py-3 text-font-detail">Bedtime dose, resident cooperative</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 27, 2024 8:00 PM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Risperidone</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">2mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-error text-white px-2 py-1 rounded text-xs">Refused</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">M. Davis</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Resident refused medication, clinician notified</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-04</td>
+                <td className="px-4 py-3 text-font-detail">8:00 PM</td>
+                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-error/10 text-error">Refused</span></td>
+                <td className="px-4 py-3 text-font-detail">M. Davis</td>
+                <td className="px-4 py-3 text-font-detail">Resident refused medication, clinician notified</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 27, 2024 8:15 AM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Risperidone</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">2mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">T. Wilson</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Morning dose administered with food</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-04</td>
+                <td className="px-4 py-3 text-font-detail">8:15 AM</td>
+                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">T. Wilson</td>
+                <td className="px-4 py-3 text-font-detail">Morning dose administered with food</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 27, 2024 8:20 AM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Sertraline</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">50mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Late</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">T. Wilson</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Given 20 minutes late due to breakfast delay</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-04</td>
+                <td className="px-4 py-3 text-font-detail">8:20 AM</td>
+                <td className="px-4 py-3 text-font-detail">Sertraline 50mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">T. Wilson</td>
+                <td className="px-4 py-3 text-font-detail">-</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 26, 2024 9:30 PM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Melatonin</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">3mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">K. Johnson</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Bedtime dose, resident settled well</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-03</td>
+                <td className="px-4 py-3 text-font-detail">9:30 PM</td>
+                <td className="px-4 py-3 text-font-detail">Melatonin 3mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">K. Johnson</td>
+                <td className="px-4 py-3 text-font-detail">Bedtime dose, resident settled well</td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Oct 26, 2024 8:00 PM</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">Risperidone</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">2mg</td>
-                <td className="px-6 py-4 whitespace-nowrap"><span className="bg-success text-white px-2 py-1 rounded text-xs">Given</span></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-font-base">K. Johnson</td>
-                <td className="px-6 py-4 text-sm text-font-detail">Evening dose with dinner</td>
+              <tr className="border-b border-bd hover:bg-bg-subtle">
+                <td className="px-4 py-3 text-font-base">2024-12-03</td>
+                <td className="px-4 py-3 text-font-detail">8:00 PM</td>
+                <td className="px-4 py-3 text-font-detail">Risperidone 2mg</td>
+                <td className="px-4 py-3"><span className="inline-block px-2 py-1 rounded text-xs font-medium bg-success/10 text-success">Administered</span></td>
+                <td className="px-4 py-3 text-font-detail">K. Johnson</td>
+                <td className="px-4 py-3 text-font-detail">Evening dose with dinner</td>
               </tr>
             </tbody>
           </table>

@@ -27,6 +27,7 @@ type MedicationCount = {
   previousCount: number;
   currentCount: string;
   previousStaff: string;
+  notes: string;
 };
 
 type ResidentMedCount = {
@@ -35,15 +36,35 @@ type ResidentMedCount = {
   medications: MedicationCount[];
 };
 
-type TabType = 'alerts' | 'add-medication' | 'med-sheets' | 'audit' | 'admin-archive' | 'audit-archive';
+type TabType = 'alerts' | 'add-medication' | 'med-sheets' | 'audit' | 'pending-approvals' | 'admin-archive' | 'audit-archive';
+
+type PendingAudit = {
+  id: number;
+  date: string;
+  time: string;
+  shift: string;
+  submittedBy: string;
+  residentCount: number;
+  medicationCount: number;
+  hasDiscrepancies: boolean;
+};
 
 export default function MedicationPage() {
   const [activeTab, setActiveTab] = useState<TabType>('alerts');
   const [currentStaff, setCurrentStaff] = useState('');
   const [selectedShift, setSelectedShift] = useState<'Morning' | 'Evening' | 'Night'>('Morning');
   const [auditNotes, setAuditNotes] = useState('');
+  const [auditDate, setAuditDate] = useState(new Date().toISOString().split('T')[0]);
+  const [auditTime, setAuditTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
   const [adminArchiveFilter, setAdminArchiveFilter] = useState('');
   const [auditArchiveFilter, setAuditArchiveFilter] = useState('');
+  const [adminArchiveDateFilter, setAdminArchiveDateFilter] = useState('');
+  const [adminArchiveShiftFilter, setAdminArchiveShiftFilter] = useState('');
+  const [auditArchiveDateFilter, setAuditArchiveDateFilter] = useState('');
+  const [auditArchiveShiftFilter, setAuditArchiveShiftFilter] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [selectedAuditForApproval, setSelectedAuditForApproval] = useState<number | null>(null);
+  const [nurseApprovalNotes, setNurseApprovalNotes] = useState('');
 
   useEffect(() => {
     try {
@@ -52,7 +73,9 @@ export default function MedicationPage() {
         const user = JSON.parse(userStr);
         const firstName = user.firstName || '';
         const lastName = user.lastName || '';
+        const role = user.role || '';
         setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
+        setUserRole(role.toUpperCase());
       }
     } catch (err) {
       console.error('Failed to parse user:', err);
@@ -69,34 +92,34 @@ export default function MedicationPage() {
       residentId: 'A01',
       residentName: 'Resident A01',
       medications: [
-        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 45, currentCount: '', previousStaff: 'J.S.' },
-        { medicationName: 'Sertraline', dosage: '50mg', previousCount: 30, currentCount: '', previousStaff: 'J.S.' },
-        { medicationName: 'Melatonin', dosage: '3mg', previousCount: 60, currentCount: '', previousStaff: 'J.S.' },
+        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 45, currentCount: '', previousStaff: 'John Smith', notes: '' },
+        { medicationName: 'Sertraline', dosage: '50mg', previousCount: 30, currentCount: '', previousStaff: 'John Smith', notes: '' },
+        { medicationName: 'Melatonin', dosage: '3mg', previousCount: 60, currentCount: '', previousStaff: 'John Smith', notes: '' },
       ],
     },
     {
       residentId: 'A02',
       residentName: 'Resident A02',
       medications: [
-        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 28, currentCount: '', previousStaff: 'M.J.' },
-        { medicationName: 'Clonazepam', dosage: '0.5mg', previousCount: 42, currentCount: '', previousStaff: 'M.J.' },
+        { medicationName: 'Risperidone', dosage: '2mg', previousCount: 28, currentCount: '', previousStaff: 'Maria Johnson', notes: '' },
+        { medicationName: 'Clonazepam', dosage: '0.5mg', previousCount: 42, currentCount: '', previousStaff: 'Maria Johnson', notes: '' },
       ],
     },
     {
       residentId: 'B01',
       residentName: 'Resident B01',
       medications: [
-        { medicationName: 'Lithium', dosage: '300mg', previousCount: 55, currentCount: '', previousStaff: 'K.W.' },
-        { medicationName: 'Abilify', dosage: '10mg', previousCount: 38, currentCount: '', previousStaff: 'K.W.' },
+        { medicationName: 'Lithium', dosage: '300mg', previousCount: 55, currentCount: '', previousStaff: 'Kevin Williams', notes: '' },
+        { medicationName: 'Abilify', dosage: '10mg', previousCount: 38, currentCount: '', previousStaff: 'Kevin Williams', notes: '' },
       ],
     },
     {
       residentId: 'C02',
       residentName: 'Resident C02',
       medications: [
-        { medicationName: 'Prozac', dosage: '20mg', previousCount: 48, currentCount: '', previousStaff: 'L.D.' },
-        { medicationName: 'Adderall', dosage: '15mg', previousCount: 35, currentCount: '', previousStaff: 'L.D.' },
-        { medicationName: 'Trazodone', dosage: '50mg', previousCount: 52, currentCount: '', previousStaff: 'L.D.' },
+        { medicationName: 'Prozac', dosage: '20mg', previousCount: 48, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
+        { medicationName: 'Adderall', dosage: '15mg', previousCount: 35, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
+        { medicationName: 'Trazodone', dosage: '50mg', previousCount: 52, currentCount: '', previousStaff: 'Lisa Davis', notes: '' },
       ],
     },
   ]);
@@ -116,6 +139,45 @@ export default function MedicationPage() {
     );
   };
 
+  const updateMedNotes = (residentId: string, medIndex: number, notes: string) => {
+    setResidentMedCounts(prev =>
+      prev.map(resident =>
+        resident.residentId === residentId
+          ? {
+              ...resident,
+              medications: resident.medications.map((med, idx) =>
+                idx === medIndex ? { ...med, notes } : med
+              ),
+            }
+          : resident
+      )
+    );
+  };
+
+  // Demo pending audits
+  const [pendingAudits, setPendingAudits] = useState<PendingAudit[]>([
+    {
+      id: 1,
+      date: '2024-12-05',
+      time: '07:00 AM',
+      shift: 'Morning',
+      submittedBy: 'John Smith',
+      residentCount: 4,
+      medicationCount: 12,
+      hasDiscrepancies: true,
+    },
+    {
+      id: 2,
+      date: '2024-12-04',
+      time: '03:00 PM',
+      shift: 'Evening',
+      submittedBy: 'Maria Johnson',
+      residentCount: 3,
+      medicationCount: 8,
+      hasDiscrepancies: false,
+    },
+  ]);
+
   const handleSubmitAudit = () => {
     // Validate all counts are entered
     const incomplete = residentMedCounts.some(resident =>
@@ -127,15 +189,62 @@ export default function MedicationPage() {
       return;
     }
     
-    alert(`Medication Audit submitted for ${selectedShift} Shift by ${currentStaff}`);
+    // Check for discrepancies
+    const hasDiscrepancies = residentMedCounts.some(resident =>
+      resident.medications.some(med => {
+        const variance = Number(med.currentCount) - med.previousCount;
+        return variance !== 0;
+      })
+    );
+
+    // Create pending audit
+    const newPendingAudit: PendingAudit = {
+      id: Date.now(),
+      date: auditDate,
+      time: auditTime,
+      shift: selectedShift,
+      submittedBy: currentStaff,
+      residentCount: residentMedCounts.length,
+      medicationCount: residentMedCounts.reduce((sum, r) => sum + r.medications.length, 0),
+      hasDiscrepancies,
+    };
+
+    setPendingAudits(prev => [newPendingAudit, ...prev]);
+    
+    alert(`Medication Audit submitted for ${selectedShift} Shift by ${currentStaff}. Pending nurse approval.`);
+    
     // Reset counts
     setResidentMedCounts(prev =>
       prev.map(resident => ({
         ...resident,
-        medications: resident.medications.map(med => ({ ...med, currentCount: '' })),
+        medications: resident.medications.map(med => ({ ...med, currentCount: '', notes: '' })),
       }))
     );
     setAuditNotes('');
+  };
+
+  const handleApproveAudit = (auditId: number) => {
+    if (!nurseApprovalNotes && selectedAuditForApproval === auditId) {
+      alert('Please add approval notes before approving the audit.');
+      return;
+    }
+    
+    alert(`Audit #${auditId} approved by ${currentStaff}. Notes: ${nurseApprovalNotes || 'None'}`);
+    setPendingAudits(prev => prev.filter(a => a.id !== auditId));
+    setSelectedAuditForApproval(null);
+    setNurseApprovalNotes('');
+  };
+
+  const handleDenyAudit = (auditId: number) => {
+    if (!nurseApprovalNotes) {
+      alert('Please add notes explaining why this audit is being denied.');
+      return;
+    }
+    
+    alert(`Audit #${auditId} denied by ${currentStaff}. Reason: ${nurseApprovalNotes}`);
+    setPendingAudits(prev => prev.filter(a => a.id !== auditId));
+    setSelectedAuditForApproval(null);
+    setNurseApprovalNotes('');
   };
   // Alerts demo data
   const [alerts, setAlerts] = useState<Alert[]>([
@@ -249,10 +358,10 @@ export default function MedicationPage() {
 
   // Demo admin archive data
   const adminArchiveData = [
-    { id: 1, date: '2024-12-05', time: '10:30 AM', resident: 'A02', medication: 'Risperidone 2mg', action: 'Refused', staff: 'M. Johnson', notes: 'Resident became agitated' },
-    { id: 2, date: '2024-12-05', time: '08:15 AM', resident: 'B03', medication: 'Melatonin 3mg', action: 'Administered', staff: 'Dr. S. Wilson', notes: 'First dose' },
-    { id: 3, date: '2024-12-04', time: '02:30 PM', resident: 'A01', medication: 'Sertraline 50mg', action: 'Administered', staff: 'J. Smith', notes: '' },
-    { id: 4, date: '2024-12-04', time: '01:15 PM', resident: 'B01', medication: 'Lithium 300mg', action: 'Administered', staff: 'K. Williams', notes: '' },
+    { id: 1, date: '2024-12-05', time: '10:30 AM', shift: 'Morning', resident: 'A02', medication: 'Risperidone 2mg', action: 'Refused', staff: 'M. Johnson', notes: 'Resident became agitated' },
+    { id: 2, date: '2024-12-05', time: '08:15 AM', shift: 'Morning', resident: 'B03', medication: 'Melatonin 3mg', action: 'Administered', staff: 'Dr. S. Wilson', notes: 'First dose' },
+    { id: 3, date: '2024-12-04', time: '02:30 PM', shift: 'Evening', resident: 'A01', medication: 'Sertraline 50mg', action: 'Administered', staff: 'J. Smith', notes: '' },
+    { id: 4, date: '2024-12-04', time: '01:15 PM', shift: 'Evening', resident: 'B01', medication: 'Lithium 300mg', action: 'Administered', staff: 'K. Williams', notes: '' },
   ];
 
   // Demo audit archive data
@@ -263,19 +372,25 @@ export default function MedicationPage() {
     { id: 4, date: '2024-12-04', shift: 'Night', staff: 'L. Davis', resident: 'C02', medication: 'Prozac 20mg', previousCount: 50, auditedCount: 48, discrepancy: -2 },
   ];
 
-  const filteredAdminArchive = adminArchiveData.filter(record =>
-    !adminArchiveFilter ||
-    record.resident.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
-    record.medication.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
-    record.staff.toLowerCase().includes(adminArchiveFilter.toLowerCase())
-  );
+  const filteredAdminArchive = adminArchiveData.filter(record => {
+    const matchesSearch = !adminArchiveFilter ||
+      record.resident.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
+      record.medication.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
+      record.staff.toLowerCase().includes(adminArchiveFilter.toLowerCase());
+    const matchesDate = !adminArchiveDateFilter || record.date === adminArchiveDateFilter;
+    const matchesShift = !adminArchiveShiftFilter || record.shift === adminArchiveShiftFilter;
+    return matchesSearch && matchesDate && matchesShift;
+  });
 
-  const filteredAuditArchive = auditArchiveData.filter(record =>
-    !auditArchiveFilter ||
-    record.resident.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
-    record.medication.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
-    record.shift.toLowerCase().includes(auditArchiveFilter.toLowerCase())
-  );
+  const filteredAuditArchive = auditArchiveData.filter(record => {
+    const matchesSearch = !auditArchiveFilter ||
+      record.resident.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
+      record.medication.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
+      record.shift.toLowerCase().includes(auditArchiveFilter.toLowerCase());
+    const matchesDate = !auditArchiveDateFilter || record.date === auditArchiveDateFilter;
+    const matchesShift = !auditArchiveShiftFilter || record.shift === auditArchiveShiftFilter;
+    return matchesSearch && matchesDate && matchesShift;
+  });
 
   return (
     <div className="space-y-6">
@@ -310,6 +425,20 @@ export default function MedicationPage() {
             <i className={`fa-solid fa-clipboard-check mr-2 ${activeTab === 'audit' ? 'text-primary' : 'text-font-detail'}`}></i>
             Medication Audit
           </button>
+          {(userRole.includes('NURSE') || userRole.includes('ADMIN')) && (
+            <button
+              className={`${tabBtnBase} ${activeTab === 'pending-approvals' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => setActiveTab('pending-approvals')}
+            >
+              <i className={`fa-solid fa-user-nurse mr-2 ${activeTab === 'pending-approvals' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Pending Approvals
+              {pendingAudits.length > 0 && (
+                <span className="ml-2 bg-error text-white px-2 py-0.5 rounded-full text-xs font-medium">
+                  {pendingAudits.length}
+                </span>
+              )}
+            </button>
+          )}
           <button
             className={`${tabBtnBase} ${activeTab === 'admin-archive' ? tabBtnActive : tabBtnInactive}`}
             onClick={() => setActiveTab('admin-archive')}
@@ -532,7 +661,7 @@ export default function MedicationPage() {
             <div className="p-6">
               {/* Shift Selection & Staff Info */}
               <div className="bg-primary-lightest border border-primary/20 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Select Shift</label>
                     <select 
@@ -546,19 +675,28 @@ export default function MedicationPage() {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Audit Date</label>
+                    <input 
+                      type="date" 
+                      value={auditDate}
+                      onChange={(e) => setAuditDate(e.target.value)}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Audit Time</label>
+                    <input 
+                      type="time" 
+                      value={auditTime}
+                      onChange={(e) => setAuditTime(e.target.value)}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Member</label>
                     <input 
                       type="text" 
                       value={currentStaff}
-                      disabled
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Date & Time</label>
-                    <input 
-                      type="text" 
-                      value={new Date().toLocaleString()}
                       disabled
                       className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail"
                     />
@@ -580,12 +718,16 @@ export default function MedicationPage() {
                             <th className="px-4 py-3 text-left font-medium text-font-base">Medication</th>
                             <th className="px-4 py-3 text-left font-medium text-font-base">Dosage</th>
                             <th className="px-4 py-3 text-center font-medium text-font-base">Previous Count</th>
-                            <th className="px-4 py-3 text-center font-medium text-font-base">Previous Staff</th>
+                            <th className="px-4 py-3 text-left font-medium text-font-base">Previous Staff</th>
                             <th className="px-4 py-3 text-center font-medium text-font-base">Current Count</th>
+                            <th className="px-4 py-3 text-center font-medium text-font-base">Variance</th>
+                            <th className="px-4 py-3 text-left font-medium text-font-base">Notes</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {resident.medications.map((med, idx) => (
+                          {resident.medications.map((med, idx) => {
+                            const variance = med.currentCount ? Number(med.currentCount) - med.previousCount : null;
+                            return (
                             <tr key={idx} className="border-b border-bd last:border-0">
                               <td className="px-4 py-3 text-font-base">{med.medicationName}</td>
                               <td className="px-4 py-3 text-font-detail">{med.dosage}</td>
@@ -594,20 +736,41 @@ export default function MedicationPage() {
                                   {med.previousCount}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-center text-font-detail">
+                              <td className="px-4 py-3 text-font-detail">
                                 {med.previousStaff}
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 text-center">
                                 <input
                                   type="number"
                                   value={med.currentCount}
                                   onChange={(e) => updateMedCount(resident.residentId, idx, e.target.value)}
-                                  placeholder="Enter count"
-                                  className="w-full max-w-[120px] mx-auto border border-bd rounded-lg px-3 py-2 text-sm text-center focus:ring-2 focus:ring-primary focus:border-primary"
+                                  placeholder="Enter"
+                                  className="w-full max-w-[100px] border border-bd rounded-lg px-3 py-2 text-sm text-center focus:ring-2 focus:ring-primary focus:border-primary"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {variance !== null && (
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                    variance === 0 ? 'bg-success/10 text-success' : 
+                                    variance < 0 ? 'bg-error/10 text-error' : 
+                                    'bg-warning/10 text-warning'
+                                  }`}>
+                                    {variance === 0 ? 'Match' : variance > 0 ? `+${variance}` : variance}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={med.notes}
+                                  onChange={(e) => updateMedNotes(resident.residentId, idx, e.target.value)}
+                                  placeholder="Optional"
+                                  className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                                 />
                               </td>
                             </tr>
-                          ))}
+                          );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -616,8 +779,8 @@ export default function MedicationPage() {
               </div>
 
               {/* Notes & Submit */}
-              <div className="mt-6 space-y-4">
-                <div>
+              <div className="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="lg:col-span-3">
                   <label className="block text-sm font-medium text-font-base mb-2">Audit Notes</label>
                   <textarea
                     value={auditNotes}
@@ -626,14 +789,134 @@ export default function MedicationPage() {
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
                   ></textarea>
                 </div>
-                <button
-                  onClick={handleSubmitAudit}
-                  className="w-full bg-success text-white py-3 rounded-lg hover:bg-success/90 font-medium transition-colors"
-                >
-                  <i className="fa-solid fa-check mr-2"></i>
-                  Submit Medication Audit
-                </button>
+                <div className="lg:col-span-1 flex items-end">
+                  <button
+                    onClick={handleSubmitAudit}
+                    className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 font-medium transition-colors h-24 flex flex-col items-center justify-center"
+                  >
+                    <i className="fa-solid fa-check text-lg mb-1"></i>
+                    <span className="text-sm">Submit Audit</span>
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Approvals Tab - Nurse Only */}
+      {activeTab === 'pending-approvals' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-bd">
+            <div className="p-6 border-b border-bd">
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-user-nurse text-primary mr-3"></i>
+                Pending Audit Approvals
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">
+                Review and approve medication audits submitted by staff
+              </div>
+            </div>
+            <div className="p-6">
+              {pendingAudits.length === 0 ? (
+                <div className="text-center py-12">
+                  <i className="fa-solid fa-check-circle text-success text-5xl mb-4"></i>
+                  <h4 className="text-lg font-semibold text-font-base mb-2">All Caught Up!</h4>
+                  <p className="text-font-detail">No pending audits requiring approval at this time.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingAudits.map((audit) => (
+                    <div key={audit.id} className={`border rounded-lg p-6 ${audit.hasDiscrepancies ? 'border-warning bg-warning/5' : 'border-bd'}`}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-lg font-semibold text-font-base">
+                              {audit.shift} Shift Audit
+                            </h4>
+                            {audit.hasDiscrepancies && (
+                              <span className="bg-warning/20 text-warning px-3 py-1 rounded-full text-xs font-medium flex items-center">
+                                <i className="fa-solid fa-exclamation-triangle mr-1"></i>
+                                Has Discrepancies
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-font-detail">Date:</span>
+                              <span className="ml-2 text-font-base font-medium">{audit.date}</span>
+                            </div>
+                            <div>
+                              <span className="text-font-detail">Time:</span>
+                              <span className="ml-2 text-font-base font-medium">{audit.time}</span>
+                            </div>
+                            <div>
+                              <span className="text-font-detail">Submitted By:</span>
+                              <span className="ml-2 text-font-base font-medium">{audit.submittedBy}</span>
+                            </div>
+                            <div>
+                              <span className="text-font-detail">Medications:</span>
+                              <span className="ml-2 text-font-base font-medium">{audit.medicationCount} counted</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedAuditForApproval === audit.id ? (
+                        <div className="mt-4 pt-4 border-t border-bd">
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-font-base mb-2">
+                              Nurse Approval Notes
+                              <span className="text-error ml-1">*</span>
+                            </label>
+                            <textarea
+                              value={nurseApprovalNotes}
+                              onChange={(e) => setNurseApprovalNotes(e.target.value)}
+                              placeholder="Add your review notes, comments on discrepancies, or approval remarks..."
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                            ></textarea>
+                          </div>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleApproveAudit(audit.id)}
+                              className="flex-1 bg-success text-white py-2 px-4 rounded-lg hover:bg-success/90 font-medium transition-colors flex items-center justify-center"
+                            >
+                              <i className="fa-solid fa-check mr-2"></i>
+                              Approve Audit
+                            </button>
+                            <button
+                              onClick={() => handleDenyAudit(audit.id)}
+                              className="flex-1 bg-error text-white py-2 px-4 rounded-lg hover:bg-error/90 font-medium transition-colors flex items-center justify-center"
+                            >
+                              <i className="fa-solid fa-times mr-2"></i>
+                              Deny Audit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAuditForApproval(null);
+                                setNurseApprovalNotes('');
+                              }}
+                              className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 pt-4 border-t border-bd flex justify-end">
+                          <button
+                            onClick={() => setSelectedAuditForApproval(audit.id)}
+                            className="bg-primary text-white py-2 px-6 rounded-lg hover:bg-primary/90 font-medium transition-colors"
+                          >
+                            <i className="fa-solid fa-clipboard-check mr-2"></i>
+                            Review & Approve
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -643,23 +926,39 @@ export default function MedicationPage() {
       {activeTab === 'admin-archive' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-font-base flex items-center">
-                  <i className="fa-solid fa-syringe text-primary mr-3"></i>
-                  Medication Administration Archive
-                </h3>
-                <div className="mt-2 text-sm text-font-detail">
-                  Historical records of all medication administrations
-                </div>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-syringe text-primary mr-3"></i>
+                Medication Administration Archive
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">
+                Historical records of all medication administrations
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
                 type="text"
-                placeholder="Filter by resident, medication, or staff..."
+                placeholder="Search by resident, medication, or staff..."
                 value={adminArchiveFilter}
                 onChange={(e) => setAdminArchiveFilter(e.target.value)}
-                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary w-80"
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
               />
+              <input
+                type="date"
+                value={adminArchiveDateFilter}
+                onChange={(e) => setAdminArchiveDateFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <select
+                value={adminArchiveShiftFilter}
+                onChange={(e) => setAdminArchiveShiftFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Shifts</option>
+                <option value="Morning">Morning</option>
+                <option value="Evening">Evening</option>
+                <option value="Night">Night</option>
+              </select>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -705,23 +1004,39 @@ export default function MedicationPage() {
       {activeTab === 'audit-archive' && (
         <div className="bg-white rounded-lg border border-bd">
           <div className="p-6 border-b border-bd">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-font-base flex items-center">
-                  <i className="fa-solid fa-archive text-primary mr-3"></i>
-                  Medication Audit Archive
-                </h3>
-                <div className="mt-2 text-sm text-font-detail">
-                  Historical records of medication counts and audits
-                </div>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-archive text-primary mr-3"></i>
+                Medication Audit Archive
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">
+                Historical records of medication counts and audits
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
                 type="text"
-                placeholder="Filter by resident, medication, or shift..."
+                placeholder="Search by resident, medication, or shift..."
                 value={auditArchiveFilter}
                 onChange={(e) => setAuditArchiveFilter(e.target.value)}
-                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary w-80"
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
               />
+              <input
+                type="date"
+                value={auditArchiveDateFilter}
+                onChange={(e) => setAuditArchiveDateFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <select
+                value={auditArchiveShiftFilter}
+                onChange={(e) => setAuditArchiveShiftFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Shifts</option>
+                <option value="Morning">Morning</option>
+                <option value="Evening">Evening</option>
+                <option value="Night">Night</option>
+              </select>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -736,6 +1051,7 @@ export default function MedicationPage() {
                   <th className="px-4 py-3 text-center font-medium text-font-base">Previous Count</th>
                   <th className="px-4 py-3 text-center font-medium text-font-base">Audited Count</th>
                   <th className="px-4 py-3 text-center font-medium text-font-base">Discrepancy</th>
+                  <th className="px-4 py-3 text-center font-medium text-font-base">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -760,6 +1076,11 @@ export default function MedicationPage() {
                       }`}>
                         {record.discrepancy === 0 ? 'Match' : record.discrepancy}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button className="text-primary hover:text-primary/80 transition-colors" title="Print Audit">
+                        <i className="fa-solid fa-print text-lg"></i>
+                      </button>
                     </td>
                   </tr>
                 ))}
