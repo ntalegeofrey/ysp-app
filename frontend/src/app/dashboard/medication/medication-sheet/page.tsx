@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function MedicationSheetInner() {
@@ -13,13 +13,29 @@ function MedicationSheetInner() {
   const [newMedInitialCount, setNewMedInitialCount] = useState('');
   const [newMedPhysician, setNewMedPhysician] = useState('');
   const [newMedInstructions, setNewMedInstructions] = useState('');
+  const [currentStaff, setCurrentStaff] = useState('Staff Member');
+
+  // Get logged-in staff name
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const firstName = user.firstName || '';
+        const lastName = user.lastName || '';
+        setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
+      }
+    } catch (err) {
+      console.error('Failed to parse user:', err);
+    }
+  }, []);
 
   const handleAddMedication = () => {
     if (!newMedName || !newMedDosage || !newMedInitialCount) {
       alert('Please fill in all required fields');
       return;
     }
-    alert(`Medication ${newMedName} added successfully for Resident ${residentId}`);
+    alert(`Medication ${newMedName} added successfully for Resident ${residentId} by ${currentStaff}`);
     // Reset form
     setNewMedName('');
     setNewMedDosage('');
@@ -393,6 +409,16 @@ function MedicationSheetInner() {
             </div>
             
             <div className="p-6">
+              <div className="mb-4 bg-primary-lightest border border-primary/20 rounded-lg p-3">
+                <div className="text-sm">
+                  <span className="text-font-detail">Adding medication for:</span>{' '}
+                  <span className="font-semibold text-font-base">Resident {residentId}</span>
+                  <span className="mx-2">•</span>
+                  <span className="text-font-detail">Added by:</span>{' '}
+                  <span className="font-semibold text-font-base">{currentStaff}</span>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">

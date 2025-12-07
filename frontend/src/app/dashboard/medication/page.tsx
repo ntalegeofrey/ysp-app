@@ -271,7 +271,7 @@ export default function MedicationPage() {
       })
     );
 
-    // Create pending audit
+    // Create pending audit with full medication data
     const newPendingAudit: PendingAudit = {
       id: Date.now(),
       date: auditDate,
@@ -281,6 +281,18 @@ export default function MedicationPage() {
       residentCount: residentMedCounts.length,
       medicationCount: residentMedCounts.reduce((sum, r) => sum + r.medications.length, 0),
       hasDiscrepancies,
+      auditData: residentMedCounts.map(resident => ({
+        residentId: resident.residentId,
+        residentName: resident.residentName,
+        medications: resident.medications.map(med => ({
+          name: med.medicationName,
+          dosage: med.dosage,
+          previousCount: med.previousCount,
+          currentCount: Number(med.currentCount),
+          variance: Number(med.currentCount) - med.previousCount,
+          notes: med.notes,
+        })),
+      })),
     };
 
     setPendingAudits(prev => [newPendingAudit, ...prev]);
@@ -350,10 +362,20 @@ export default function MedicationPage() {
   };
 
   // New Resident & Medications form state
-  const [residentId, setResidentId] = useState('');
-  const [residentName, setResidentName] = useState('');
-  const [unit, setUnit] = useState('');
+  const [selectedResident, setSelectedResident] = useState('');
+  const [residentRoom, setResidentRoom] = useState('');
   const [allergies, setAllergies] = useState('');
+
+  // Demo residents for dropdown
+  const demoResidents = [
+    { id: 'A01', name: 'Resident A01' },
+    { id: 'A02', name: 'Resident A02' },
+    { id: 'B01', name: 'Resident B01' },
+    { id: 'B02', name: 'Resident B02' },
+    { id: 'C01', name: 'Resident C01' },
+    { id: 'C02', name: 'Resident C02' },
+    { id: 'D01', name: 'Resident D01' },
+  ];
   const [meds, setMeds] = useState<NewMed[]>([
     { name: '', dosage: '', frequency: 'Once Daily', initialCount: '', physician: '', instructions: '' },
   ]);
@@ -597,22 +619,38 @@ export default function MedicationPage() {
               <h4 className="font-semibold text-font-base mb-4">Resident Information</h4>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Resident ID</label>
-                  <input value={residentId} onChange={(e) => setResidentId(e.target.value)} type="text" placeholder="e.g., A04" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Full Name</label>
-                  <input value={residentName} onChange={(e) => setResidentName(e.target.value)} type="text" placeholder="Enter resident's full name" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-font-base mb-2">Unit Assignment</label>
-                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                    <option>Select Unit</option>
-                    <option>Unit A</option>
-                    <option>Unit B</option>
-                    <option>Unit C</option>
-                    <option>Unit D</option>
+                  <label className="block text-sm font-medium text-font-base mb-2">Select Resident</label>
+                  <select 
+                    value={selectedResident} 
+                    onChange={(e) => setSelectedResident(e.target.value)} 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">Select a resident</option>
+                    {demoResidents.map(resident => (
+                      <option key={resident.id} value={resident.id}>
+                        {resident.name}
+                      </option>
+                    ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Resident Room</label>
+                  <input 
+                    value={residentRoom} 
+                    onChange={(e) => setResidentRoom(e.target.value)} 
+                    type="text" 
+                    placeholder="e.g., Room 12, Unit A" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Added By</label>
+                  <input 
+                    value={currentStaff} 
+                    disabled
+                    type="text" 
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">Medical Allergies</label>
@@ -673,9 +711,21 @@ export default function MedicationPage() {
                 ))}
               </div>
               <button onClick={addMed} className="w-full mt-4 bg-primary text-white py-2 rounded-lg hover:bg-primary-light font-medium">
-                Add Medications
+                <i className="fa-solid fa-plus mr-2"></i>
+                Add Another Medication
               </button>
             </div>
+          </div>
+          
+          {/* Submit Button */}
+          <div className="mt-6 pt-6 border-t border-bd flex justify-end">
+            <button 
+              onClick={() => alert(`Medications for ${selectedResident || 'resident'} added by ${currentStaff}`)}
+              className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 font-medium transition-colors"
+            >
+              <i className="fa-solid fa-check mr-2"></i>
+              Save Resident Medications
+            </button>
           </div>
         </div>
         </section>
