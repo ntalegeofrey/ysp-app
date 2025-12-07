@@ -29,6 +29,14 @@ export default function ResidentProfilePage() {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [profilePicUrl, setProfilePicUrl] = useState('');
   const [selectedDocType, setSelectedDocType] = useState('Legal');
+  const [customDocType, setCustomDocType] = useState('');
+  const [customFileName, setCustomFileName] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [docFilterType, setDocFilterType] = useState('All');
+  const [docSortBy, setDocSortBy] = useState('date-desc');
+  const [currentDocPage, setCurrentDocPage] = useState(1);
+  const docsPerPage = 5;
   const [editForm, setEditForm] = useState({
     dateOfBirth: '',
     admissionDate: '',
@@ -1055,47 +1063,27 @@ export default function ResidentProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Advocate</label>
-                  <div className="border border-bd-input rounded-lg max-h-40 overflow-y-auto bg-bg-subtle">
-                    {programStaff.length === 0 ? (
-                      <p className="text-sm text-font-detail italic p-3">No staff members available</p>
-                    ) : (
-                      <div className="p-2">
-                        {programStaff.map((staff) => {
-                          const fullName = `${staff.user?.firstName || ''} ${staff.user?.lastName || ''}`.trim();
-                          const displayName = fullName ? `${fullName} (${staff.role || 'Staff'})` : staff.userEmail || 'Staff Member';
-                          const advocateValue = staff.user?.lastName && staff.user?.firstName 
-                            ? `${staff.user.lastName}, ${staff.user.firstName}`
-                            : fullName;
-                          const isSelected = editForm.advocate === advocateValue;
-                          
-                          return (
-                            <label 
-                              key={staff.id} 
-                              className={`flex items-center p-2 rounded cursor-pointer hover:bg-primary-lightest transition-colors ${
-                                isSelected ? 'bg-primary-lightest' : ''
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="advocate"
-                                checked={isSelected}
-                                onChange={() => setEditForm({ ...editForm, advocate: advocateValue })}
-                                className="w-4 h-4 text-primary border-bd focus:ring-primary"
-                              />
-                              <span className="ml-3 text-sm text-font-base">
-                                {displayName}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  {editForm.advocate && (
-                    <p className="text-xs text-primary mt-1">
-                      Selected: {editForm.advocate}
-                    </p>
-                  )}
+                  <select
+                    value={editForm.advocate}
+                    onChange={(e) => setEditForm({ ...editForm, advocate: e.target.value })}
+                    className="w-full px-3 py-2 border border-bd-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">Select Advocate</option>
+                    {programStaff.map((staff) => {
+                      const firstName = staff.user?.firstName || '';
+                      const lastName = staff.user?.lastName || '';
+                      const fullName = `${firstName} ${lastName}`.trim();
+                      const role = staff.role || 'Staff';
+                      const displayName = fullName ? `${fullName} (${role})` : staff.userEmail || 'Staff Member';
+                      const advocateValue = lastName && firstName ? `${lastName}, ${firstName}` : fullName;
+                      
+                      return (
+                        <option key={staff.id} value={advocateValue}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-1">Clinician</label>

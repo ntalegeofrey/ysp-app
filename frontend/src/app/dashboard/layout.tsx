@@ -215,7 +215,7 @@ function HeaderWithParams({
   }, []);
 
   // Override title and breadcrumb for resident profile
-  if (pathname.startsWith('/dashboard/resident-registry/') && pathname.split('/').length > 4) {
+  if (pathname.startsWith('/dashboard/resident-registry/') && pathname !== '/dashboard/resident-registry') {
     const firstName = searchParams.get('firstName') || '';
     const lastName = searchParams.get('lastName') || '';
     const displayName = firstName && lastName ? `${firstName} ${lastName}` : (residentName || 'Resident Profile');
