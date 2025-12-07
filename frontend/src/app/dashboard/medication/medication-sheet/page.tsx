@@ -2,8 +2,12 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
+import * as medicationApi from '@/app/utils/medicationApi';
 
 function MedicationSheetInner() {
+  const { toasts, addToast, removeToast } = useToast();
   const searchParams = useSearchParams();
   const residentId = searchParams.get('resident') || 'A01';
   const [showAddMedicationModal, setShowAddMedicationModal] = useState(false);
@@ -14,8 +18,12 @@ function MedicationSheetInner() {
   const [newMedPhysician, setNewMedPhysician] = useState('');
   const [newMedInstructions, setNewMedInstructions] = useState('');
   const [currentStaff, setCurrentStaff] = useState('Staff Member');
+  const [programId, setProgramId] = useState<number | null>(null);
+  const [medications, setMedications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [resident, setResident] = useState<any>(null);
 
-  // Get logged-in staff name
+  // Get logged-in staff name and program ID
   useEffect(() => {
     try {
       const userStr = localStorage.getItem('user');
@@ -25,25 +33,98 @@ function MedicationSheetInner() {
         const lastName = user.lastName || '';
         setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
       }
+      
+      const selectedProgramId = localStorage.getItem('selectedProgramId');
+      if (selectedProgramId) {
+        setProgramId(parseInt(selectedProgramId));
+      }
     } catch (err) {
       console.error('Failed to parse user:', err);
     }
   }, []);
 
-  const handleAddMedication = () => {
+  // Fetch medications when programId and residentId are available
+  useEffect(() => {
+    if (programId && residentId) {
+      fetchMedications();
+      fetchResidentInfo();
+    }
+  }, [programId, residentId]);
+
+  const fetchMedications = async () => {
+    if (!programId || !residentId) return;
+    try {
+      const data = await medicationApi.getResidentMedications(programId, parseInt(residentId));
+      setMedications(data);
+    } catch (err) {
+      console.error('Failed to fetch medications:', err);
+      addToast('Failed to load medications', 'error');
+    }
+  };
+
+  const fetchResidentInfo = async () => {
+    if (!programId || !residentId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const residents = await res.json();
+        const foundResident = residents.find((r: any) => r.id.toString() === residentId);
+        if (foundResident) {
+          setResident(foundResident);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch resident info:', err);
+    }
+  };
+
+  const handleAddMedication = async () => {
+    if (!programId || !residentId) return;
+    
     if (!newMedName || !newMedDosage || !newMedInitialCount) {
-      alert('Please fill in all required fields');
+      addToast('Please fill in all required fields', 'warning');
       return;
     }
-    alert(`Medication ${newMedName} added successfully for Resident ${residentId} by ${currentStaff}`);
-    // Reset form
-    setNewMedName('');
-    setNewMedDosage('');
-    setNewMedFrequency('Once Daily');
-    setNewMedInitialCount('');
-    setNewMedPhysician('');
-    setNewMedInstructions('');
-    setShowAddMedicationModal(false);
+
+    setLoading(true);
+    try {
+      await medicationApi.addResidentMedication(programId, {
+        residentId: parseInt(residentId),
+        medicationName: newMedName,
+        dosage: newMedDosage,
+        frequency: newMedFrequency,
+        initialCount: parseInt(newMedInitialCount),
+        prescribingPhysician: newMedPhysician || undefined,
+        specialInstructions: newMedInstructions || undefined,
+      });
+      
+      addToast(`Medication ${newMedName} added successfully`, 'success');
+      
+      // Reset form
+      setNewMedName('');
+      setNewMedDosage('');
+      setNewMedFrequency('Once Daily');
+      setNewMedInitialCount('');
+      setNewMedPhysician('');
+      setNewMedInstructions('');
+      setShowAddMedicationModal(false);
+      
+      // Refresh medications list
+      fetchMedications();
+    } catch (err: any) {
+      console.error('Failed to add medication:', err);
+      addToast(err.message || 'Failed to add medication', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,11 +155,15 @@ function MedicationSheetInner() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Full Name</label>
-                <div className="text-font-base">Michael Johnson</div>
+                <div className="text-font-base">
+                  {resident ? `${resident.firstName} ${resident.lastName}` : 'Loading...'}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">Unit Assignment</label>
-                <div className="text-font-base">Unit A - Room 12</div>
+                <div className="text-font-base">
+                  {resident?.unitAssignment || resident?.roomNumber || 'Not assigned'}
+                </div>
               </div>
             </div>
             <div className="space-y-4">
@@ -130,148 +215,47 @@ function MedicationSheetInner() {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Medication card: Risperidone */}
-          <div className="border border-bd rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <h4 className="text-lg font-semibold text-font-base">Risperidone 2mg</h4>
-                <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">Twice Daily</span>
-              </div>
-              <div className="flex space-x-2">
-                <button className="text-primary hover:bg-primary-lightest p-2 rounded">
-                  <i className="fa-solid fa-edit"></i>
-                </button>
-                <button className="text-error hover:bg-error-lightest p-2 rounded">
-                  <i className="fa-solid fa-trash"></i>
-                </button>
-              </div>
+          {medications.length === 0 ? (
+            <div className="text-center py-12 text-font-detail">
+              <i className="fa-solid fa-pills text-5xl mb-4 opacity-30"></i>
+              <p className="text-lg">No medications currently prescribed</p>
+              <p className="text-sm mt-2">Click "Add New Medication" to get started</p>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Current Count</label>
-                <div className="text-2xl font-bold text-success">28</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Prescribed by</label>
-                <div className="text-font-base">Dr. Sarah Wilson</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Special Instructions</label>
-                <div className="text-font-base text-sm">Take with food</div>
-              </div>
-            </div>
-
-            <div className="border-t border-bd pt-4">
-              <h5 className="font-semibold text-font-base mb-3">Today's Administration Schedule</h5>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-success-lightest p-4 rounded border-l-4 border-success">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-font-base">Morning Dose - 8:00 AM</span>
-                    <span className="bg-success text-white px-2 py-1 rounded text-xs">✓ Given</span>
+          ) : (
+            medications.map((med) => (
+              <div key={med.id} className="border border-bd rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <h4 className="text-lg font-semibold text-font-base">{med.medicationName} {med.dosage}</h4>
+                    <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">{med.frequency}</span>
                   </div>
-                  <div className="text-sm text-font-detail">Administered by: J. Smith at 8:15 AM<br />Count after: 27 pills</div>
-                </div>
-                <div className="bg-highlight-lightest p-4 rounded border-l-4 border-warning">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-font-base">Evening Dose - 8:00 PM</span>
-                    <span className="bg-warning text-white px-2 py-1 rounded text-xs">Scheduled</span>
+                  <div className="flex space-x-2">
+                    <button className="text-primary hover:bg-primary-lightest p-2 rounded">
+                      <i className="fa-solid fa-edit"></i>
+                    </button>
+                    <button className="text-error hover:bg-error-lightest p-2 rounded">
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
                   </div>
-                  <div className="text-sm text-font-detail">Due in 4 hours 45 minutes</div>
-                  <button className="mt-2 bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary-light">Mark as Given</button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-1">Current Count</label>
+                    <div className="text-2xl font-bold text-success">{med.currentCount}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-1">Prescribed by</label>
+                    <div className="text-font-base">{med.prescribingPhysician || 'Not specified'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-1">Special Instructions</label>
+                    <div className="text-font-base text-sm">{med.specialInstructions || 'None'}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Medication card: Sertraline */}
-          <div className="border border-bd rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <h4 className="text-lg font-semibold text-font-base">Sertraline 50mg</h4>
-                <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">Once Daily</span>
-              </div>
-              <div className="flex space-x-2">
-                <button className="text-primary hover:bg-primary-lightest p-2 rounded">
-                  <i className="fa-solid fa-edit"></i>
-                </button>
-                <button className="text-error hover:bg-error-lightest p-2 rounded">
-                  <i className="fa-solid fa-trash"></i>
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Current Count</label>
-                <div className="text-2xl font-bold text-success">15</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Prescribed by</label>
-                <div className="text-font-base">Dr. Sarah Wilson</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Special Instructions</label>
-                <div className="text-font-base text-sm">Morning with breakfast</div>
-              </div>
-            </div>
-
-            <div className="border-t border-bd pt-4">
-              <h5 className="font-semibold text-font-base mb-3">Today's Administration Schedule</h5>
-              <div className="bg-success-lightest p-4 rounded border-l-4 border-success">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-font-base">Morning Dose - 8:00 AM</span>
-                  <span className="bg-success text-white px-2 py-1 rounded text-xs">✓ Given</span>
-                </div>
-                <div className="text-sm text-font-detail">Administered by: J. Smith at 8:20 AM<br />Count after: 14 pills</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Medication card: Melatonin */}
-          <div className="border border-bd rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <h4 className="text-lg font-semibold text-font-base">Melatonin 3mg</h4>
-                <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">Bedtime</span>
-              </div>
-              <div className="flex space-x-2">
-                <button className="text-primary hover:bg-primary-lightest p-2 rounded">
-                  <i className="fa-solid fa-edit"></i>
-                </button>
-                <button className="text-error hover:bg-error-lightest p-2 rounded">
-                  <i className="fa-solid fa-trash"></i>
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Current Count</label>
-                <div className="text-2xl font-bold text-warning">8</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Prescribed by</label>
-                <div className="text-font-base">Dr. Sarah Wilson</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Special Instructions</label>
-                <div className="text-font-base text-sm">30 min before bed</div>
-              </div>
-            </div>
-
-            <div className="border-t border-bd pt-4">
-              <h5 className="font-semibold text-font-base mb-3">Today's Administration Schedule</h5>
-              <div className="bg-highlight-lightest p-4 rounded border-l-4 border-warning">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-font-base">Bedtime Dose - 9:30 PM</span>
-                  <span className="bg-warning text-white px-2 py-1 rounded text-xs">Scheduled</span>
-                </div>
-                <div className="text-sm text-font-detail">Due in 6 hours 15 minutes</div>
-                <button className="mt-2 bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary-light">Mark as Given</button>
-              </div>
-            </div>
-          </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -505,15 +489,18 @@ function MedicationSheetInner() {
               </button>
               <button
                 onClick={handleAddMedication}
-                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors"
+                disabled={loading}
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i className="fa-solid fa-check mr-2"></i>
-                Add Medication
+                {loading ? 'Adding...' : 'Add Medication'}
               </button>
             </div>
           </div>
         </div>
       )}
+      
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </main>
   );
 }

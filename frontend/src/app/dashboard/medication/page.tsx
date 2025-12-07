@@ -120,6 +120,37 @@ export default function MedicationPage() {
     }
   }, [programId, activeTab]);
 
+  // Fetch residents when needed
+  useEffect(() => {
+    if (programId && (activeTab === 'add-medication' || activeTab === 'med-sheets')) {
+      fetchResidents();
+    }
+  }, [programId, activeTab]);
+
+  const fetchResidents = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setResidents(data);
+      } else {
+        addToast('Failed to load residents', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fetch residents:', err);
+      addToast('Failed to load residents', 'error');
+    }
+  };
+
   const fetchAlerts = async () => {
     if (!programId) return;
     try {
@@ -462,17 +493,7 @@ export default function MedicationPage() {
   const [selectedResident, setSelectedResident] = useState('');
   const [residentRoom, setResidentRoom] = useState('');
   const [allergies, setAllergies] = useState('');
-
-  // Demo residents for dropdown
-  const demoResidents = [
-    { id: 'A01', name: 'Resident A01' },
-    { id: 'A02', name: 'Resident A02' },
-    { id: 'B01', name: 'Resident B01' },
-    { id: 'B02', name: 'Resident B02' },
-    { id: 'C01', name: 'Resident C01' },
-    { id: 'C02', name: 'Resident C02' },
-    { id: 'D01', name: 'Resident D01' },
-  ];
+  const [residents, setResidents] = useState<any[]>([]);
   const [meds, setMeds] = useState<NewMed[]>([
     { name: '', dosage: '', frequency: 'Once Daily', initialCount: '', physician: '', instructions: '' },
   ]);
@@ -483,8 +504,69 @@ export default function MedicationPage() {
   };
   const removeMed = (idx: number) => setMeds((m) => m.filter((_, i) => i !== idx));
 
-  // Demo residents grid
-  const residents = [
+  const handleSaveResidentMedications = async () => {
+    if (!programId || !selectedResident) {
+      addToast('Please select a resident', 'warning');
+      return;
+    }
+
+    // Validate all medications have required fields
+    const invalidMeds = meds.filter(m => !m.name || !m.dosage || !m.initialCount);
+    if (invalidMeds.length > 0) {
+      addToast('Please fill in all required medication fields (name, dosage, initial count)', 'warning');
+      return;
+    }
+
+    setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      // Add each medication
+      for (const med of meds) {
+        try {
+          await medicationApi.addResidentMedication(programId, {
+            residentId: parseInt(selectedResident),
+            medicationName: med.name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            initialCount: parseInt(med.initialCount),
+            prescribingPhysician: med.physician || undefined,
+            specialInstructions: med.instructions || undefined,
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to add ${med.name}:`, err);
+          failCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        const residentName = residents.find(r => r.id.toString() === selectedResident);
+        const resName = residentName ? `${residentName.firstName} ${residentName.lastName}` : 'resident';
+        addToast(`${successCount} medication(s) added successfully for ${resName}`, 'success');
+        
+        // Reset form
+        setSelectedResident('');
+        setResidentRoom('');
+        setAllergies('');
+        setMeds([{ name: '', dosage: '', frequency: 'Once Daily', initialCount: '', physician: '', instructions: '' }]);
+      }
+
+      if (failCount > 0) {
+        addToast(`Failed to add ${failCount} medication(s)`, 'error');
+      }
+    } catch (err: any) {
+      console.error('Error saving medications:', err);
+      addToast('An error occurred while saving medications', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Demo residents grid for med sheets
+  const demoResidentsGrid = [
     {
       id: 'A01',
       name: 'Resident A01',
@@ -719,13 +801,21 @@ export default function MedicationPage() {
                   <label className="block text-sm font-medium text-font-base mb-2">Select Resident</label>
                   <select 
                     value={selectedResident} 
-                    onChange={(e) => setSelectedResident(e.target.value)} 
+                    onChange={(e) => {
+                      const residentId = e.target.value;
+                      setSelectedResident(residentId);
+                      // Auto-fill room if available
+                      const resident = residents.find(r => r.id.toString() === residentId);
+                      if (resident) {
+                        setResidentRoom(resident.roomNumber || resident.unitAssignment || '');
+                      }
+                    }} 
                     className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select a resident</option>
-                    {demoResidents.map(resident => (
+                    {residents.map(resident => (
                       <option key={resident.id} value={resident.id}>
-                        {resident.name}
+                        {resident.firstName} {resident.lastName}
                       </option>
                     ))}
                   </select>
@@ -817,11 +907,12 @@ export default function MedicationPage() {
           {/* Submit Button */}
           <div className="mt-6 pt-6 border-t border-bd flex justify-end">
             <button 
-              onClick={() => alert(`Medications for ${selectedResident || 'resident'} added by ${currentStaff}`)}
-              className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 font-medium transition-colors"
+              onClick={handleSaveResidentMedications}
+              disabled={loading || !selectedResident || meds.some(m => !m.name || !m.dosage || !m.initialCount)}
+              className="bg-success text-white px-6 py-2 rounded-lg hover:bg-success/90 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <i className="fa-solid fa-check mr-2"></i>
-              Save Resident Medications
+              {loading ? 'Saving...' : 'Save Resident Medications'}
             </button>
           </div>
         </div>
@@ -840,7 +931,7 @@ export default function MedicationPage() {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {residents.map((r) => (
+              {demoResidentsGrid.map((r) => (
                 <div key={r.id} className={`border rounded-lg p-4 hover:shadow-lg cursor-pointer transition-shadow ${r.highlightCls}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-font-base">{r.name}</h4>
