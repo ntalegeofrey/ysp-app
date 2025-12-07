@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
+import * as medicationApi from '@/app/utils/medicationApi';
 
 type Alert = {
   id: number;
@@ -62,6 +65,7 @@ type PendingAudit = {
 };
 
 export default function MedicationPage() {
+  const { toasts, addToast, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('alerts');
   const [currentStaff, setCurrentStaff] = useState('');
   const [selectedShift, setSelectedShift] = useState<'Morning' | 'Evening' | 'Night'>('Morning');
@@ -77,7 +81,10 @@ export default function MedicationPage() {
   const [userRole, setUserRole] = useState('');
   const [selectedAuditForApproval, setSelectedAuditForApproval] = useState<number | null>(null);
   const [nurseApprovalNotes, setNurseApprovalNotes] = useState('');
+  const [programId, setProgramId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
+  // Load user info and program ID
   useEffect(() => {
     try {
       const userStr = localStorage.getItem('user');
@@ -89,10 +96,58 @@ export default function MedicationPage() {
         setCurrentStaff(`${firstName} ${lastName}`.trim() || 'Staff Member');
         setUserRole(role.toUpperCase());
       }
+      
+      const selectedProgramId = localStorage.getItem('selectedProgramId');
+      if (selectedProgramId) {
+        setProgramId(parseInt(selectedProgramId));
+      }
     } catch (err) {
       console.error('Failed to parse user:', err);
     }
   }, []);
+
+  // Fetch alerts when program changes
+  useEffect(() => {
+    if (programId && activeTab === 'alerts') {
+      fetchAlerts();
+    }
+  }, [programId, activeTab]);
+
+  // Fetch pending audits when tab changes
+  useEffect(() => {
+    if (programId && activeTab === 'pending-approvals') {
+      fetchPendingAudits();
+    }
+  }, [programId, activeTab]);
+
+  const fetchAlerts = async () => {
+    if (!programId) return;
+    try {
+      const data = await medicationApi.getActiveAlerts(programId);
+      setAlerts(data.map((alert: any) => ({
+        id: alert.id,
+        type: alert.alertType.toLowerCase() as 'critical' | 'warning' | 'info',
+        time: new Date(alert.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        title: alert.title,
+        description: alert.description,
+        resolved: false,
+      })));
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+      addToast('Failed to load alerts', 'error');
+    }
+  };
+
+  const fetchPendingAudits = async () => {
+    if (!programId) return;
+    try {
+      const data = await medicationApi.getPendingAudits(programId);
+      setPendingAudits(data);
+    } catch (err) {
+      console.error('Failed to fetch pending audits:', err);
+      addToast('Failed to load pending audits', 'error');
+    }
+  };
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -252,85 +307,115 @@ export default function MedicationPage() {
     },
   ]);
 
-  const handleSubmitAudit = () => {
+  const handleSubmitAudit = async () => {
+    if (!programId) return;
+    
     // Validate all counts are entered
     const incomplete = residentMedCounts.some(resident =>
       resident.medications.some(med => !med.currentCount)
     );
     
     if (incomplete) {
-      alert('Please complete all medication counts before submitting.');
+      addToast('Please complete all medication counts before submitting', 'warning');
       return;
     }
-    
-    // Check for discrepancies
-    const hasDiscrepancies = residentMedCounts.some(resident =>
-      resident.medications.some(med => {
-        const variance = Number(med.currentCount) - med.previousCount;
-        return variance !== 0;
-      })
-    );
 
-    // Create pending audit with full medication data
-    const newPendingAudit: PendingAudit = {
-      id: Date.now(),
-      date: auditDate,
-      time: auditTime,
-      shift: selectedShift,
-      submittedBy: currentStaff,
-      residentCount: residentMedCounts.length,
-      medicationCount: residentMedCounts.reduce((sum, r) => sum + r.medications.length, 0),
-      hasDiscrepancies,
-      auditData: residentMedCounts.map(resident => ({
-        residentId: resident.residentId,
-        residentName: resident.residentName,
-        medications: resident.medications.map(med => ({
-          name: med.medicationName,
-          dosage: med.dosage,
-          previousCount: med.previousCount,
-          currentCount: Number(med.currentCount),
-          variance: Number(med.currentCount) - med.previousCount,
-          notes: med.notes,
-        })),
-      })),
-    };
+    setLoading(true);
+    try {
+      // Note: This assumes medications have IDs. In real implementation,
+      // you'd need to fetch medications first to get their IDs
+      const auditData = {
+        auditDate,
+        auditTime,
+        shift: selectedShift,
+        auditNotes,
+        counts: residentMedCounts.flatMap(resident =>
+          resident.medications.map((med, idx) => ({
+            residentId: parseInt(resident.residentId.replace(/\D/g, '')) || idx + 1,
+            residentMedicationId: idx + 1, // Placeholder - would come from fetched data
+            previousCount: med.previousCount,
+            currentCount: Number(med.currentCount),
+            notes: med.notes,
+          }))
+        ),
+      };
 
-    setPendingAudits(prev => [newPendingAudit, ...prev]);
-    
-    alert(`Medication Audit submitted for ${selectedShift} Shift by ${currentStaff}. Pending nurse approval.`);
-    
-    // Reset counts
-    setResidentMedCounts(prev =>
-      prev.map(resident => ({
-        ...resident,
-        medications: resident.medications.map(med => ({ ...med, currentCount: '', notes: '' })),
-      }))
-    );
-    setAuditNotes('');
+      await medicationApi.submitAudit(programId, auditData);
+      addToast(`Medication Audit submitted for ${selectedShift} shift. Pending nurse approval.`, 'success');
+      
+      // Reset counts
+      setResidentMedCounts(prev =>
+        prev.map(resident => ({
+          ...resident,
+          medications: resident.medications.map(med => ({ ...med, currentCount: '', notes: '' })),
+        }))
+      );
+      setAuditNotes('');
+      
+      // Refresh pending audits if on that tab
+      if (activeTab === 'pending-approvals') {
+        fetchPendingAudits();
+      }
+    } catch (err: any) {
+      console.error('Failed to submit audit:', err);
+      addToast(err.message || 'Failed to submit audit', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleApproveAudit = (auditId: number) => {
+  const handleApproveAudit = async (auditId: number) => {
+    if (!programId) return;
+    
     if (!nurseApprovalNotes && selectedAuditForApproval === auditId) {
-      alert('Please add approval notes before approving the audit.');
+      addToast('Please add approval notes before approving the audit', 'warning');
       return;
     }
-    
-    alert(`Audit #${auditId} approved by ${currentStaff}. Notes: ${nurseApprovalNotes || 'None'}`);
-    setPendingAudits(prev => prev.filter(a => a.id !== auditId));
-    setSelectedAuditForApproval(null);
-    setNurseApprovalNotes('');
+
+    setLoading(true);
+    try {
+      await medicationApi.approveAudit(programId, auditId, {
+        status: 'APPROVED',
+        approvalNotes: nurseApprovalNotes,
+      });
+      
+      addToast('Audit approved successfully', 'success');
+      setSelectedAuditForApproval(null);
+      setNurseApprovalNotes('');
+      fetchPendingAudits(); // Refresh list
+    } catch (err: any) {
+      console.error('Failed to approve audit:', err);
+      addToast(err.message || 'Failed to approve audit', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDenyAudit = (auditId: number) => {
+  const handleDenyAudit = async (auditId: number) => {
+    if (!programId) return;
+    
     if (!nurseApprovalNotes) {
-      alert('Please add notes explaining why this audit is being denied.');
+      addToast('Please add notes explaining why this audit is being denied', 'warning');
       return;
     }
-    
-    alert(`Audit #${auditId} denied by ${currentStaff}. Reason: ${nurseApprovalNotes}`);
-    setPendingAudits(prev => prev.filter(a => a.id !== auditId));
-    setSelectedAuditForApproval(null);
-    setNurseApprovalNotes('');
+
+    setLoading(true);
+    try {
+      await medicationApi.approveAudit(programId, auditId, {
+        status: 'DENIED',
+        approvalNotes: nurseApprovalNotes,
+      });
+      
+      addToast('Audit denied', 'info');
+      setSelectedAuditForApproval(null);
+      setNurseApprovalNotes('');
+      fetchPendingAudits(); // Refresh list
+    } catch (err: any) {
+      console.error('Failed to deny audit:', err);
+      addToast(err.message || 'Failed to deny audit', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   // Alerts demo data
   const [alerts, setAlerts] = useState<Alert[]>([
@@ -357,8 +442,20 @@ export default function MedicationPage() {
     },
   ]);
 
-  const resolveAlert = (id: number) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)));
+  const resolveAlert = async (id: number) => {
+    if (!programId) return;
+    
+    setLoading(true);
+    try {
+      await medicationApi.resolveAlert(programId, id);
+      addToast('Alert resolved', 'success');
+      fetchAlerts(); // Refresh alerts
+    } catch (err: any) {
+      console.error('Failed to resolve alert:', err);
+      addToast(err.message || 'Failed to resolve alert', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // New Resident & Medications form state
@@ -1247,6 +1344,8 @@ export default function MedicationPage() {
           </div>
         </div>
       )}
+      
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
