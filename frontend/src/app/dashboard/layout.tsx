@@ -68,6 +68,14 @@ const menuGroups = [
 
 // Helper function to get page title and breadcrumb
 const getPageTitleAndBreadcrumb = (pathname: string) => {
+  // Check for resident profile dynamic route
+  if (pathname.startsWith('/dashboard/resident-registry/') && pathname.split('/').length > 4) {
+    return {
+      title: 'Resident Profile',
+      breadcrumb: 'Resident Registry • Resident Profile',
+    };
+  }
+
   // First, check if we're on an exact match for a main menu item
   let exactMainMatch: any = null;
   for (const group of menuGroups) {
@@ -281,6 +289,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // list of pages want the back button to appear on
   const pagesWithBack = ['/dashboard/add-resident', '/dashboard/staff-management/edit-schedule', '/dashboard/medication/medication-sheet', '/dashboard/medication/all-medication-records', '/dashboard/inventory/refill-request', '/dashboard/inventory/reorganize', '/dashboard/ucr/notify', '/dashboard/repairs/award', '/dashboard/repairs/assign'];
+  
+  // Check if it's a resident profile page
+  const isResidentProfile = pathname.startsWith('/dashboard/resident-registry/') && pathname.split('/').length > 4;
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -457,7 +468,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [pathname, user]);
 
   if (!user) return null;
-  const showBackButtonDefault = pagesWithBack.includes(pathname);
+  const showBackButtonDefault = pagesWithBack.includes(pathname) || isResidentProfile;
   const base = getPageTitleAndBreadcrumb(pathname);
 
   const canRenderContent = !!user && programAuthChecked && programAuthorized;

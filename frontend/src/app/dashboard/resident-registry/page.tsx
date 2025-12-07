@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ResidentRegistryPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [canAddResident, setCanAddResident] = useState<boolean>(false);
   const [canEditResident, setCanEditResident] = useState<boolean>(false);
@@ -228,6 +230,11 @@ export default function ResidentRegistryPage() {
                           <td className="px-4 py-3 text-sm">{r.admissionDate ? new Date(r.admissionDate).toLocaleDateString() : ''}</td>
                           {(canEditResident || canDischargeResident) && (
                             <td className="px-4 py-3 text-sm">
+                              <button className="text-primary hover:text-primary-light mr-2" title="View Profile" onClick={() => {
+                                router.push(`/dashboard/resident-registry/${r.id}`);
+                              }}>
+                                <i className="fa-solid fa-user"></i>
+                              </button>
                               {canEditResident && (
                               <button className="text-primary hover:text-primary-light mr-2" title="Edit" onClick={() => {
                                 setResidentEdit({
