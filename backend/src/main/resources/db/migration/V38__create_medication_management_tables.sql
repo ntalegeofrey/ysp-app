@@ -8,7 +8,7 @@ CREATE TABLE resident_medications (
     id BIGSERIAL PRIMARY KEY,
     
     -- Foreign keys
-    resident_id BIGINT NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+    resident_id BIGINT NOT NULL REFERENCES program_residents(id) ON DELETE CASCADE,
     program_id BIGINT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     
     -- Medication details
@@ -45,7 +45,7 @@ CREATE TABLE medication_administrations (
     id BIGSERIAL PRIMARY KEY,
     
     -- Foreign keys
-    resident_id BIGINT NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+    resident_id BIGINT NOT NULL REFERENCES program_residents(id) ON DELETE CASCADE,
     resident_medication_id BIGINT NOT NULL REFERENCES resident_medications(id) ON DELETE CASCADE,
     program_id BIGINT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     administered_by_staff_id BIGINT NOT NULL REFERENCES users(id),
@@ -113,7 +113,7 @@ CREATE TABLE medication_audit_counts (
     
     -- Foreign keys
     audit_id BIGINT NOT NULL REFERENCES medication_audits(id) ON DELETE CASCADE,
-    resident_id BIGINT NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+    resident_id BIGINT NOT NULL REFERENCES program_residents(id) ON DELETE CASCADE,
     resident_medication_id BIGINT NOT NULL REFERENCES resident_medications(id) ON DELETE CASCADE,
     
     -- Count details
@@ -142,7 +142,7 @@ CREATE TABLE medication_alerts (
     
     -- Context
     program_id BIGINT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    resident_id BIGINT REFERENCES residents(id) ON DELETE SET NULL,
+    resident_id BIGINT REFERENCES program_residents(id) ON DELETE SET NULL,
     resident_medication_id BIGINT REFERENCES resident_medications(id) ON DELETE SET NULL,
     
     -- Alert information
