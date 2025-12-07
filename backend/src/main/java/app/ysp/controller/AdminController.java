@@ -40,6 +40,11 @@ public class AdminController {
         User u = new User();
         u.setEmail(req.getEmail());
         u.setRole(req.getRole() == null ? "user" : req.getRole());
+        
+        // Set first name and last name
+        if (req.getFirstName() != null) u.setFirstName(req.getFirstName().trim());
+        if (req.getLastName() != null) u.setLastName(req.getLastName().trim());
+        
         // Compose fullName from parts if not provided
         String fullName = req.getFullName();
         if (fullName == null || fullName.isBlank()) {
@@ -50,13 +55,17 @@ public class AdminController {
             fullName = sb.toString();
         }
         u.setFullName(fullName);
+        
         // If jobTitle is 'Other', use jobTitleOther
         String jobTitle = req.getJobTitle();
         if (jobTitle != null && jobTitle.equalsIgnoreCase("other")) {
             jobTitle = req.getJobTitleOther();
         }
         u.setJobTitle(jobTitle);
-        u.setEmployeeNumber(req.getEmployeeNumber());
+        
+        // Auto-generate 6-digit employee number
+        u.setEmployeeNumber(generateEmployeeNumber());
+        
         u.setEnabled(true);
         u.setMustChangePassword(true);
         // Placeholder password until set; not used because mustChangePassword=true
@@ -70,6 +79,31 @@ public class AdminController {
         try { sseHub.broadcast(java.util.Map.of("type","metrics.changed")); } catch (Exception ignored) {}
         return ResponseEntity.created(URI.create("/admin/users/" + u.getId())).body(toDto(u));
     }
+    
+    /**
+     * Generate a unique 6-digit employee number starting from 100001
+     * Massachusetts staff identification requirement
+     */
+    private String generateEmployeeNumber() {
+        // Get all existing employee numbers
+        List<User> allUsers = userRepository.findAll();
+        int maxNumber = 100000; // Start from 100000, first employee will be 100001
+        
+        for (User user : allUsers) {
+            String empNum = user.getEmployeeNumber();
+            if (empNum != null && empNum.matches("\\d{6}")) {
+                try {
+                    int num = Integer.parseInt(empNum);
+                    if (num >= 100000 && num <= 999999 && num > maxNumber) {
+                        maxNumber = num;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        
+        // Increment and return as 6-digit string
+        return String.format("%06d", maxNumber + 1);
+    }
 
     @PatchMapping("/{id}")
     public ResponseEntity<UserResponse> update(@PathVariable Long id, @RequestBody UpdateUserRequest req) {
@@ -80,7 +114,11 @@ public class AdminController {
                     if (req.getMustChangePassword() != null) u.setMustChangePassword(req.getMustChangePassword());
                     if (req.getFullName() != null) u.setFullName(req.getFullName());
                     if (req.getJobTitle() != null) u.setJobTitle(req.getJobTitle());
-                    if (req.getEmployeeNumber() != null) u.setEmployeeNumber(req.getEmployeeNumber());
+                    // Employee number is auto-generated and should not be manually changed
+                    // Only allow if user doesn't have one yet (legacy users)
+                    if (req.getEmployeeNumber() != null && (u.getEmployeeNumber() == null || u.getEmployeeNumber().isBlank())) {
+                        u.setEmployeeNumber(req.getEmployeeNumber());
+                    }
                     User saved = userRepository.save(u);
                     if (Boolean.TRUE.equals(req.getSendOneTimeLogin())) {
                         otlService.createAndEmailToken(saved.getId(), 1800);
@@ -110,6 +148,8 @@ public class AdminController {
         r.setEmail(u.getEmail());
         r.setRole(u.getRole());
         r.setFullName(u.getFullName());
+        r.setFirstName(u.getFirstName());
+        r.setLastName(u.getLastName());
         r.setJobTitle(u.getJobTitle());
         r.setEmployeeNumber(u.getEmployeeNumber());
         r.setEnabled(u.getEnabled());

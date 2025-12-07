@@ -4,6 +4,7 @@ import app.ysp.entity.Program;
 import app.ysp.entity.ProgramAssignment;
 import app.ysp.domain.User;
 import app.ysp.entity.ProgramResident;
+import app.ysp.dto.StaffAssignmentResponse;
 import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.repo.ProgramRepository;
 import app.ysp.repo.UserRepository;
@@ -250,8 +251,38 @@ public class ProgramController {
     }
 
     @GetMapping("/{id}/assignments")
-    public List<ProgramAssignment> getAssignments(@PathVariable Long id) {
-        return assignments.findByProgram_Id(id);
+    public List<StaffAssignmentResponse> getAssignments(@PathVariable Long id) {
+        List<ProgramAssignment> assignmentList = assignments.findByProgram_Id(id);
+        return assignmentList.stream().map(assignment -> {
+            // Try to get user info from users table
+            String firstName = null;
+            String lastName = null;
+            String fullName = null;
+            
+            if (assignment.getUserId() != null) {
+                var userOpt = users.findById(assignment.getUserId());
+                if (userOpt.isPresent()) {
+                    var user = userOpt.get();
+                    firstName = user.getFirstName();
+                    lastName = user.getLastName();
+                    fullName = user.getFullName();
+                }
+            }
+            
+            return new StaffAssignmentResponse(
+                assignment.getId(),
+                assignment.getUserId(),
+                assignment.getUserEmail(),
+                assignment.getRoleType(),
+                assignment.getEmployeeId(),
+                assignment.getTitle(),
+                assignment.getCategory(),
+                assignment.getStatus(),
+                firstName,
+                lastName,
+                fullName
+            );
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     @PostMapping("/{id}/assignments")

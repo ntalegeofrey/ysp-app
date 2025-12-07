@@ -42,6 +42,8 @@ public class UsersController {
         r.setEmail(u.getEmail());
         r.setRole(u.getRole());
         r.setFullName(u.getFullName());
+        r.setFirstName(u.getFirstName());
+        r.setLastName(u.getLastName());
         r.setJobTitle(u.getJobTitle());
         r.setEmployeeNumber(u.getEmployeeNumber());
         r.setEnabled(u.getEnabled());

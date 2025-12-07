@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import ToastContainer from '@/app/components/Toast';
 
 type UserItem = {
   id: number;
@@ -32,9 +33,19 @@ export default function SystemAdminPage() {
   const [newJobTitleOther, setNewJobTitleOther] = useState("");
   const [newRole, setNewRole] = useState("user");
   const [newSendOtl, setNewSendOtl] = useState(true);
-  const [newEmployeeNumber, setNewEmployeeNumber] = useState("");
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; tone: 'success' | 'error' | 'warning' | 'info' }>>([]);
+  const addToast = (title: string, tone: 'success' | 'error' | 'warning' | 'info') => {
+    const id = String(Date.now() + Math.random());
+    setToasts(t => [...t, { id, title, tone }]);
+    setTimeout(() => removeToast(id), 3500);
+  };
+  const removeToast = (id: string) => {
+    setToasts(t => t.filter(toast => toast.id !== id));
+  };
 
   const base = useMemo(() => process.env.NEXT_PUBLIC_API_BASE || "/api", []);
   const token = useMemo(() => (typeof window !== "undefined" ? localStorage.getItem("token") : null), []);
@@ -91,21 +102,25 @@ export default function SystemAdminPage() {
           role: newRole,
           fullName: newFullName || undefined,
           jobTitle: (newJobTitle === "Other" ? newJobTitleOther : newJobTitle) || undefined,
-          employeeNumber: newEmployeeNumber || undefined,
           sendOneTimeLogin: newSendOtl,
         }),
       });
-      if (!res.ok) throw new Error("Failed to create user");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create user");
+      }
+      const createdUser = await res.json();
+      addToast(`User created successfully! Employee #${createdUser.employeeNumber}`, 'success');
       setNewFullName("");
       setNewEmail("");
       setNewJobTitle("");
       setNewJobTitleOther("");
       setNewRole("user");
       setNewSendOtl(true);
-      setNewEmployeeNumber("");
       await fetchUsers();
     } catch (e: any) {
       setError(e?.message || "Failed to create user");
+      addToast(e?.message || 'Failed to create user', 'error');
     } finally {
       setCreating(false);
     }
@@ -380,7 +395,14 @@ export default function SystemAdminPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Employee Number</label>
-                <input value={newEmployeeNumber} onChange={(e)=>setNewEmployeeNumber(e.target.value)} type="text" className="w-full px-3 py-2 border border-bd rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="EMP-2024-XXX" />
+                <input 
+                  value="Auto-generated on save" 
+                  disabled 
+                  type="text" 
+                  className="w-full px-3 py-2 border border-bd rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed" 
+                  placeholder="Auto-generated" 
+                />
+                <p className="text-xs text-font-detail mt-1">6-digit employee number will be auto-generated</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-2">Job Title</label>
@@ -638,6 +660,9 @@ export default function SystemAdminPage() {
           </table>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

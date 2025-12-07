@@ -1269,10 +1269,10 @@ export default function ResidentProfilePage() {
                   >
                     <option value="">Select Advocate</option>
                     {programStaff.map((staff) => {
-                      const firstName = staff.user?.firstName || '';
-                      const lastName = staff.user?.lastName || '';
-                      const fullName = `${firstName} ${lastName}`.trim();
-                      const role = staff.role || 'Staff';
+                      const firstName = staff.firstName || '';
+                      const lastName = staff.lastName || '';
+                      const fullName = staff.fullName || `${firstName} ${lastName}`.trim();
+                      const role = staff.roleType || staff.title || 'Staff';
                       const displayName = fullName ? `${fullName} (${role})` : staff.userEmail || 'Staff Member';
                       const advocateValue = lastName && firstName ? `${lastName}, ${firstName}` : fullName;
                       
