@@ -253,7 +253,16 @@ public class ProgramController {
     @GetMapping("/{id}/assignments")
     public List<StaffAssignmentResponse> getAssignments(@PathVariable Long id) {
         List<ProgramAssignment> assignmentList = assignments.findByProgram_Id(id);
-        return assignmentList.stream().map(assignment -> {
+        
+        // Deduplicate by userId - only return unique staff members
+        java.util.Map<Long, ProgramAssignment> uniqueByUserId = new java.util.LinkedHashMap<>();
+        for (ProgramAssignment assignment : assignmentList) {
+            if (assignment.getUserId() != null && !uniqueByUserId.containsKey(assignment.getUserId())) {
+                uniqueByUserId.put(assignment.getUserId(), assignment);
+            }
+        }
+        
+        return uniqueByUserId.values().stream().map(assignment -> {
             // Try to get user info from users table
             String firstName = null;
             String lastName = null;
