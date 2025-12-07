@@ -95,8 +95,10 @@ export default function MedicationPage() {
         const lastName = user.lastName || '';
         const role = user.role || '';
         const fullName = `${firstName} ${lastName}`.trim();
-        console.log('[Medication] Loading user:', { firstName, lastName, fullName, role });
-        setCurrentStaff(fullName || 'Staff Member');
+        // Use multiple fallbacks like incident management
+        const staffName = user.fullName || fullName || user.name || user.email || 'Unknown User';
+        console.log('[Medication] Loading user:', { firstName, lastName, fullName, staffName, role });
+        setCurrentStaff(staffName);
         setUserRole(role.toUpperCase());
       }
     } catch (err) {
