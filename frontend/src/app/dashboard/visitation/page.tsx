@@ -107,10 +107,11 @@ export default function VisitationPage() {
       try {
         const data = JSON.parse(event.data);
         
-        // Auto-refresh visitations when created, approved, or cancelled
+        // Auto-refresh visitations when created, approved, cancelled, or auto-completed
         if (data.type === 'visitations.created' || 
             data.type === 'visitations.approved' || 
-            data.type === 'visitations.cancelled') {
+            data.type === 'visitations.cancelled' ||
+            data.type === 'visitations.auto_completed') {
           // Only refresh if it's for the current program
           if (data.programId && String(data.programId) === String(programId)) {
             // Fetch updated visitations
@@ -1123,30 +1124,33 @@ export default function VisitationPage() {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-font-detail">
-                  Total: {scheduledVisitations.length} visits
+                  Total: {scheduledVisitations.filter((v: any) => v.status !== 'CANCELLED').length} visit{scheduledVisitations.filter((v: any) => v.status !== 'CANCELLED').length !== 1 ? 's' : ''}
                 </span>
               </div>
             </div>
           </div>
           <div className="p-6">
-            {scheduledVisitations.length === 0 ? (
-              <div className="text-center py-12">
-                <i className="fa-solid fa-calendar-xmark text-6xl text-gray-300 mb-4"></i>
-                <p className="text-font-detail">No scheduled visits at this time</p>
+            {scheduledVisitations.filter((v: any) => v.status !== 'CANCELLED').length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary-lightest mb-4">
+                  <i className="fa-solid fa-calendar-xmark text-5xl text-primary opacity-50"></i>
+                </div>
+                <h4 className="text-xl font-semibold text-font-base mb-2">No Scheduled Visits</h4>
+                <p className="text-font-detail mb-4">
+                  There are currently no scheduled visitations. Create a new visitation to get started.
+                </p>
+                <button 
+                  onClick={() => setActiveTab('schedule')}
+                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  <i className="fa-solid fa-calendar-plus mr-2"></i>
+                  Schedule Visitation
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
                 {scheduledVisitations
-                  .filter((visit: any) => {
-                    // Filter out cancelled visits
-                    if (visit.status === 'CANCELLED') return false;
-                    
-                    // Filter out past visits
-                    const endTime = new Date(visit.scheduledEndTime);
-                    if (endTime < new Date()) return false;
-                    
-                    return true;
-                  })
+                  .filter((visit: any) => visit.status !== 'CANCELLED')
                   .map((visit: any) => {
                   const isToday = new Date(visit.scheduledDate).toDateString() === new Date().toDateString();
                   const visitDate = new Date(visit.scheduledDate);

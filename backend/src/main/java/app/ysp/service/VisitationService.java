@@ -57,10 +57,37 @@ public class VisitationService {
 
     /**
      * Get upcoming visitations for a program
+     * Also auto-completes expired visits that weren't cancelled
      */
     public List<Map<String, Object>> getUpcomingVisitations(Long programId) {
         LocalDate today = LocalDate.now();
+        Instant now = Instant.now();
         List<Visitation> visitations = visitationRepository.findUpcomingVisitations(programId, today);
+        
+        // Auto-complete expired visits
+        for (Visitation v : visitations) {
+            if (v.getScheduledEndTime() != null && 
+                v.getScheduledEndTime().isBefore(now) && 
+                "SCHEDULED".equals(v.getStatus())) {
+                // Visit expired and wasn't cancelled - mark as completed
+                v.setStatus("COMPLETED");
+                if (v.getActualStartTime() == null) {
+                    v.setActualStartTime(v.getScheduledStartTime());
+                }
+                v.setActualEndTime(v.getScheduledEndTime());
+                visitationRepository.save(v);
+                try {
+                    sseHub.broadcast(Map.of(
+                        "type", "visitations.auto_completed",
+                        "programId", programId,
+                        "id", v.getId()
+                    ));
+                } catch (Exception ignored) {}
+            }
+        }
+        
+        // Fetch again to get updated list without expired visits
+        visitations = visitationRepository.findUpcomingVisitations(programId, today);
         return visitations.stream()
                 .map(this::mapToVisitationResponse)
                 .collect(Collectors.toList());
