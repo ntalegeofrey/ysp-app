@@ -832,76 +832,74 @@ export default function ResidentProfilePage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="h-48 bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-lg p-4 shadow-inner">
-                        <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="none">
+                      <div className="h-48 bg-gradient-to-b from-blue-50/50 to-white rounded-lg p-4">
+                        <svg viewBox="0 0 300 100" className="w-full h-full" preserveAspectRatio="none">
                           <defs>
-                            <linearGradient id="creditGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" style={{stopColor: '#3b82f6', stopOpacity: 0.4}} />
-                              <stop offset="50%" style={{stopColor: '#6366f1', stopOpacity: 0.2}} />
-                              <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 0.05}} />
+                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" style={{stopColor: '#6366f1', stopOpacity: 0.3}} />
+                              <stop offset="100%" style={{stopColor: '#6366f1', stopOpacity: 0.02}} />
                             </linearGradient>
-                            <filter id="glow">
-                              <feGaussianBlur stdDeviation="0.3" result="coloredBlur"/>
-                              <feMerge>
-                                <feMergeNode in="coloredBlur"/>
-                                <feMergeNode in="SourceGraphic"/>
-                              </feMerge>
-                            </filter>
                           </defs>
-                          {/* Grid lines */}
-                          {[0, 10, 20, 30, 40].map((y) => (
-                            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e0e7ff" strokeWidth="0.1" opacity="0.5" />
-                          ))}
                           {(() => {
+                            const padding = 10;
                             const maxBalance = Math.max(...creditHistory.map((h: any) => h.currentBalance), 1);
-                            // Create smooth curve using cardinal spline
-                            const coords = creditHistory.map((h: any, i: number) => ({
-                              x: (i / Math.max(creditHistory.length - 1, 1)) * 100,
-                              y: 40 - ((h.currentBalance / maxBalance) * 32)
+                            const minBalance = Math.min(...creditHistory.map((h: any) => h.currentBalance), 0);
+                            const range = maxBalance - minBalance || 1;
+                            
+                            // Map data points to coordinates
+                            const points = creditHistory.map((h: any, i: number) => ({
+                              x: padding + (i / Math.max(creditHistory.length - 1, 1)) * (300 - 2 * padding),
+                              y: padding + (1 - ((h.currentBalance - minBalance) / range)) * (100 - 2 * padding)
                             }));
                             
-                            // Generate smooth path using quadratic curves
-                            let path = `M ${coords[0].x},${coords[0].y}`;
-                            for (let i = 0; i < coords.length - 1; i++) {
-                              const curr = coords[i];
-                              const next = coords[i + 1];
-                              const midX = (curr.x + next.x) / 2;
-                              const midY = (curr.y + next.y) / 2;
-                              path += ` Q ${curr.x},${curr.y} ${midX},${midY}`;
-                            }
-                            const last = coords[coords.length - 1];
-                            path += ` L ${last.x},${last.y}`;
+                            // Create super smooth Catmull-Rom spline
+                            const getControlPoints = (i: number) => {
+                              const p0 = points[Math.max(0, i - 1)];
+                              const p1 = points[i];
+                              const p2 = points[Math.min(points.length - 1, i + 1)];
+                              const p3 = points[Math.min(points.length - 1, i + 2)];
+                              
+                              const tension = 0.5;
+                              const cp1x = p1.x + (p2.x - p0.x) / 6 * tension;
+                              const cp1y = p1.y + (p2.y - p0.y) / 6 * tension;
+                              const cp2x = p2.x - (p3.x - p1.x) / 6 * tension;
+                              const cp2y = p2.y - (p3.y - p1.y) / 6 * tension;
+                              
+                              return { cp1x, cp1y, cp2x, cp2y };
+                            };
                             
-                            // Area path for gradient fill
-                            const areaPath = `${path} L 100,40 L 0,40 Z`;
+                            let smoothPath = `M ${points[0].x} ${points[0].y}`;
+                            for (let i = 0; i < points.length - 1; i++) {
+                              const { cp1x, cp1y, cp2x, cp2y } = getControlPoints(i);
+                              smoothPath += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${points[i + 1].x} ${points[i + 1].y}`;
+                            }
+                            
+                            const areaPath = `${smoothPath} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
                             
                             return (
                               <>
-                                {/* Area fill with gradient */}
-                                <path d={areaPath} fill="url(#creditGradient)" opacity="0.8" />
+                                {/* Area fill */}
+                                <path d={areaPath} fill="url(#areaGradient)" />
                                 {/* Smooth line */}
                                 <path
-                                  d={path}
+                                  d={smoothPath}
                                   fill="none"
-                                  stroke="url(#creditGradient)"
-                                  strokeWidth="0.6"
-                                  strokeLinejoin="round"
+                                  stroke="#6366f1"
+                                  strokeWidth="2"
                                   strokeLinecap="round"
-                                  filter="url(#glow)"
+                                  strokeLinejoin="round"
                                 />
-                                {/* Data points */}
-                                {coords.map((coord, i) => (
-                                  <g key={i}>
-                                    <circle
-                                      cx={coord.x}
-                                      cy={coord.y}
-                                      r={i === coords.length - 1 ? "1" : "0.6"}
-                                      fill={i === coords.length - 1 ? "#3b82f6" : "#6366f1"}
-                                      stroke="white"
-                                      strokeWidth="0.3"
-                                      filter="url(#glow)"
-                                    />
-                                  </g>
+                                {/* Data point markers */}
+                                {points.map((point, i) => (
+                                  <circle
+                                    key={i}
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={i === points.length - 1 ? "4" : "3"}
+                                    fill="white"
+                                    stroke="#6366f1"
+                                    strokeWidth="2"
+                                  />
                                 ))}
                               </>
                             );
