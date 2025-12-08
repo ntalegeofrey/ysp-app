@@ -373,12 +373,62 @@ export default function MedicationPage() {
 
   const fetchPendingAudits = async () => {
     if (!programId) return;
+    setLoading(true);
     try {
       const data = await medicationApi.getPendingAudits(programId);
-      setPendingAudits(data);
+      
+      // Transform backend data to match UI expectations
+      const formattedAudits = data.map((audit: any) => {
+        // Group counts by resident
+        const residentMap = new Map<number, any[]>();
+        
+        if (audit.counts && Array.isArray(audit.counts)) {
+          audit.counts.forEach((count: any) => {
+            const residentId = count.residentId;
+            if (!residentMap.has(residentId)) {
+              residentMap.set(residentId, []);
+            }
+            const variance = count.currentCount - count.previousCount;
+            residentMap.get(residentId)?.push({
+              name: count.medicationName || '',
+              dosage: count.dosage || '',
+              previousCount: count.previousCount,
+              currentCount: count.currentCount,
+              variance: variance,
+              notes: count.notes || '',
+            });
+          });
+        }
+        
+        // Convert map to auditData array
+        const auditData = Array.from(residentMap.entries()).map(([residentId, medications]) => ({
+          residentId: String(residentId),
+          residentName: medications[0]?.residentName || audit.counts?.find((c: any) => c.residentId === residentId)?.residentName || `Resident ${residentId}`,
+          medications: medications,
+        }));
+        
+        // Check if there are any discrepancies
+        const hasDiscrepancies = audit.counts?.some((c: any) => c.currentCount !== c.previousCount) || false;
+        
+        return {
+          id: audit.id,
+          date: new Date(audit.auditDate).toLocaleDateString(),
+          time: audit.auditTime || new Date(audit.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          shift: audit.shift,
+          submittedBy: audit.auditedByStaffName || 'Staff',
+          residentCount: residentMap.size,
+          medicationCount: audit.counts?.length || 0,
+          hasDiscrepancies: hasDiscrepancies,
+          auditData: auditData,
+        };
+      });
+      
+      setPendingAudits(formattedAudits);
     } catch (err) {
       console.error('Failed to fetch pending audits:', err);
       addToast('Failed to load pending audits', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1396,6 +1446,12 @@ export default function MedicationPage() {
 
                       {/* Medication Count Table */}
                       <div className="p-4">
+                        {!audit.auditData || audit.auditData.length === 0 ? (
+                          <div className="text-center py-8 text-font-detail">
+                            <i className="fa-solid fa-exclamation-circle text-3xl text-warning mb-2"></i>
+                            <p>No medication data available for this audit.</p>
+                          </div>
+                        ) : (
                         <div className="overflow-x-auto mb-4">
                           <table className="w-full text-sm">
                             <thead className="bg-bg-subtle border-b border-bd">
@@ -1409,8 +1465,8 @@ export default function MedicationPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {audit.auditData.map((resident) =>
-                                resident.medications.map((med, idx) => (
+                              {(audit.auditData || []).map((resident) =>
+                                (resident.medications || []).map((med, idx) => (
                                   <tr key={`${resident.residentId}-${idx}`} className="border-b border-bd last:border-0">
                                     {idx === 0 && (
                                       <td 
@@ -1439,6 +1495,7 @@ export default function MedicationPage() {
                             </tbody>
                           </table>
                         </div>
+                        )}
 
                         {/* Approval Section */}
                         {selectedAuditForApproval === audit.id ? (
