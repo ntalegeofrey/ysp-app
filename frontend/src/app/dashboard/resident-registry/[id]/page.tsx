@@ -141,19 +141,19 @@ export default function ResidentProfilePage() {
                 [1, 'rgba(59, 130, 246, 0.02)']
               ]
             },
-            lineWidth: 6,
+            lineWidth: 2,
             lineColor: '#3b82f6',
             marker: {
               enabled: true,
               fillColor: '#ffffff',
-              lineWidth: 3,
+              lineWidth: 2,
               lineColor: '#3b82f6',
-              radius: 5,
+              radius: 4,
               symbol: 'circle'
             },
             states: {
               hover: {
-                lineWidth: 6
+                lineWidth: 2
               }
             }
           }
