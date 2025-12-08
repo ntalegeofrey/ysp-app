@@ -57,7 +57,7 @@ export default function InventoryPage() {
       setInventoryItems(items);
     } catch (error: any) {
       console.error('Error fetching inventory:', error);
-      addToast(error.message || 'Failed to fetch inventory items', 'error');
+      addToast('Failed to fetch inventory items', 'error');
     }
   };
   
@@ -118,7 +118,7 @@ export default function InventoryPage() {
       }
     } catch (error: any) {
       console.error('Error adding item:', error);
-      addToast(error.message || 'Failed to add item', 'error');
+      addToast('Failed to send. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ export default function InventoryPage() {
       
     } catch (error: any) {
       console.error('Error checking out item:', error);
-      addToast(error.message || 'Failed to checkout item', 'error');
+      addToast('Failed to checkout. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
