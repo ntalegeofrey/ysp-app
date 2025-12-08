@@ -44,7 +44,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String subject = claims.getSubject();
                 String role = claims.get("role", String.class);
                 if (subject != null) {
-                    var auth = new UsernamePasswordAuthenticationToken(subject, null,
+                    // Store the full claims Map as principal so controllers can access all claims including ID
+                    java.util.Map<String, Object> principal = new java.util.HashMap<>();
+                    principal.put("email", subject);
+                    principal.put("id", claims.get("id"));
+                    principal.put("role", role);
+                    
+                    var auth = new UsernamePasswordAuthenticationToken(principal, null,
                             role != null ? Collections.singleton(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase())) : Collections.emptyList());
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
