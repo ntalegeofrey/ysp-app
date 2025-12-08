@@ -133,7 +133,16 @@ function MedicationSheetInner() {
       
       if (res.ok) {
         const logs = await res.json();
-        setAdministrationLogs(logs);
+        // Map backend data to display format
+        const formattedLogs = logs.map((log: any) => ({
+          date: log.administrationDate ? new Date(log.administrationDate).toLocaleDateString() : '-',
+          time: log.administrationTime || '-',
+          medication: log.medicationName || '-',
+          action: log.action || '-',
+          staff: log.administeredByName || log.administeredBy || '-',
+          notes: log.notes || '-'
+        }));
+        setAdministrationLogs(formattedLogs);
       }
     } catch (err) {
       console.error('Failed to fetch administration logs:', err);
@@ -542,12 +551,30 @@ function MedicationSheetInner() {
               <p className="text-sm mt-2">Click "Add New Medication" to get started</p>
             </div>
           ) : (
-            medications.map((med) => (
+            medications.map((med) => {
+              // Get last administration for this medication
+              const lastAdmin = administrationLogs.find((log: any) => 
+                log.medication === `${med.medicationName} ${med.dosage}`
+              );
+              
+              return (
               <div key={med.id} className="border border-bd rounded-lg p-6 bg-gradient-to-br from-white to-blue-50/30 hover:shadow-lg transition-shadow">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-2">
                     <h4 className="text-lg font-semibold text-font-base">{med.medicationName} {med.dosage}</h4>
-                    <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">{med.frequency}</span>
+                    <span className="bg-primary text-white px-2 py-1 rounded text-xs">{med.frequency}</span>
+                    {lastAdmin && (
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        lastAdmin.action === 'ADMINISTERED' ? 'bg-success/10 text-success' :
+                        lastAdmin.action === 'REFUSED' ? 'bg-error/10 text-error' :
+                        lastAdmin.action === 'HELD' ? 'bg-warning/10 text-warning' :
+                        'bg-gray-100 text-font-detail'
+                      }`}>
+                        {lastAdmin.action === 'ADMINISTERED' ? 'Last: Given' :
+                         lastAdmin.action === 'REFUSED' ? 'Last: Denied' :
+                         lastAdmin.action === 'HELD' ? 'Last: Held' : `Last: ${lastAdmin.action}`}
+                      </span>
+                    )}
                   </div>
                   <div className="flex space-x-2">
                     {/* Administer Button */}
@@ -592,7 +619,8 @@ function MedicationSheetInner() {
                   </div>
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </div>
@@ -650,9 +678,14 @@ function MedicationSheetInner() {
                       <td className="px-4 py-3 text-font-detail">{log.medication}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          log.action === 'Administered' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                          log.action === 'ADMINISTERED' ? 'bg-success/10 text-success' :
+                          log.action === 'REFUSED' ? 'bg-error/10 text-error' :
+                          log.action === 'HELD' ? 'bg-warning/10 text-warning' :
+                          'bg-gray-100 text-font-detail'
                         }`}>
-                          {log.action}
+                          {log.action === 'ADMINISTERED' ? 'Given' :
+                           log.action === 'REFUSED' ? 'Denied' :
+                           log.action === 'HELD' ? 'Held' : log.action}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-font-detail">{log.staff}</td>
@@ -993,7 +1026,7 @@ function MedicationSheetInner() {
                           : 'border-bd hover:border-success hover:bg-success/10'
                       }`}
                     >
-                      <i className="fa-solid fa-check-circle block mb-1"></i>
+                      <i className="fa-solid fa-check-circle block mb-2"></i>
                       <span className="text-xs font-medium">Given</span>
                     </button>
                     <button
@@ -1004,7 +1037,7 @@ function MedicationSheetInner() {
                           : 'border-bd hover:border-error hover:bg-error/10'
                       }`}
                     >
-                      <i className="fa-solid fa-times-circle block mb-1"></i>
+                      <i className="fa-solid fa-times-circle block mb-2"></i>
                       <span className="text-xs font-medium">Denied</span>
                     </button>
                     <button
@@ -1015,7 +1048,7 @@ function MedicationSheetInner() {
                           : 'border-bd hover:border-warning hover:bg-warning/10'
                       }`}
                     >
-                      <i className="fa-solid fa-circle-exclamation block mb-1"></i>
+                      <i className="fa-solid fa-circle-exclamation block mb-2"></i>
                       <span className="text-xs font-medium">Other</span>
                     </button>
                   </div>
