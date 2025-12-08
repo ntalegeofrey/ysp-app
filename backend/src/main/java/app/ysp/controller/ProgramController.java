@@ -163,6 +163,8 @@ public class ProgramController {
                 "ORDER BY start_date DESC LIMIT 1"
             ).setParameter("residentId", residentPk).getSingleResult();
             int sleepLogDays = result != null ? ((Number) result).intValue() : 0;
+            // Ensure at least 1 if there's an active watch
+            if (sleepLogDays < 1 && result != null) sleepLogDays = 1;
             stats.put("sleepLogDays", sleepLogDays);
         } catch (Exception e) {
             stats.put("sleepLogDays", 0);
@@ -172,7 +174,7 @@ public class ProgramController {
         try {
             Object result = entityManager.createNativeQuery(
                 "SELECT COUNT(*) FROM resident_medications " +
-                "WHERE resident_id = :residentId AND status = 'active'"
+                "WHERE resident_id = :residentId AND status = 'ACTIVE'"
             ).setParameter("residentId", residentPk).getSingleResult();
             int medications = result != null ? ((Number) result).intValue() : 0;
             stats.put("activeMedications", medications);

@@ -22,6 +22,7 @@ export default function ResidentProfilePage() {
   const [medications, setMedications] = useState<any[]>([]);
   const [repairs, setRepairs] = useState<any[]>([]);
   const [historicalRepairs, setHistoricalRepairs] = useState<any[]>([]);
+  const [watches, setWatches] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
@@ -417,6 +418,22 @@ export default function ResidentProfilePage() {
         }
       }
 
+      // Load watches
+      if (activeTab === 'watches' || activeTab === 'overview') {
+        try {
+          const watchRes = await fetch(`/api/programs/${programId}/watches/resident/${residentId}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          if (watchRes.ok) {
+            const watchData = await watchRes.json();
+            setWatches(watchData);
+          }
+        } catch (err) {
+          console.error('Failed to load watches:', err);
+        }
+      }
+
     } catch (error) {
       console.error('Failed to load tab data:', error);
     } finally {
@@ -638,15 +655,15 @@ export default function ResidentProfilePage() {
               Repairs
             </button>
             <button 
-              onClick={() => setActiveTab('behavior')} 
+              onClick={() => setActiveTab('watches')} 
               className={`flex items-center py-4 text-sm font-medium border-b-2 ${
-                activeTab === 'behavior' 
+                activeTab === 'watches' 
                   ? 'border-primary text-primary' 
                   : 'border-transparent text-font-detail hover:text-font-base'
               }`}
             >
-              <i className={`fa-solid fa-chart-line mr-2 ${activeTab === 'behavior' ? 'text-primary' : 'text-font-detail'}`}></i>
-              Behavior History
+              <i className={`fa-solid fa-eye mr-2 ${activeTab === 'watches' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Watches
             </button>
             <button 
               onClick={() => setActiveTab('files')} 
@@ -893,25 +910,108 @@ export default function ResidentProfilePage() {
           </div>
         )}
 
-        {/* Behavior History Tab Content */}
-        {activeTab === 'behavior' && (
+        {/* Watches Tab Content */}
+        {activeTab === 'watches' && (
           <div className="p-6">
-            <h4 className="text-lg font-semibold text-font-base mb-4">Behavior Trend Analysis</h4>
-            <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-bd mb-6">
-              <i className="fa-solid fa-chart-line text-6xl text-font-detail mb-4"></i>
-              <h5 className="text-lg font-semibold text-font-base mb-2">Behavior Analytics Coming Soon</h5>
-              <p className="text-sm text-font-detail">Detailed behavior trend charts and analysis will be available here.</p>
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-lg font-semibold text-font-base">Watch Assignments</h4>
+              <a
+                href={`/dashboard/watch?residentId=${residentId}`}
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm inline-flex items-center gap-2"
+              >
+                <i className="fa-solid fa-eye"></i>
+                View All Watches
+              </a>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-primary-alt-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-success">{stats.totalCredits > 0 ? Math.floor(stats.totalCredits / 10) : 0}</p>
-                <p className="text-sm text-font-detail">Positive Behaviors</p>
+            
+            {loadingTabs ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-font-detail">Loading watches...</div>
               </div>
-              <div className="bg-warning-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-warning">{repairs.length}</p>
-                <p className="text-sm text-font-detail">Active Repairs</p>
+            ) : watches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                <i className="fa-solid fa-eye-slash text-4xl text-font-detail mb-3"></i>
+                <h5 className="text-base font-semibold text-font-base mb-1">No Watch Assignments</h5>
+                <p className="text-sm text-font-detail">This resident has no watch assignments.</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Active Watches */}
+                {watches.filter(w => !w.endDate).length > 0 && (
+                  <div>
+                    <h5 className="text-md font-semibold text-font-base mb-3 flex items-center gap-2">
+                      <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                      Active Watches
+                    </h5>
+                    <div className="space-y-3">
+                      {watches.filter(w => !w.endDate).map((watch) => (
+                        <div key={watch.id} className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`px-3 py-1 text-white text-xs font-medium rounded-full ${
+                                  watch.watchType === 'Suicide Watch' ? 'bg-red-600' :
+                                  watch.watchType === 'Self-Harm Watch' ? 'bg-orange-600' :
+                                  watch.watchType === 'Medical Watch' ? 'bg-blue-600' :
+                                  watch.watchType === 'Behavioral Watch' ? 'bg-purple-600' :
+                                  'bg-gray-600'
+                                }`}>
+                                  {watch.watchType || 'Watch'}
+                                </span>
+                                <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">Active</span>
+                              </div>
+                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.reason || 'N/A'}</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs text-font-detail">
+                                <p><strong>Started:</strong> {watch.startDate ? new Date(watch.startDate).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Duration:</strong> {watch.startDate ? Math.ceil((new Date().getTime() - new Date(watch.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
+                                <p><strong>Assigned By:</strong> {watch.assignedByStaffName || 'N/A'}</p>
+                                <p><strong>Check Frequency:</strong> {watch.checkFrequencyMinutes || 15} minutes</p>
+                              </div>
+                              {watch.notes && (
+                                <p className="text-xs text-font-detail mt-2 bg-white p-2 rounded border border-green-200"><strong>Notes:</strong> {watch.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Historical Watches */}
+                {watches.filter(w => w.endDate).length > 0 && (
+                  <div className="mt-6">
+                    <h5 className="text-md font-semibold text-font-base mb-3 flex items-center gap-2">
+                      <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
+                      Recent Historical Watches
+                    </h5>
+                    <div className="space-y-3">
+                      {watches.filter(w => w.endDate).slice(0, 3).map((watch) => (
+                        <div key={watch.id} className="bg-gray-50 border-l-4 border-gray-400 rounded-lg p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="px-3 py-1 bg-gray-500 text-white text-xs font-medium rounded-full">
+                                  {watch.watchType || 'Watch'}
+                                </span>
+                                <span className="px-2 py-1 bg-gray-400 text-white text-xs rounded-full">Ended</span>
+                              </div>
+                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.reason || 'N/A'}</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs text-font-detail">
+                                <p><strong>Started:</strong> {watch.startDate ? new Date(watch.startDate).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Ended:</strong> {watch.endDate ? new Date(watch.endDate).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Duration:</strong> {watch.startDate && watch.endDate ? Math.ceil((new Date(watch.endDate).getTime() - new Date(watch.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
+                                <p><strong>Ended By:</strong> {watch.endedByStaffName || 'N/A'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
