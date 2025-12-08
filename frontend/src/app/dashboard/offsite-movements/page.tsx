@@ -528,9 +528,13 @@ export default function OffsiteMovementsPage() {
                         <textarea 
                           value={formData.destinationAddress}
                           onChange={(e) => setFormData(prev => ({ ...prev, destinationAddress: e.target.value }))}
-                          placeholder="Full address of destination..." 
-                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20"
+                          placeholder="123 Main Street&#10;APT 1, Suite 200&#10;Taunton, MA 02780" 
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                          rows={3}
                         />
+                        <p className="mt-1 text-xs text-font-detail">
+                          Enter complete address including apartment/suite number, city, state, and ZIP code
+                        </p>
                       </div>
                     </div>
                   </div>
