@@ -155,7 +155,23 @@ export default function RepairsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-font-detail text-sm">Active Repairs</p>
-              <p className="text-2xl font-bold text-error">{loading ? '-' : repairs.length}</p>
+              <p className="text-2xl font-bold text-error">
+                {loading ? '-' : repairs.filter(rep => {
+                  // Only count active repairs (not revoked, not expired)
+                  const isActiveStatus = rep.status === 'approved' || rep.status === 'pending_review';
+                  if (!isActiveStatus) return false;
+                  
+                  // Check if expired
+                  if (rep.repairEndDate) {
+                    const endDate = new Date(rep.repairEndDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (endDate < today) return false;
+                  }
+                  
+                  return true;
+                }).length}
+              </p>
             </div>
             <div className="bg-error bg-opacity-10 p-3 rounded-lg">
               <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
