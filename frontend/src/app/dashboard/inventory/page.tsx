@@ -457,11 +457,96 @@ export default function InventoryPage() {
                         className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                       >
                         <option value="">Select Category</option>
-                        <option value="Food">Food</option>
-                        <option value="Clothing">Clothing</option>
-                        <option value="Toiletries">Toiletries</option>
-                        <option value="Medical">Medical</option>
-                        <option value="Stationery">Stationery</option>
+                        
+                        {/* Food & Nutrition */}
+                        <optgroup label="Food & Nutrition">
+                          <option value="Food - Groceries">Food - Groceries</option>
+                          <option value="Food - Snacks">Food - Snacks</option>
+                          <option value="Food - Beverages">Food - Beverages</option>
+                          <option value="Food - Baby Food">Food - Baby Food</option>
+                          <option value="Food - Dietary/Special Needs">Food - Dietary/Special Needs</option>
+                        </optgroup>
+                        
+                        {/* Clothing & Apparel */}
+                        <optgroup label="Clothing & Apparel">
+                          <option value="Clothing - Tops">Clothing - Tops</option>
+                          <option value="Clothing - Bottoms">Clothing - Bottoms</option>
+                          <option value="Clothing - Outerwear">Clothing - Outerwear</option>
+                          <option value="Clothing - Underwear/Socks">Clothing - Underwear/Socks</option>
+                          <option value="Clothing - Footwear">Clothing - Footwear</option>
+                          <option value="Clothing - Sleepwear">Clothing - Sleepwear</option>
+                          <option value="Clothing - Accessories">Clothing - Accessories</option>
+                          <option value="Clothing - Seasonal">Clothing - Seasonal</option>
+                        </optgroup>
+                        
+                        {/* Personal Care */}
+                        <optgroup label="Personal Care & Hygiene">
+                          <option value="Toiletries - Bath">Toiletries - Bath</option>
+                          <option value="Toiletries - Oral Care">Toiletries - Oral Care</option>
+                          <option value="Toiletries - Hair Care">Toiletries - Hair Care</option>
+                          <option value="Toiletries - Skin Care">Toiletries - Skin Care</option>
+                          <option value="Toiletries - Feminine Hygiene">Toiletries - Feminine Hygiene</option>
+                          <option value="Toiletries - Diapers">Toiletries - Diapers</option>
+                          <option value="Toiletries - First Aid">Toiletries - First Aid</option>
+                        </optgroup>
+                        
+                        {/* Medical & Health */}
+                        <optgroup label="Medical & Health">
+                          <option value="Medical - Medications">Medical - Medications</option>
+                          <option value="Medical - Vitamins/Supplements">Medical - Vitamins/Supplements</option>
+                          <option value="Medical - First Aid Supplies">Medical - First Aid Supplies</option>
+                          <option value="Medical - PPE">Medical - PPE</option>
+                          <option value="Medical - Medical Devices">Medical - Medical Devices</option>
+                        </optgroup>
+                        
+                        {/* Education & Stationery */}
+                        <optgroup label="Education & Stationery">
+                          <option value="Stationery - Writing Supplies">Stationery - Writing Supplies</option>
+                          <option value="Stationery - Paper Products">Stationery - Paper Products</option>
+                          <option value="Stationery - Art Supplies">Stationery - Art Supplies</option>
+                          <option value="Stationery - School Supplies">Stationery - School Supplies</option>
+                          <option value="Books & Reading Materials">Books & Reading Materials</option>
+                        </optgroup>
+                        
+                        {/* Household & Cleaning */}
+                        <optgroup label="Household & Cleaning">
+                          <option value="Cleaning Supplies">Cleaning Supplies</option>
+                          <option value="Laundry Supplies">Laundry Supplies</option>
+                          <option value="Kitchen Supplies">Kitchen Supplies</option>
+                          <option value="Bedding & Linens">Bedding & Linens</option>
+                          <option value="Household Items">Household Items</option>
+                        </optgroup>
+                        
+                        {/* Recreation & Activities */}
+                        <optgroup label="Recreation & Activities">
+                          <option value="Sports Equipment">Sports Equipment</option>
+                          <option value="Toys & Games">Toys & Games</option>
+                          <option value="Recreational Supplies">Recreational Supplies</option>
+                          <option value="Entertainment">Entertainment</option>
+                        </optgroup>
+                        
+                        {/* Electronics & Technology */}
+                        <optgroup label="Electronics & Technology">
+                          <option value="Electronics">Electronics</option>
+                          <option value="Technology Supplies">Technology Supplies</option>
+                          <option value="Batteries">Batteries</option>
+                        </optgroup>
+                        
+                        {/* Facilities & Maintenance */}
+                        <optgroup label="Facilities & Maintenance">
+                          <option value="Tools & Equipment">Tools & Equipment</option>
+                          <option value="Safety Equipment">Safety Equipment</option>
+                          <option value="Maintenance Supplies">Maintenance Supplies</option>
+                          <option value="Office Supplies">Office Supplies</option>
+                        </optgroup>
+                        
+                        {/* Baby & Infant */}
+                        <optgroup label="Baby & Infant Care">
+                          <option value="Baby Care Products">Baby Care Products</option>
+                          <option value="Baby Clothing">Baby Clothing</option>
+                          <option value="Baby Equipment">Baby Equipment</option>
+                        </optgroup>
+                        
                         <option value="Other">Other (Specify in Notes)</option>
                       </select>
                     </div>
