@@ -13,13 +13,13 @@ const getAuthHeaders = () => {
 // Get program ID from localStorage
 const getProgramId = () => {
   if (typeof window !== 'undefined') {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
+    const programStr = localStorage.getItem('selectedProgram');
+    if (programStr) {
       try {
-        const user = JSON.parse(userStr);
-        return user.programId;
+        const program = JSON.parse(programStr);
+        return program.id;
       } catch (e) {
-        console.error('Failed to parse user:', e);
+        console.error('Failed to parse selectedProgram:', e);
       }
     }
   }
