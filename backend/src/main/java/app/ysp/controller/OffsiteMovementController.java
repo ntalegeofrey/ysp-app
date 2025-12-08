@@ -1,8 +1,10 @@
 package app.ysp.controller;
 
+import app.ysp.domain.User;
 import app.ysp.dto.OffsiteMovementRequest;
 import app.ysp.dto.OffsiteMovementResponse;
 import app.ysp.dto.MovementUpdateRequest;
+import app.ysp.repo.UserRepository;
 import app.ysp.service.OffsiteMovementService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,9 +19,11 @@ import java.util.Map;
 public class OffsiteMovementController {
     
     private final OffsiteMovementService movementService;
+    private final UserRepository userRepository;
     
-    public OffsiteMovementController(OffsiteMovementService movementService) {
+    public OffsiteMovementController(OffsiteMovementService movementService, UserRepository userRepository) {
         this.movementService = movementService;
+        this.userRepository = userRepository;
     }
     
     /**
@@ -151,6 +155,7 @@ public class OffsiteMovementController {
         }
         
         try {
+            // Try to get ID from principal if it's a Map
             if (authentication.getPrincipal() instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> principal = (Map<String, Object>) authentication.getPrincipal();
@@ -161,7 +166,18 @@ public class OffsiteMovementController {
                     return Long.parseLong((String) idObj);
                 }
             }
-            return Long.parseLong(authentication.getName());
+            
+            // If not in principal, authentication.getName() returns email - look up user
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            return user.getId();
+        } catch (NumberFormatException e) {
+            // If we get a number format exception, try to look up by email
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            return user.getId();
         } catch (Exception e) {
             throw new RuntimeException("Unable to extract staff ID from authentication", e);
         }
