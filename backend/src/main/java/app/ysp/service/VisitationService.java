@@ -95,11 +95,28 @@ public class VisitationService {
 
     /**
      * Get all visitations for a program with pagination
+     * Also auto-completes expired visits that weren't cancelled
      */
     public Map<String, Object> getAllVisitations(Long programId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Visitation> visitationPage = visitationRepository
                 .findByProgram_IdOrderByScheduledDateDescScheduledStartTimeDesc(programId, pageable);
+        
+        // Auto-complete expired visits
+        Instant now = Instant.now();
+        for (Visitation v : visitationPage.getContent()) {
+            if (v.getScheduledEndTime() != null && 
+                v.getScheduledEndTime().isBefore(now) && 
+                "SCHEDULED".equals(v.getStatus())) {
+                // Visit expired and wasn't cancelled - mark as completed
+                v.setStatus("COMPLETED");
+                if (v.getActualStartTime() == null) {
+                    v.setActualStartTime(v.getScheduledStartTime());
+                }
+                v.setActualEndTime(v.getScheduledEndTime());
+                visitationRepository.save(v);
+            }
+        }
         
         List<Map<String, Object>> visitations = visitationPage.getContent().stream()
                 .map(this::mapToVisitationResponse)
@@ -164,6 +181,7 @@ public class VisitationService {
 
     /**
      * Filter visitations with complex criteria
+     * Also auto-completes expired visits that weren't cancelled
      */
     public Map<String, Object> filterVisitations(Long programId, Long residentId, String visitType,
                                                   String status, String approvalStatus,
@@ -172,6 +190,22 @@ public class VisitationService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Visitation> visitationPage = visitationRepository.filterVisitations(
                 programId, residentId, visitType, status, approvalStatus, startDate, endDate, pageable);
+        
+        // Auto-complete expired visits
+        Instant now = Instant.now();
+        for (Visitation v : visitationPage.getContent()) {
+            if (v.getScheduledEndTime() != null && 
+                v.getScheduledEndTime().isBefore(now) && 
+                "SCHEDULED".equals(v.getStatus())) {
+                // Visit expired and wasn't cancelled - mark as completed
+                v.setStatus("COMPLETED");
+                if (v.getActualStartTime() == null) {
+                    v.setActualStartTime(v.getScheduledStartTime());
+                }
+                v.setActualEndTime(v.getScheduledEndTime());
+                visitationRepository.save(v);
+            }
+        }
         
         List<Map<String, Object>> visitations = visitationPage.getContent().stream()
                 .map(this::mapToVisitationResponse)

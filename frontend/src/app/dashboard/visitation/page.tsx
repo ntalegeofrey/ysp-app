@@ -1673,12 +1673,12 @@ export default function VisitationPage() {
                           <td className="p-3">{staffInfo || 'N/A'}</td>
                           <td className="p-3">
                             <span className={`${
-                              record.status === 'COMPLETED' ? 'text-success' :
+                              record.status === 'COMPLETED' || (!record.status && !isVisitation) ? 'text-success' :
                               record.status === 'CANCELLED' ? 'text-error' :
                               record.status === 'IN_PROGRESS' ? 'text-warning' :
                               'text-primary'
                             } font-medium`}>
-                              {record.status || 'N/A'}
+                              {record.status || (!isVisitation ? 'COMPLETED' : 'N/A')}
                             </span>
                           </td>
                           <td className="p-3 text-center">
