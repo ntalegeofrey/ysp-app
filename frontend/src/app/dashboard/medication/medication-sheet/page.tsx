@@ -141,7 +141,7 @@ function MedicationSheetInner() {
           time: log.administrationTime || '-',
           medication: log.medicationName || '-',
           action: log.action || '-',
-          staff: log.administeredByName || log.administeredBy || '-',
+          staff: log.administeredByStaffName || log.administeredByName || log.administeredBy || '-',
           notes: log.notes || '-'
         }));
         setAdministrationLogs(formattedLogs);
