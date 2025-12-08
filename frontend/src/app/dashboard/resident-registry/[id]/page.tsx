@@ -683,98 +683,194 @@ export default function ResidentProfilePage() {
         {activeTab === 'overview' && (
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Activities */}
+              {/* Left Column */}
               <div className="space-y-6">
-                <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Recent Activities</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <i className="fa-solid fa-coins text-success mt-1"></i>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-font-base">Earned 15 credits for room cleanliness</p>
-                        <p className="text-xs text-font-detail">Today, 2:30 PM</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <i className="fa-solid fa-wrench text-error mt-1"></i>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-font-base">Assigned repair for disrespectful behavior</p>
-                        <p className="text-xs text-font-detail">Yesterday, 4:15 PM</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <i className="fa-solid fa-phone text-primary mt-1"></i>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-font-base">Phone call with mother (15 minutes)</p>
-                        <p className="text-xs text-font-detail">Nov 16, 7:00 PM</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Current Status */}
                 <div>
                   <h4 className="text-lg font-semibold text-font-base mb-4">Current Status</h4>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-font-base">Watch Status</span>
-                      <span className="px-2 py-1 bg-success text-white text-xs rounded-full">Normal</span>
+                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-white rounded-lg border border-blue-100">
+                      <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                        <i className="fa-solid fa-eye text-primary"></i>
+                        Watch Status
+                      </span>
+                      {watches.filter(w => w.status === 'ACTIVE').length > 0 ? (
+                        <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full font-medium">
+                          {watches.filter(w => w.status === 'ACTIVE')[0]?.watchType || 'On Watch'}
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-green-500 text-white text-xs rounded-full font-medium">Normal</span>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-font-base">Program Track</span>
-                      <span className={`px-2 py-1 text-white text-xs rounded-full ${
-                        resident.status === 'Restricted' ? 'bg-error' : 
-                        resident.status === 'ALOYO' ? 'bg-warning' : 
-                        resident.status === 'Team Leader' ? 'bg-primary' : 'bg-success'
+                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-purple-50 to-white rounded-lg border border-purple-100">
+                      <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                        <i className="fa-solid fa-coins text-warning"></i>
+                        Current Credits
+                      </span>
+                      <span className="text-xl font-bold text-primary">{stats.totalCredits}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-white rounded-lg border border-green-100">
+                      <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                        <i className="fa-solid fa-flag text-success"></i>
+                        Program Track
+                      </span>
+                      <span className={`px-3 py-1 text-white text-xs rounded-full font-medium ${
+                        resident.status === 'Restricted' ? 'bg-red-500' : 
+                        resident.status === 'ALOYO' ? 'bg-yellow-500' : 
+                        resident.status === 'Team Leader' ? 'bg-blue-500' : 'bg-green-500'
                       }`}>
                         {resident.status || 'General Population'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-font-base">Separation Status</span>
-                      <span className="px-2 py-1 bg-primary text-white text-xs rounded-full">General Population</span>
+                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-orange-50 to-white rounded-lg border border-orange-100">
+                      <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                        <i className="fa-solid fa-wrench text-error"></i>
+                        Active Repairs
+                      </span>
+                      <span className="text-xl font-bold text-error">{stats.activeRepairs}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div>
+                  <h4 className="text-lg font-semibold text-font-base mb-4">Quick Stats</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                      <p className="text-3xl font-bold">{medications.length}</p>
+                      <p className="text-xs opacity-90 mt-1">Medications</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+                      <p className="text-3xl font-bold">{stats.sleepLogDays}</p>
+                      <p className="text-xs opacity-90 mt-1">Days on Watch</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
+                      <p className="text-3xl font-bold">{repairs.length + historicalRepairs.length}</p>
+                      <p className="text-xs opacity-90 mt-1">Total Repairs</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+                      <p className="text-3xl font-bold">{watches.length}</p>
+                      <p className="text-xs opacity-90 mt-1">Watch History</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Charts and Progress */}
+              {/* Right Column - Charts */}
               <div className="space-y-6">
+                {/* Credit Trend - Beautiful Area Chart */}
                 <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Credit Trend (Last 30 Days)</h4>
-                  <div className="h-48 bg-gray-50 rounded-lg flex items-center justify-center">
-                    <p className="text-font-detail">Credit trend chart would be displayed here</p>
+                  <h4 className="text-lg font-semibold text-font-base mb-4">Credit Balance Trend</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-100">
+                    <div className="h-48 relative">
+                      <svg viewBox="0 0 300 150" className="w-full h-full">
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style={{stopColor: '#8b5cf6', stopOpacity: 0.4}} />
+                            <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 0.05}} />
+                          </linearGradient>
+                        </defs>
+                        {/* Grid lines */}
+                        <line x1="0" y1="30" x2="300" y2="30" stroke="#e5e7eb" strokeWidth="1" />
+                        <line x1="0" y1="60" x2="300" y2="60" stroke="#e5e7eb" strokeWidth="1" />
+                        <line x1="0" y1="90" x2="300" y2="90" stroke="#e5e7eb" strokeWidth="1" />
+                        <line x1="0" y1="120" x2="300" y2="120" stroke="#e5e7eb" strokeWidth="1" />
+                        {/* Area path - showing trend */}
+                        <path d="M 0,120 L 30,100 L 60,90 L 90,95 L 120,80 L 150,85 L 180,75 L 210,70 L 240,65 L 270,55 L 300,50 L 300,150 L 0,150 Z" 
+                          fill="url(#areaGradient)" />
+                        {/* Line path */}
+                        <path d="M 0,120 L 30,100 L 60,90 L 90,95 L 120,80 L 150,85 L 180,75 L 210,70 L 240,65 L 270,55 L 300,50" 
+                          fill="none" stroke="#8b5cf6" strokeWidth="3" />
+                        {/* Data points */}
+                        <circle cx="0" cy="120" r="4" fill="#8b5cf6" />
+                        <circle cx="60" cy="90" r="4" fill="#8b5cf6" />
+                        <circle cx="120" cy="80" r="4" fill="#8b5cf6" />
+                        <circle cx="180" cy="75" r="4" fill="#8b5cf6" />
+                        <circle cx="240" cy="65" r="4" fill="#8b5cf6" />
+                        <circle cx="300" cy="50" r="5" fill="#8b5cf6" stroke="white" strokeWidth="2" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 text-xs text-font-detail">
+                      <span>7 days ago</span>
+                      <span className="font-semibold text-primary">Current: {stats.totalCredits} credits</span>
+                      <span>Today</span>
+                    </div>
                   </div>
                 </div>
 
+                {/* Repairs Distribution - Bar Chart */}
                 <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Program Progress</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-font-base">Behavior Goals</span>
-                        <span className="text-sm text-font-detail">75%</span>
+                  <h4 className="text-lg font-semibold text-font-base mb-4">Repairs Distribution</h4>
+                  <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-lg p-4 border border-red-100">
+                    <div className="space-y-4">
+                      {/* R1 Bar */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-font-base">Repair 1</span>
+                          <span className="text-sm font-bold text-blue-600">
+                            {repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length}
+                          </span>
+                        </div>
+                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
+                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
+                          >
+                            {(repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length) > 0 && (
+                              <span className="text-xs font-semibold text-white">
+                                {repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-success h-2 rounded-full" style={{width: '75%'}}></div>
+                      {/* R2 Bar */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-font-base">Repair 2</span>
+                          <span className="text-sm font-bold text-yellow-600">
+                            {repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length}
+                          </span>
+                        </div>
+                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
+                          <div 
+                            className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
+                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
+                          >
+                            {(repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length) > 0 && (
+                              <span className="text-xs font-semibold text-white">
+                                {repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {/* R3 Bar */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-font-base">Repair 3</span>
+                          <span className="text-sm font-bold text-red-600">
+                            {repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length}
+                          </span>
+                        </div>
+                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
+                          <div 
+                            className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
+                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
+                          >
+                            {(repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length) > 0 && (
+                              <span className="text-xs font-semibold text-white">
+                                {repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-font-base">Educational Goals</span>
-                        <span className="text-sm text-font-detail">60%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-warning h-2 rounded-full" style={{width: '60%'}}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-font-base">Treatment Compliance</span>
-                        <span className="text-sm text-font-detail">90%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full" style={{width: '90%'}}></div>
+                    <div className="mt-4 pt-4 border-t border-orange-200">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-font-base">Total Repairs</span>
+                        <span className="text-xl font-bold text-error">{repairs.length + historicalRepairs.length}</span>
                       </div>
                     </div>
                   </div>
@@ -814,12 +910,34 @@ export default function ResidentProfilePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {medications.map((med) => (
-                  <div key={med.id} className="bg-gray-50 rounded-lg p-4 border border-bd">
-                    <h5 className="font-medium text-font-base mb-2">{med.medicationName} {med.dosage}</h5>
-                    <p className="text-sm text-font-detail mb-2">{med.frequency || 'As prescribed'}</p>
-                    <p className="text-xs text-font-detail">Prescribed by: {med.prescribingPhysician || 'N/A'}</p>
-                    <p className="text-xs text-font-detail">Special Instructions: {med.specialInstructions || 'None'}</p>
+                {medications.map((med, idx) => (
+                  <div key={med.id} className={`rounded-lg p-4 border-l-4 shadow-sm hover:shadow-md transition-shadow ${
+                    idx % 4 === 0 ? 'bg-gradient-to-br from-blue-50 to-white border-blue-500' :
+                    idx % 4 === 1 ? 'bg-gradient-to-br from-purple-50 to-white border-purple-500' :
+                    idx % 4 === 2 ? 'bg-gradient-to-br from-green-50 to-white border-green-500' :
+                    'bg-gradient-to-br from-orange-50 to-white border-orange-500'
+                  }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <h5 className="font-semibold text-font-base">{med.medicationName}</h5>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active</span>
+                    </div>
+                    <p className="text-lg font-medium text-primary mb-2">{med.dosage}</p>
+                    <p className="text-sm text-font-base mb-3 flex items-center gap-2">
+                      <i className="fa-solid fa-clock text-primary-alt"></i>
+                      {med.frequency || 'As prescribed'}
+                    </p>
+                    <div className="space-y-1 text-xs text-font-detail border-t border-gray-200 pt-2">
+                      <p className="flex items-center gap-2">
+                        <i className="fa-solid fa-user-doctor text-primary"></i>
+                        <strong>Prescribed by:</strong> {med.prescribingPhysician || 'N/A'}
+                      </p>
+                      {med.specialInstructions && (
+                        <p className="flex items-start gap-2">
+                          <i className="fa-solid fa-info-circle text-warning mt-0.5"></i>
+                          <span><strong>Instructions:</strong> {med.specialInstructions}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -964,7 +1082,7 @@ export default function ResidentProfilePage() {
                               <div className="grid grid-cols-2 gap-2 text-xs text-font-detail">
                                 <p><strong>Started:</strong> {watch.startDateTime ? new Date(watch.startDateTime).toLocaleDateString() : 'N/A'}</p>
                                 <p><strong>Duration:</strong> {watch.startDateTime ? Math.ceil((new Date().getTime() - new Date(watch.startDateTime).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
-                                <p><strong>Assigned By:</strong> {watch.assignedByStaffName || 'N/A'}</p>
+                                <p><strong>Assigned By:</strong> {watch.authorizedByClinicianName || 'N/A'}</p>
                                 <p><strong>Check Frequency:</strong> {watch.checkFrequencyMinutes || 15} minutes</p>
                               </div>
                               {watch.notes && (
