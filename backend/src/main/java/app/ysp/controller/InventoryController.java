@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/programs/{programId}/inventory")
+@RequestMapping("/programs/{programId}/inventory")
 public class InventoryController {
     
     private final InventoryService inventoryService;
