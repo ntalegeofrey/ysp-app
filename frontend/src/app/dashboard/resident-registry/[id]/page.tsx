@@ -21,6 +21,7 @@ export default function ResidentProfilePage() {
   });
   const [medications, setMedications] = useState<any[]>([]);
   const [repairs, setRepairs] = useState<any[]>([]);
+  const [historicalRepairs, setHistoricalRepairs] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
@@ -389,7 +390,27 @@ export default function ResidentProfilePage() {
           });
           if (repairRes.ok) {
             const repairData = await repairRes.json();
-            setRepairs(repairData.filter((r: any) => ['ACTIVE', 'IN_PROGRESS', 'PENDING'].includes(r.status)));
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Split into active and historical
+            const activeList: any[] = [];
+            const historicalList: any[] = [];
+            
+            repairData.forEach((r: any) => {
+              const isActiveStatus = r.status === 'approved' || r.status === 'pending_review';
+              const isExpired = r.repairEndDate && new Date(r.repairEndDate) < today;
+              const isHistorical = r.status === 'revoked' || r.status === 'completed' || isExpired;
+              
+              if (isHistorical) {
+                historicalList.push(r);
+              } else if (isActiveStatus) {
+                activeList.push(r);
+              }
+            });
+            
+            setRepairs(activeList);
+            setHistoricalRepairs(historicalList);
           }
         } catch (err) {
           console.error('Failed to load repairs:', err);
@@ -807,22 +828,68 @@ export default function ResidentProfilePage() {
               <div className="space-y-3">
                 {repairs.map((repair) => (
                   <div key={repair.id} className={`rounded-lg p-4 border ${
-                    repair.status === 'ACTIVE' ? 'bg-error-lightest border-error-lighter' : 'bg-warning-lightest border-warning-lighter'
+                    repair.repairLevel === 'Repair 3' ? 'bg-red-50 border-red-200' : 
+                    repair.repairLevel === 'Repair 2' ? 'bg-yellow-50 border-yellow-200' : 
+                    'bg-blue-50 border-blue-200'
                   }`}>
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-medium text-font-base">{repair.behaviorType || 'Repair Intervention'}</h5>
-                        <p className="text-sm text-font-detail mt-1">Assigned: {repair.assignedDate ? new Date(repair.assignedDate).toLocaleDateString() : 'N/A'}</p>
-                        <p className="text-sm text-font-detail">Due: {repair.dueDate ? new Date(repair.dueDate).toLocaleDateString() : 'N/A'}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h5 className="font-semibold text-font-base">{repair.repairLevel || 'Repair'}</h5>
+                          <span className={`px-2 py-1 text-white text-xs rounded-full ${
+                            repair.repairLevel === 'Repair 3' ? 'bg-red-600' : 
+                            repair.repairLevel === 'Repair 2' ? 'bg-yellow-600' : 
+                            'bg-blue-600'
+                          }`}>{repair.status === 'approved' ? 'Approved' : 'Pending Review'}</span>
+                        </div>
+                        <p className="text-sm text-font-base font-medium mb-1">{repair.infractionBehavior || 'Behavior violation'}</p>
+                        <p className="text-xs text-font-detail">Infraction Date: {repair.infractionDate ? new Date(repair.infractionDate).toLocaleDateString() : 'N/A'}</p>
+                        <p className="text-xs text-font-detail">Repair Period: {repair.repairStartDate ? new Date(repair.repairStartDate).toLocaleDateString() : 'N/A'} - {repair.repairEndDate ? new Date(repair.repairEndDate).toLocaleDateString() : 'N/A'}</p>
+                        {repair.comments && (
+                          <p className="text-xs text-font-detail mt-2">Comments: {repair.comments}</p>
+                        )}
                       </div>
-                      <span className={`px-2 py-1 text-white text-xs rounded-full ${
-                        repair.status === 'ACTIVE' ? 'bg-error' : repair.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-warning'
-                      }`}>{repair.status}</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Historical Repairs Section */}
+            <div className="mt-8">
+              <h4 className="text-lg font-semibold text-font-base mb-4">Recent Repairs (Completed/Expired)</h4>
+              {loadingTabs ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-font-detail">Loading...</div>
+                </div>
+              ) : historicalRepairs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 bg-gray-50 rounded-lg border border-dashed border-bd">
+                  <i className="fa-solid fa-check-circle text-3xl text-font-detail mb-2"></i>
+                  <p className="text-sm text-font-detail">No historical repairs</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historicalRepairs.slice(0, 5).map((repair) => (
+                    <div key={repair.id} className="rounded-lg p-4 border bg-gray-50 border-gray-200">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h5 className="font-semibold text-font-detail">{repair.repairLevel || 'Repair'}</h5>
+                            <span className="px-2 py-1 bg-gray-500 text-white text-xs rounded-full">
+                              {repair.status === 'revoked' ? 'Revoked' : 
+                               repair.status === 'completed' ? 'Completed' : 'Expired'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-font-base mb-1">{repair.infractionBehavior || 'Behavior violation'}</p>
+                          <p className="text-xs text-font-detail">Infraction Date: {repair.infractionDate ? new Date(repair.infractionDate).toLocaleDateString() : 'N/A'}</p>
+                          <p className="text-xs text-font-detail">Repair Period: {repair.repairStartDate ? new Date(repair.repairStartDate).toLocaleDateString() : 'N/A'} - {repair.repairEndDate ? new Date(repair.repairEndDate).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
