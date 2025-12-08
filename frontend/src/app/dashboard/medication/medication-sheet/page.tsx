@@ -27,7 +27,28 @@ function MedicationSheetInner() {
   const [primaryPhysician, setPrimaryPhysician] = useState('');
   const [editingReview, setEditingReview] = useState(false);
   const [editingPhysician, setEditingPhysician] = useState(false);
+  const [editingAllergies, setEditingAllergies] = useState(false);
   const [administrationLogs, setAdministrationLogs] = useState<any[]>([]);
+  
+  // Edit Medication Modal
+  const [showEditMedicationModal, setShowEditMedicationModal] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<any>(null);
+  const [editMedName, setEditMedName] = useState('');
+  const [editMedDosage, setEditMedDosage] = useState('');
+  const [editMedFrequency, setEditMedFrequency] = useState('');
+  const [editMedPhysician, setEditMedPhysician] = useState('');
+  const [editMedInstructions, setEditMedInstructions] = useState('');
+  
+  // Delete Medication Modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingMedication, setDeletingMedication] = useState<any>(null);
+  
+  // Administer Medication Modal
+  const [showAdministerModal, setShowAdministerModal] = useState(false);
+  const [administeringMedication, setAdministeringMedication] = useState<any>(null);
+  const [administerStatus, setAdministerStatus] = useState<'given' | 'denied' | 'other'>('given');
+  const [administerQuantity, setAdministerQuantity] = useState('1');
+  const [administerNotes, setAdministerNotes] = useState('');
 
   // Get logged-in staff name and program ID
   useEffect(() => {
@@ -99,8 +120,24 @@ function MedicationSheetInner() {
   };
 
   const fetchAdministrationLogs = async () => {
-    // Placeholder - will implement when backend endpoint is ready
-    setAdministrationLogs([]);
+    if (!programId || !residentId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/medications/administrations/resident/${residentId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const logs = await res.json();
+        setAdministrationLogs(logs);
+      }
+    } catch (err) {
+      console.error('Failed to fetch administration logs:', err);
+    }
   };
 
   const calculateAge = (dateOfBirth: string) => {
@@ -590,6 +627,277 @@ function MedicationSheetInner() {
               >
                 <i className="fa-solid fa-check mr-2"></i>
                 {loading ? 'Adding...' : 'Add Medication'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Medication Modal */}
+      {showEditMedicationModal && editingMedication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-bd sticky top-0 bg-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-font-base flex items-center">
+                  <i className="fa-solid fa-edit text-primary mr-3"></i>
+                  Edit Medication
+                </h3>
+                <button
+                  onClick={() => setShowEditMedicationModal(false)}
+                  className="text-font-detail hover:text-error transition-colors"
+                >
+                  <i className="fa-solid fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Medication Name <span className="text-error">*</span>
+                  </label>
+                  <input
+                    value={editMedName}
+                    onChange={(e) => setEditMedName(e.target.value)}
+                    type="text"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Dosage <span className="text-error">*</span>
+                  </label>
+                  <input
+                    value={editMedDosage}
+                    onChange={(e) => setEditMedDosage(e.target.value)}
+                    type="text"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Frequency</label>
+                  <select
+                    value={editMedFrequency}
+                    onChange={(e) => setEditMedFrequency(e.target.value)}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option>Once Daily</option>
+                    <option>Twice Daily</option>
+                    <option>Three Times Daily</option>
+                    <option>As Needed (PRN)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">Prescribing Physician</label>
+                  <input
+                    value={editMedPhysician}
+                    onChange={(e) => setEditMedPhysician(e.target.value)}
+                    type="text"
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-font-base mb-2">Special Instructions</label>
+                  <textarea
+                    value={editMedInstructions}
+                    onChange={(e) => setEditMedInstructions(e.target.value)}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-bd bg-bg-subtle flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditMedicationModal(false)}
+                className="px-6 py-2 border border-bd rounded-lg text-font-base hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditMedication}
+                disabled={loading}
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors disabled:opacity-50"
+              >
+                <i className="fa-solid fa-save mr-2"></i>
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingMedication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center">
+                  <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-font-base">Confirm Deletion</h3>
+                  <p className="text-sm text-font-detail mt-1">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-font-base">
+                  Are you sure you want to remove <strong>{deletingMedication.medicationName} {deletingMedication.dosage}</strong>?
+                </p>
+                <p className="text-xs text-font-detail mt-2">
+                  This will permanently delete this medication from the resident's record.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteMedication}
+                  disabled={loading}
+                  className="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 font-medium transition-colors disabled:opacity-50"
+                >
+                  <i className="fa-solid fa-trash mr-2"></i>
+                  {loading ? 'Deleting...' : 'Delete Medication'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Administer Medication Modal */}
+      {showAdministerModal && administeringMedication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-bd bg-gradient-to-r from-success/10 to-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-font-base flex items-center">
+                  <i className="fa-solid fa-syringe text-success mr-3"></i>
+                  Administer Medication
+                </h3>
+                <button
+                  onClick={() => setShowAdministerModal(false)}
+                  className="text-font-detail hover:text-error transition-colors"
+                >
+                  <i className="fa-solid fa-times text-xl"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* Medication Info */}
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-font-base mb-2">
+                  {administeringMedication.medicationName} {administeringMedication.dosage}
+                </h4>
+                <div className="text-sm text-font-detail space-y-1">
+                  <p><strong>Frequency:</strong> {administeringMedication.frequency}</p>
+                  {administeringMedication.specialInstructions && (
+                    <p><strong>Instructions:</strong> {administeringMedication.specialInstructions}</p>
+                  )}
+                  <p><strong>Current Count:</strong> {administeringMedication.currentCount}</p>
+                </div>
+              </div>
+
+              {/* Administration Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Administration Status <span className="text-error">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setAdministerStatus('given')}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        administerStatus === 'given'
+                          ? 'border-success bg-success text-white'
+                          : 'border-bd hover:border-success hover:bg-success/10'
+                      }`}
+                    >
+                      <i className="fa-solid fa-check-circle block mb-1"></i>
+                      <span className="text-xs font-medium">Given</span>
+                    </button>
+                    <button
+                      onClick={() => setAdministerStatus('denied')}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        administerStatus === 'denied'
+                          ? 'border-error bg-error text-white'
+                          : 'border-bd hover:border-error hover:bg-error/10'
+                      }`}
+                    >
+                      <i className="fa-solid fa-times-circle block mb-1"></i>
+                      <span className="text-xs font-medium">Denied</span>
+                    </button>
+                    <button
+                      onClick={() => setAdministerStatus('other')}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        administerStatus === 'other'
+                          ? 'border-warning bg-warning text-white'
+                          : 'border-bd hover:border-warning hover:bg-warning/10'
+                      }`}
+                    >
+                      <i className="fa-solid fa-circle-exclamation block mb-1"></i>
+                      <span className="text-xs font-medium">Other</span>
+                    </button>
+                  </div>
+                </div>
+
+                {administerStatus === 'given' && (
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">
+                      Quantity Given <span className="text-error">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={administerQuantity}
+                      onChange={(e) => setAdministerQuantity(e.target.value)}
+                      min="1"
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Notes {administerStatus !== 'given' && <span className="text-error">*</span>}
+                  </label>
+                  <textarea
+                    value={administerNotes}
+                    onChange={(e) => setAdministerNotes(e.target.value)}
+                    placeholder={administerStatus === 'denied' ? 'Reason for denial...' : 'Optional notes...'}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-bd bg-bg-subtle flex justify-end gap-3">
+              <button
+                onClick={() => setShowAdministerModal(false)}
+                className="px-6 py-2 border border-bd rounded-lg text-font-base hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdministerMedication}
+                disabled={loading}
+                className="px-6 py-2 bg-success text-white rounded-lg hover:bg-success/90 font-medium transition-colors disabled:opacity-50"
+              >
+                <i className="fa-solid fa-check mr-2"></i>
+                {loading ? 'Recording...' : 'Record Administration'}
               </button>
             </div>
           </div>

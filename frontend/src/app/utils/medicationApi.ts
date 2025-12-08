@@ -74,6 +74,35 @@ export const updateMedicationCount = async (programId: number, medicationId: num
   return res.json();
 };
 
+export const updateResidentMedication = async (programId: number, medicationId: number, data: {
+  medicationName?: string;
+  dosage?: string;
+  frequency?: string;
+  prescribingPhysician?: string;
+  specialInstructions?: string;
+}) => {
+  const res = await fetch(`${API_BASE}/programs/${programId}/medications/${medicationId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  
+  if (!res.ok) throw new Error('Failed to update medication');
+  return res.json();
+};
+
+export const deleteResidentMedication = async (programId: number, medicationId: number) => {
+  const res = await fetch(`${API_BASE}/programs/${programId}/medications/${medicationId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+  
+  if (!res.ok) throw new Error('Failed to delete medication');
+  return res.ok;
+};
+
 export const discontinueMedication = async (programId: number, medicationId: number) => {
   const res = await fetch(`${API_BASE}/programs/${programId}/medications/${medicationId}/discontinue`, {
     method: 'PATCH',
