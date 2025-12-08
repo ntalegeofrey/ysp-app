@@ -722,12 +722,12 @@ export default function ResidentProfilePage() {
                         <span className="px-3 py-1 bg-success text-white text-xs rounded-full font-medium">Normal</span>
                       )}
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-warning hover:bg-gray-100 transition-colors">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-primary hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
-                        <i className="fa-solid fa-coins text-warning"></i>
+                        <i className="fa-solid fa-coins text-primary"></i>
                         Current Credits
                       </span>
-                      <span className="text-xl font-bold text-warning">{stats.totalCredits}</span>
+                      <span className="text-xl font-bold text-primary">{stats.totalCredits}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-success hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
@@ -819,7 +819,7 @@ export default function ResidentProfilePage() {
                 {/* Credit Balance Trend */}
                 <div className="bg-white rounded-lg border border-bd p-4">
                   <h4 className="text-lg font-semibold text-font-base mb-4 flex items-center gap-2">
-                    <i className="fa-solid fa-chart-line text-warning"></i>
+                    <i className="fa-solid fa-chart-line text-primary"></i>
                     Credit Balance Trend
                   </h4>
                   <div className="bg-gray-50 rounded-lg p-4">
@@ -832,55 +832,77 @@ export default function ResidentProfilePage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="h-48 bg-white rounded-lg p-3">
+                      <div className="h-48 bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-lg p-4 shadow-inner">
                         <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="none">
                           <defs>
                             <linearGradient id="creditGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" style={{stopColor: '#eab308', stopOpacity: 0.3}} />
-                              <stop offset="100%" style={{stopColor: '#eab308', stopOpacity: 0.05}} />
+                              <stop offset="0%" style={{stopColor: '#3b82f6', stopOpacity: 0.4}} />
+                              <stop offset="50%" style={{stopColor: '#6366f1', stopOpacity: 0.2}} />
+                              <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 0.05}} />
                             </linearGradient>
+                            <filter id="glow">
+                              <feGaussianBlur stdDeviation="0.3" result="coloredBlur"/>
+                              <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                              </feMerge>
+                            </filter>
                           </defs>
                           {/* Grid lines */}
                           {[0, 10, 20, 30, 40].map((y) => (
-                            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.1" />
+                            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e0e7ff" strokeWidth="0.1" opacity="0.5" />
                           ))}
                           {(() => {
                             const maxBalance = Math.max(...creditHistory.map((h: any) => h.currentBalance), 1);
-                            const points = creditHistory.map((h: any, i: number) => {
-                              const x = (i / Math.max(creditHistory.length - 1, 1)) * 100;
-                              const y = 40 - ((h.currentBalance / maxBalance) * 35);
-                              return `${x},${y}`;
-                            }).join(' ');
-                            const areaPoints = `0,40 ${points} 100,40`;
+                            // Create smooth curve using cardinal spline
+                            const coords = creditHistory.map((h: any, i: number) => ({
+                              x: (i / Math.max(creditHistory.length - 1, 1)) * 100,
+                              y: 40 - ((h.currentBalance / maxBalance) * 32)
+                            }));
+                            
+                            // Generate smooth path using quadratic curves
+                            let path = `M ${coords[0].x},${coords[0].y}`;
+                            for (let i = 0; i < coords.length - 1; i++) {
+                              const curr = coords[i];
+                              const next = coords[i + 1];
+                              const midX = (curr.x + next.x) / 2;
+                              const midY = (curr.y + next.y) / 2;
+                              path += ` Q ${curr.x},${curr.y} ${midX},${midY}`;
+                            }
+                            const last = coords[coords.length - 1];
+                            path += ` L ${last.x},${last.y}`;
+                            
+                            // Area path for gradient fill
+                            const areaPath = `${path} L 100,40 L 0,40 Z`;
+                            
                             return (
                               <>
-                                {/* Area fill */}
-                                <polygon points={areaPoints} fill="url(#creditGradient)" />
-                                {/* Line */}
-                                <polyline
-                                  points={points}
+                                {/* Area fill with gradient */}
+                                <path d={areaPath} fill="url(#creditGradient)" opacity="0.8" />
+                                {/* Smooth line */}
+                                <path
+                                  d={path}
                                   fill="none"
-                                  stroke="#eab308"
-                                  strokeWidth="0.5"
+                                  stroke="url(#creditGradient)"
+                                  strokeWidth="0.6"
                                   strokeLinejoin="round"
                                   strokeLinecap="round"
+                                  filter="url(#glow)"
                                 />
                                 {/* Data points */}
-                                {creditHistory.map((h: any, i: number) => {
-                                  const x = (i / Math.max(creditHistory.length - 1, 1)) * 100;
-                                  const y = 40 - ((h.currentBalance / maxBalance) * 35);
-                                  return (
+                                {coords.map((coord, i) => (
+                                  <g key={i}>
                                     <circle
-                                      key={i}
-                                      cx={x}
-                                      cy={y}
-                                      r={i === creditHistory.length - 1 ? "0.8" : "0.5"}
-                                      fill="#eab308"
+                                      cx={coord.x}
+                                      cy={coord.y}
+                                      r={i === coords.length - 1 ? "1" : "0.6"}
+                                      fill={i === coords.length - 1 ? "#3b82f6" : "#6366f1"}
                                       stroke="white"
-                                      strokeWidth={i === creditHistory.length - 1 ? "0.3" : "0.1"}
+                                      strokeWidth="0.3"
+                                      filter="url(#glow)"
                                     />
-                                  );
-                                })}
+                                  </g>
+                                ))}
                               </>
                             );
                           })()}
@@ -895,7 +917,7 @@ export default function ResidentProfilePage() {
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-font-detail">Current Balance</p>
-                        <p className="text-lg font-bold text-warning">{stats.totalCredits}</p>
+                        <p className="text-lg font-bold text-primary">{stats.totalCredits}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-font-detail">
