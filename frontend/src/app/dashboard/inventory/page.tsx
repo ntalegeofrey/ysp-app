@@ -227,8 +227,16 @@ export default function InventoryPage() {
 
                   <div className="mt-8">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-semibold text-font-base">Item Details</h4>
+                      <h4 className="text-lg font-semibold text-font-base flex items-center">
+                        <i className="fa-solid fa-clipboard-list text-primary mr-2"></i>
+                        Inventory Log
+                      </h4>
                       <div className="flex items-center space-x-4">
+                        <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                          <option>All Actions</option>
+                          <option>Items Added</option>
+                          <option>Items Checked Out</option>
+                        </select>
                         <select className="border border-bd rounded-lg px-3 py-2 text-sm">
                           <option>All Categories</option>
                           <option>Food</option>
@@ -237,17 +245,7 @@ export default function InventoryPage() {
                           <option>Medical</option>
                           <option>Stationery</option>
                         </select>
-                        <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                          <option>Sort by Name</option>
-                          <option>Sort by Quantity (High to Low)</option>
-                          <option>Sort by Quantity (Low to High)</option>
-                          <option>Sort by Status</option>
-                          <option>Sort by Location</option>
-                        </select>
-                        <input type="text" placeholder="Search items..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
-                        <button className="bg-success text-white px-3 py-2 rounded-lg text-sm hover:bg-opacity-90">
-                          <i className="fa-solid fa-download mr-2"></i>Export Excel
-                        </button>
+                        <input type="text" placeholder="Search log..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
                       </div>
                     </div>
 
@@ -256,68 +254,68 @@ export default function InventoryPage() {
                         <table className="w-full">
                           <thead className="bg-bg-subtle">
                             <tr>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Item Name</th>
+                              <th className="text-left p-3 font-medium text-font-base text-sm">Date & Time</th>
+                              <th className="text-left p-3 font-medium text-font-base text-sm">Action</th>
+                              <th className="text-left p-3 font-medium text-font-base text-sm">Item</th>
                               <th className="text-left p-3 font-medium text-font-base text-sm">Category</th>
                               <th className="text-left p-3 font-medium text-font-base text-sm">Quantity</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Min. Level</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Location</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Status</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Last Updated</th>
+                              <th className="text-left p-3 font-medium text-font-base text-sm">Staff</th>
+                              <th className="text-left p-3 font-medium text-font-base text-sm">Purpose/Note</th>
                             </tr>
                           </thead>
                           <tbody>
-                            <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                              <td className="p-3 text-sm">Toothpaste - Colgate</td>
-                              <td className="p-3 text-sm">Toiletries</td>
-                              <td className="p-3 text-sm text-error font-medium">2</td>
-                              <td className="p-3 text-sm">15</td>
-                              <td className="p-3 text-sm">Shelf A-2</td>
-                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span></td>
-                              <td className="p-3 text-sm text-font-detail">2 hours ago</td>
+                            <tr className="border-b border-bd hover:bg-bg-subtle">
+                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 2:45 PM</td>
+                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
+                              <td className="p-3 text-sm font-medium">Toothpaste - Colgate</td>
+                              <td className="p-3 text-sm text-font-detail">Toiletries</td>
+                              <td className="p-3 text-sm font-medium text-success">+50</td>
+                              <td className="p-3 text-sm text-font-detail">J. Smith</td>
+                              <td className="p-3 text-sm text-font-detail">Monthly restock</td>
                             </tr>
-                            <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                              <td className="p-3 text-sm">Breakfast Cereal</td>
-                              <td className="p-3 text-sm">Food</td>
-                              <td className="p-3 text-sm text-warning font-medium">8</td>
-                              <td className="p-3 text-sm">20</td>
-                              <td className="p-3 text-sm">Pantry B-1</td>
-                              <td className="p-3"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Low</span></td>
-                              <td className="p-3 text-sm text-font-detail">4 hours ago</td>
+                            <tr className="border-b border-bd hover:bg-bg-subtle">
+                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 1:20 PM</td>
+                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                              <td className="p-3 text-sm font-medium">First Aid Kit</td>
+                              <td className="p-3 text-sm text-font-detail">Medical</td>
+                              <td className="p-3 text-sm font-medium text-error">-2</td>
+                              <td className="p-3 text-sm text-font-detail">M. Johnson</td>
+                              <td className="p-3 text-sm text-font-detail">Emergency use - Unit B</td>
                             </tr>
-                            <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                              <td className="p-3 text-sm">T-Shirt - Medium</td>
-                              <td className="p-3 text-sm">Clothing</td>
-                              <td className="p-3 text-sm text-success font-medium">45</td>
-                              <td className="p-3 text-sm">30</td>
-                              <td className="p-3 text-sm">Storage C-3</td>
-                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span></td>
-                              <td className="p-3 text-sm text-font-detail">1 day ago</td>
+                            <tr className="border-b border-bd hover:bg-bg-subtle">
+                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 11:05 AM</td>
+                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                              <td className="p-3 text-sm font-medium">T-Shirt - Medium</td>
+                              <td className="p-3 text-sm text-font-detail">Clothing</td>
+                              <td className="p-3 text-sm font-medium text-error">-5</td>
+                              <td className="p-3 text-sm text-font-detail">L. Brown</td>
+                              <td className="p-3 text-sm text-font-detail">Resident new arrivals</td>
                             </tr>
-                            <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                              <td className="p-3 text-sm">First Aid Kit</td>
-                              <td className="p-3 text-sm">Medical</td>
-                              <td className="p-3 text-sm text-success font-medium">12</td>
-                              <td className="p-3 text-sm">5</td>
-                              <td className="p-3 text-sm">Med Cabinet</td>
-                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span></td>
-                              <td className="p-3 text-sm text-font-detail">3 days ago</td>
+                            <tr className="border-b border-bd hover:bg-bg-subtle">
+                              <td className="p-3 text-sm text-font-detail">Dec 7, 2024 4:30 PM</td>
+                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
+                              <td className="p-3 text-sm font-medium">Breakfast Cereal</td>
+                              <td className="p-3 text-sm text-font-detail">Food</td>
+                              <td className="p-3 text-sm font-medium text-success">+30</td>
+                              <td className="p-3 text-sm text-font-detail">A. Davis</td>
+                              <td className="p-3 text-sm text-font-detail">Weekly grocery delivery</td>
                             </tr>
-                            <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                              <td className="p-3 text-sm">Pencils - #2</td>
-                              <td className="p-3 text-sm">Stationery</td>
-                              <td className="p-3 text-sm text-success font-medium">120</td>
-                              <td className="p-3 text-sm">50</td>
-                              <td className="p-3 text-sm">Office D-1</td>
-                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span></td>
-                              <td className="p-3 text-sm text-font-detail">1 week ago</td>
+                            <tr className="border-b border-bd hover:bg-bg-subtle">
+                              <td className="p-3 text-sm text-font-detail">Dec 7, 2024 10:15 AM</td>
+                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                              <td className="p-3 text-sm font-medium">Pencils - #2</td>
+                              <td className="p-3 text-sm text-font-detail">Stationery</td>
+                              <td className="p-3 text-sm font-medium text-error">-25</td>
+                              <td className="p-3 text-sm text-font-detail">S. Williams</td>
+                              <td className="p-3 text-sm text-font-detail">Education program</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
                       <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-                        <p className="text-sm text-font-detail">Showing 5 of 2,847 items</p>
+                        <p className="text-sm text-font-detail">Showing 5 of 1,247 log entries</p>
                         <button className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
-                          See More Items
+                          View Full Log
                           <i className="fa-solid fa-arrow-right ml-2"></i>
                         </button>
                       </div>
@@ -436,159 +434,277 @@ export default function InventoryPage() {
           )}
 
           {activeTab === 'checkout' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Checkout Form */}
-              <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
-                <h3 className="text-lg font-semibold text-font-base mb-6 flex items-center">
-                  <i className="fa-solid fa-arrow-right-from-bracket text-primary mr-3"></i>
-                  Checkout Items
-                </h3>
-                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Staff Checking Out <span className="text-font-detail">(Auto-filled)</span></label>
+            <div className="space-y-6">
+              {/* Search and Filter Bar */}
+              <div className="bg-white rounded-lg border border-bd p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
                     <input 
                       type="text" 
-                      value={currentStaff || 'Loading...'}
-                      disabled
-                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                      placeholder="Search items by name, category, or location..."
+                      className="w-full border border-bd-input rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Item Name <span className="text-error">*</span></label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option>Select Item</option>
-                        <option>Toothpaste - Colgate</option>
-                        <option>Breakfast Cereal</option>
-                        <option>T-Shirt - Medium</option>
-                        <option>First Aid Kit</option>
-                        <option>Pencils - #2</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Category</label>
-                      <input 
-                        type="text" 
-                        value="Toiletries" 
-                        disabled
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Available Quantity</label>
-                      <input 
-                        type="text" 
-                        value="2 units" 
-                        disabled
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Checkout Quantity <span className="text-error">*</span></label>
-                      <input 
-                        type="number" 
-                        placeholder="0" 
-                        min="1"
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Location</label>
-                      <input 
-                        type="text" 
-                        value="Shelf A-2" 
-                        disabled
-                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Checkout Purpose <span className="text-error">*</span></label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option>Select Purpose</option>
-                        <option>Resident Use</option>
-                        <option>Facility Maintenance</option>
-                        <option>Program Activity</option>
-                        <option>Emergency Use</option>
-                        <option>Donation</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Recipient/Department</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g., John Doe, Maintenance Dept" 
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Notes/Reason <span className="text-error">*</span></label>
-                    <textarea 
-                      placeholder="Describe why this item is being checked out..." 
-                      rows={3} 
-                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                    ></textarea>
-                  </div>
-                  <div className="flex items-center space-x-3 p-4 bg-warning-lightest border border-warning rounded-lg">
-                    <i className="fa-solid fa-exclamation-triangle text-warning text-xl"></i>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-font-base">Important</p>
-                      <p className="text-xs text-font-detail">This action will reduce the inventory count. Make sure the item is actually being removed from storage.</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-3 pt-2">
-                    <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1">
-                      <i className="fa-solid fa-check mr-2"></i>
-                      Confirm Checkout
-                    </button>
-                    <button type="button" className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter">
-                      <i className="fa-solid fa-eraser mr-2"></i>
-                      Clear
-                    </button>
-                  </div>
-                </form>
+                  <select className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary">
+                    <option>All Categories</option>
+                    <option>Food</option>
+                    <option>Clothing</option>
+                    <option>Toiletries</option>
+                    <option>Medical</option>
+                    <option>Stationery</option>
+                  </select>
+                  <select className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary">
+                    <option>All Locations</option>
+                    <option>Shelf A</option>
+                    <option>Shelf B</option>
+                    <option>Pantry</option>
+                    <option>Storage</option>
+                    <option>Office</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Recent Checkouts */}
+              {/* Available Items Grid */}
               <div className="bg-white rounded-lg border border-bd p-6">
-                <h3 className="text-lg font-semibold text-font-base mb-4">Recent Checkouts</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">Toothpaste - Colgate</p>
-                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+                <h3 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                  <i className="fa-solid fa-shopping-cart text-primary mr-3"></i>
+                  Available Items - Browse & Checkout
+                </h3>
+                
+                {/* Items Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Item Card 1 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">Toothpaste - Colgate</h4>
+                        <p className="text-xs text-font-detail">Toiletries</p>
+                      </div>
+                      <span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span>
                     </div>
-                    <p className="text-xs text-font-detail">Qty: 5 | Resident Use</p>
-                    <p className="text-xs text-font-detail">Checked out 15 mins ago</p>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-error">2 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Shelf A-2</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-triangle-exclamation w-4 mr-2"></i>
+                        <span>Min: 15 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="2"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">First Aid Kit</p>
-                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+
+                  {/* Item Card 2 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">Breakfast Cereal</h4>
+                        <p className="text-xs text-font-detail">Food</p>
+                      </div>
+                      <span className="bg-warning text-white px-2 py-1 rounded text-xs">Low</span>
                     </div>
-                    <p className="text-xs text-font-detail">Qty: 1 | Emergency Use</p>
-                    <p className="text-xs text-font-detail">Checked out 1 hour ago</p>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-warning">8 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Pantry B-1</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-triangle-exclamation w-4 mr-2"></i>
+                        <span>Min: 20 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="8"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">T-Shirt - Medium</p>
-                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+
+                  {/* Item Card 3 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">T-Shirt - Medium</h4>
+                        <p className="text-xs text-font-detail">Clothing</p>
+                      </div>
+                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
                     </div>
-                    <p className="text-xs text-font-detail">Qty: 3 | Resident Use</p>
-                    <p className="text-xs text-font-detail">Checked out 2 hours ago</p>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-success">45 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Storage C-3</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
+                        <span>Min: 30 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="45"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">Pencils - #2</p>
-                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+
+                  {/* Item Card 4 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">First Aid Kit</h4>
+                        <p className="text-xs text-font-detail">Medical</p>
+                      </div>
+                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
                     </div>
-                    <p className="text-xs text-font-detail">Qty: 20 | Program Activity</p>
-                    <p className="text-xs text-font-detail">Checked out 3 hours ago</p>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-success">12 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Med Cabinet</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
+                        <span>Min: 5 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="12"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Item Card 5 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">Pencils - #2</h4>
+                        <p className="text-xs text-font-detail">Stationery</p>
+                      </div>
+                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
+                    </div>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-success">120 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Office D-1</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
+                        <span>Min: 50 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="120"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Item Card 6 */}
+                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-font-base mb-1">Hand Sanitizer</h4>
+                        <p className="text-xs text-font-detail">Toiletries</p>
+                      </div>
+                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
+                    </div>
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-box w-4 mr-2"></i>
+                        <span className="font-medium text-success">35 units available</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                        <span>Shelf A-5</span>
+                      </div>
+                      <div className="flex items-center text-xs text-font-detail">
+                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
+                        <span>Min: 20 units</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Qty"
+                        min="1" 
+                        max="35"
+                        defaultValue="1"
+                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                      />
+                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
+                        <i className="fa-solid fa-cart-plus mr-1"></i>
+                        Checkout
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
