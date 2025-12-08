@@ -176,151 +176,100 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              {/* Inventory by Category + Items Table */}
+              {/* Inventory Log */}
               <div className="bg-white rounded-lg border border-bd">
                 <div className="p-6 border-b border-bd">
-                  <h3 className="text-lg font-semibold text-font-base">Inventory by Category</h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-font-base flex items-center">
+                      <i className="fa-solid fa-clipboard-list text-primary mr-2"></i>
+                      Inventory Log
+                    </h3>
+                    <div className="flex items-center space-x-4">
+                      <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                        <option>All Actions</option>
+                        <option>Items Added</option>
+                        <option>Items Checked Out</option>
+                      </select>
+                      <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                        <option>All Categories</option>
+                        <option>Food</option>
+                        <option>Clothing</option>
+                        <option>Toiletries</option>
+                        <option>Medical</option>
+                        <option>Stationery</option>
+                      </select>
+                      <input type="text" placeholder="Search log..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-                    <div className="bg-primary-lightest p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-font-base">Food</h4>
-                        <i className="fa-solid fa-utensils text-primary"></i>
-                      </div>
-                      <p className="text-2xl font-bold text-primary">342</p>
-                      <p className="text-sm text-success">Stock: Good</p>
-                    </div>
-                    <div className="bg-primary-lightest p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-font-base">Clothing</h4>
-                        <i className="fa-solid fa-shirt text-primary"></i>
-                      </div>
-                      <p className="text-2xl font-bold text-primary">156</p>
-                      <p className="text-sm text-success">Stock: Good</p>
-                    </div>
-                    <div className="bg-warning bg-opacity-10 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-font-base">Toiletries</h4>
-                        <i className="fa-solid fa-soap text-warning"></i>
-                      </div>
-                      <p className="text-2xl font-bold text-warning">89</p>
-                      <p className="text-sm text-warning">Stock: Low</p>
-                    </div>
-                    <div className="bg-primary-lightest p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-font-base">Medical</h4>
-                        <i className="fa-solid fa-first-aid text-primary"></i>
-                      </div>
-                      <p className="text-2xl font-bold text-primary">67</p>
-                      <p className="text-sm text-success">Stock: Good</p>
-                    </div>
-                    <div className="bg-primary-lightest p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-font-base">Stationery</h4>
-                        <i className="fa-solid fa-pen text-primary"></i>
-                      </div>
-                      <p className="text-2xl font-bold text-primary">234</p>
-                      <p className="text-sm text-success">Stock: Good</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-8">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-semibold text-font-base flex items-center">
-                        <i className="fa-solid fa-clipboard-list text-primary mr-2"></i>
-                        Inventory Log
-                      </h4>
-                      <div className="flex items-center space-x-4">
-                        <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                          <option>All Actions</option>
-                          <option>Items Added</option>
-                          <option>Items Checked Out</option>
-                        </select>
-                        <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                          <option>All Categories</option>
-                          <option>Food</option>
-                          <option>Clothing</option>
-                          <option>Toiletries</option>
-                          <option>Medical</option>
-                          <option>Stationery</option>
-                        </select>
-                        <input type="text" placeholder="Search log..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
-                      </div>
-                    </div>
-
-                    <div className="bg-white border border-bd rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-bg-subtle">
-                            <tr>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Date & Time</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Action</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Item</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Category</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Quantity</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Staff</th>
-                              <th className="text-left p-3 font-medium text-font-base text-sm">Purpose/Note</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-b border-bd hover:bg-bg-subtle">
-                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 2:45 PM</td>
-                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
-                              <td className="p-3 text-sm font-medium">Toothpaste - Colgate</td>
-                              <td className="p-3 text-sm text-font-detail">Toiletries</td>
-                              <td className="p-3 text-sm font-medium text-success">+50</td>
-                              <td className="p-3 text-sm text-font-detail">J. Smith</td>
-                              <td className="p-3 text-sm text-font-detail">Monthly restock</td>
-                            </tr>
-                            <tr className="border-b border-bd hover:bg-bg-subtle">
-                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 1:20 PM</td>
-                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                              <td className="p-3 text-sm font-medium">First Aid Kit</td>
-                              <td className="p-3 text-sm text-font-detail">Medical</td>
-                              <td className="p-3 text-sm font-medium text-error">-2</td>
-                              <td className="p-3 text-sm text-font-detail">M. Johnson</td>
-                              <td className="p-3 text-sm text-font-detail">Emergency use - Unit B</td>
-                            </tr>
-                            <tr className="border-b border-bd hover:bg-bg-subtle">
-                              <td className="p-3 text-sm text-font-detail">Dec 8, 2024 11:05 AM</td>
-                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                              <td className="p-3 text-sm font-medium">T-Shirt - Medium</td>
-                              <td className="p-3 text-sm text-font-detail">Clothing</td>
-                              <td className="p-3 text-sm font-medium text-error">-5</td>
-                              <td className="p-3 text-sm text-font-detail">L. Brown</td>
-                              <td className="p-3 text-sm text-font-detail">Resident new arrivals</td>
-                            </tr>
-                            <tr className="border-b border-bd hover:bg-bg-subtle">
-                              <td className="p-3 text-sm text-font-detail">Dec 7, 2024 4:30 PM</td>
-                              <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
-                              <td className="p-3 text-sm font-medium">Breakfast Cereal</td>
-                              <td className="p-3 text-sm text-font-detail">Food</td>
-                              <td className="p-3 text-sm font-medium text-success">+30</td>
-                              <td className="p-3 text-sm text-font-detail">A. Davis</td>
-                              <td className="p-3 text-sm text-font-detail">Weekly grocery delivery</td>
-                            </tr>
-                            <tr className="border-b border-bd hover:bg-bg-subtle">
-                              <td className="p-3 text-sm text-font-detail">Dec 7, 2024 10:15 AM</td>
-                              <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                              <td className="p-3 text-sm font-medium">Pencils - #2</td>
-                              <td className="p-3 text-sm text-font-detail">Stationery</td>
-                              <td className="p-3 text-sm font-medium text-error">-25</td>
-                              <td className="p-3 text-sm text-font-detail">S. Williams</td>
-                              <td className="p-3 text-sm text-font-detail">Education program</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-                        <p className="text-sm text-font-detail">Showing 5 of 1,247 log entries</p>
-                        <button className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
-                          View Full Log
-                          <i className="fa-solid fa-arrow-right ml-2"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-bg-subtle">
+                      <tr>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Date & Time</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Action</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Item</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Category</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Quantity</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Staff</th>
+                        <th className="text-left p-3 font-medium text-font-base text-sm">Purpose/Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 2:45 PM</td>
+                        <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
+                        <td className="p-3 text-sm font-medium">Toothpaste - Colgate</td>
+                        <td className="p-3 text-sm text-font-detail">Toiletries</td>
+                        <td className="p-3 text-sm font-medium text-success">+50</td>
+                        <td className="p-3 text-sm text-font-detail">J. Smith</td>
+                        <td className="p-3 text-sm text-font-detail">Monthly restock</td>
+                      </tr>
+                      <tr className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 1:20 PM</td>
+                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                        <td className="p-3 text-sm font-medium">First Aid Kit</td>
+                        <td className="p-3 text-sm text-font-detail">Medical</td>
+                        <td className="p-3 text-sm font-medium text-error">-2</td>
+                        <td className="p-3 text-sm text-font-detail">M. Johnson</td>
+                        <td className="p-3 text-sm text-font-detail">Emergency use - Unit B</td>
+                      </tr>
+                      <tr className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 11:05 AM</td>
+                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                        <td className="p-3 text-sm font-medium">T-Shirt - Medium</td>
+                        <td className="p-3 text-sm text-font-detail">Clothing</td>
+                        <td className="p-3 text-sm font-medium text-error">-5</td>
+                        <td className="p-3 text-sm text-font-detail">L. Brown</td>
+                        <td className="p-3 text-sm text-font-detail">Resident new arrivals</td>
+                      </tr>
+                      <tr className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="p-3 text-sm text-font-detail">Dec 7, 2024 4:30 PM</td>
+                        <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
+                        <td className="p-3 text-sm font-medium">Breakfast Cereal</td>
+                        <td className="p-3 text-sm text-font-detail">Food</td>
+                        <td className="p-3 text-sm font-medium text-success">+30</td>
+                        <td className="p-3 text-sm text-font-detail">A. Davis</td>
+                        <td className="p-3 text-sm text-font-detail">Weekly grocery delivery</td>
+                      </tr>
+                      <tr className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="p-3 text-sm text-font-detail">Dec 7, 2024 10:15 AM</td>
+                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
+                        <td className="p-3 text-sm font-medium">Pencils - #2</td>
+                        <td className="p-3 text-sm text-font-detail">Stationery</td>
+                        <td className="p-3 text-sm font-medium text-error">-25</td>
+                        <td className="p-3 text-sm text-font-detail">S. Williams</td>
+                        <td className="p-3 text-sm text-font-detail">Education program</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
+                  <p className="text-sm text-font-detail">Showing 5 of 1,247 log entries</p>
+                  <button className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
+                    View Full Log
+                    <i className="fa-solid fa-arrow-right ml-2"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -355,6 +304,7 @@ export default function InventoryPage() {
                         <option>Toiletries</option>
                         <option>Medical</option>
                         <option>Stationery</option>
+                        <option>Other (Specify in Notes)</option>
                       </select>
                     </div>
                   </div>
@@ -477,7 +427,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">Toothpaste - Colgate</h4>
+                        <h4 className="font-medium text-font-base mb-1">Toothpaste - Colgate</h4>
                         <p className="text-xs text-font-detail">Toiletries</p>
                       </div>
                       <span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span>
@@ -516,7 +466,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">Breakfast Cereal</h4>
+                        <h4 className="font-medium text-font-base mb-1">Breakfast Cereal</h4>
                         <p className="text-xs text-font-detail">Food</p>
                       </div>
                       <span className="bg-warning text-white px-2 py-1 rounded text-xs">Low</span>
@@ -555,7 +505,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">T-Shirt - Medium</h4>
+                        <h4 className="font-medium text-font-base mb-1">T-Shirt - Medium</h4>
                         <p className="text-xs text-font-detail">Clothing</p>
                       </div>
                       <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
@@ -594,7 +544,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">First Aid Kit</h4>
+                        <h4 className="font-medium text-font-base mb-1">First Aid Kit</h4>
                         <p className="text-xs text-font-detail">Medical</p>
                       </div>
                       <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
@@ -633,7 +583,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">Pencils - #2</h4>
+                        <h4 className="font-medium text-font-base mb-1">Pencils - #2</h4>
                         <p className="text-xs text-font-detail">Stationery</p>
                       </div>
                       <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
@@ -672,7 +622,7 @@ export default function InventoryPage() {
                   <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-font-base mb-1">Hand Sanitizer</h4>
+                        <h4 className="font-medium text-font-base mb-1">Hand Sanitizer</h4>
                         <p className="text-xs text-font-detail">Toiletries</p>
                       </div>
                       <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
@@ -712,9 +662,7 @@ export default function InventoryPage() {
           )}
 
           {activeTab === 'requisition' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Requisition Form */}
-              <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
+            <div className="bg-white rounded-lg border border-bd p-6">
                 <h3 className="text-lg font-semibold text-font-base mb-6 flex items-center">
                   <i className="fa-solid fa-file-invoice text-primary mr-3"></i>
                   Create New Requisition
@@ -852,38 +800,6 @@ export default function InventoryPage() {
                   </div>
                 </form>
               </div>
-
-              {/* Pending Requisitions */}
-              <div className="bg-white rounded-lg border border-bd p-6">
-                <h3 className="text-lg font-semibold text-font-base mb-4">My Pending Requisitions</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  <div className="bg-warning-lightest p-3 rounded-lg border border-warning">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">First Aid Supplies</p>
-                      <span className="bg-warning text-white text-xs px-2 py-1 rounded">Pending</span>
-                    </div>
-                    <p className="text-xs text-font-detail">Qty: 20 units | Medical</p>
-                    <p className="text-xs text-font-detail">Submitted 2 days ago</p>
-                  </div>
-                  <div className="bg-info-lightest p-3 rounded-lg border border-info">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">Office Supplies</p>
-                      <span className="bg-info text-white text-xs px-2 py-1 rounded">Under Review</span>
-                    </div>
-                    <p className="text-xs text-font-detail">Qty: 50 units | Stationery</p>
-                    <p className="text-xs text-font-detail">Submitted 5 days ago</p>
-                  </div>
-                  <div className="bg-success-lightest p-3 rounded-lg border border-success">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-font-base">Cleaning Products</p>
-                      <span className="bg-success text-white text-xs px-2 py-1 rounded">Approved</span>
-                    </div>
-                    <p className="text-xs text-font-detail">Qty: 10 units | Cleaning</p>
-                    <p className="text-xs text-font-detail">Approved 1 week ago</p>
-                  </div>
-                </div>
-              </div>
-            </div>
           )}
 
           {activeTab === 'requisition-archive' && (
