@@ -2,11 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
+import * as inventoryApi from '@/app/utils/inventoryApi';
 
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'requisition' | 'requisition-archive' | 'audit'>('overview');
   const router = useRouter();
   const [currentStaff, setCurrentStaff] = useState('');
+  const { toasts, addToast, removeToast } = useToast();
+  
+  // State for inventory items
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Add Item Form State
+  const [addItemForm, setAddItemForm] = useState({
+    itemName: '',
+    category: '',
+    description: '',
+    quantity: '',
+    minimumQuantity: '',
+    location: '',
+    notes: ''
+  });
+  
+  // Checkout Form State - for individual items
+  const [checkoutForms, setCheckoutForms] = useState<{[key: number]: {quantity: number}}>({});
   
   // Load current user
   useEffect(() => {
@@ -24,6 +47,143 @@ export default function InventoryPage() {
       console.error('Failed to parse user:', err);
     }
   }, []);
+  
+  // Fetch inventory items
+  const fetchInventoryItems = async () => {
+    try {
+      const items = await inventoryApi.getInventoryItems();
+      setInventoryItems(items);
+    } catch (error: any) {
+      console.error('Error fetching inventory:', error);
+      addToast(error.message || 'Failed to fetch inventory items', 'error');
+    }
+  };
+  
+  // Fetch transaction history
+  const fetchTransactions = async () => {
+    try {
+      const response = await inventoryApi.getTransactionHistory({ page: 0, size: 10 });
+      setTransactions(response.content || []);
+    } catch (error: any) {
+      console.error('Error fetching transactions:', error);
+    }
+  };
+  
+  // Load data on mount and tab change
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      fetchTransactions();
+    } else if (activeTab === 'checkout') {
+      fetchInventoryItems();
+    }
+  }, [activeTab]);
+  
+  // Handle Add Item form submit
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await inventoryApi.addInventoryItem({
+        itemName: addItemForm.itemName,
+        category: addItemForm.category,
+        description: addItemForm.description,
+        quantity: parseInt(addItemForm.quantity) || 0,
+        minimumQuantity: parseInt(addItemForm.minimumQuantity) || 0,
+        location: addItemForm.location,
+        notes: addItemForm.notes
+      });
+      
+      addToast(`${addItemForm.itemName} added successfully!`, 'success');
+      
+      // Reset form
+      setAddItemForm({
+        itemName: '',
+        category: '',
+        description: '',
+        quantity: '',
+        minimumQuantity: '',
+        location: '',
+        notes: ''
+      });
+      
+      // Refresh data if on overview tab
+      if (activeTab === 'overview') {
+        fetchTransactions();
+      }
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      addToast(error.message || 'Failed to add item', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle Checkout
+  const handleCheckout = async (item: any) => {
+    const quantity = checkoutForms[item.id]?.quantity || 1;
+    
+    if (quantity <= 0) {
+      addToast('Quantity must be greater than 0', 'warning');
+      return;
+    }
+    
+    if (quantity > item.currentQuantity) {
+      addToast(`Only ${item.currentQuantity} units available`, 'error');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      await inventoryApi.checkoutInventoryItem({
+        inventoryItemId: item.id,
+        quantity: quantity,
+        purpose: 'Resident Use', // Default purpose
+        notes: `Checked out ${quantity} ${item.unitOfMeasurement || 'units'} of ${item.itemName}`
+      });
+      
+      addToast(`${quantity} ${item.itemName} checked out by ${currentStaff}`, 'success');
+      
+      // Reset quantity input
+      setCheckoutForms(prev => ({
+        ...prev,
+        [item.id]: { quantity: 1 }
+      }));
+      
+      // Refresh items
+      fetchInventoryItems();
+      
+    } catch (error: any) {
+      console.error('Error checking out item:', error);
+      addToast(error.message || 'Failed to checkout item', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle quantity change for checkout
+  const handleQuantityChange = (itemId: number, value: string) => {
+    const numValue = parseInt(value) || 1;
+    setCheckoutForms(prev => ({
+      ...prev,
+      [itemId]: { quantity: numValue }
+    }));
+  };
+  
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   const tabBtnBase = 'flex items-center px-1 py-4 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -216,59 +376,40 @@ export default function InventoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-bd hover:bg-bg-subtle">
-                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 2:45 PM</td>
-                        <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
-                        <td className="p-3 text-sm font-medium">Toothpaste - Colgate</td>
-                        <td className="p-3 text-sm text-font-detail">Toiletries</td>
-                        <td className="p-3 text-sm font-medium text-success">+50</td>
-                        <td className="p-3 text-sm text-font-detail">J. Smith</td>
-                        <td className="p-3 text-sm text-font-detail">Monthly restock</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-bg-subtle">
-                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 1:20 PM</td>
-                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                        <td className="p-3 text-sm font-medium">First Aid Kit</td>
-                        <td className="p-3 text-sm text-font-detail">Medical</td>
-                        <td className="p-3 text-sm font-medium text-error">-2</td>
-                        <td className="p-3 text-sm text-font-detail">M. Johnson</td>
-                        <td className="p-3 text-sm text-font-detail">Emergency use - Unit B</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-bg-subtle">
-                        <td className="p-3 text-sm text-font-detail">Dec 8, 2024 11:05 AM</td>
-                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                        <td className="p-3 text-sm font-medium">T-Shirt - Medium</td>
-                        <td className="p-3 text-sm text-font-detail">Clothing</td>
-                        <td className="p-3 text-sm font-medium text-error">-5</td>
-                        <td className="p-3 text-sm text-font-detail">L. Brown</td>
-                        <td className="p-3 text-sm text-font-detail">Resident new arrivals</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-bg-subtle">
-                        <td className="p-3 text-sm text-font-detail">Dec 7, 2024 4:30 PM</td>
-                        <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Added</span></td>
-                        <td className="p-3 text-sm font-medium">Breakfast Cereal</td>
-                        <td className="p-3 text-sm text-font-detail">Food</td>
-                        <td className="p-3 text-sm font-medium text-success">+30</td>
-                        <td className="p-3 text-sm text-font-detail">A. Davis</td>
-                        <td className="p-3 text-sm text-font-detail">Weekly grocery delivery</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-bg-subtle">
-                        <td className="p-3 text-sm text-font-detail">Dec 7, 2024 10:15 AM</td>
-                        <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Checkout</span></td>
-                        <td className="p-3 text-sm font-medium">Pencils - #2</td>
-                        <td className="p-3 text-sm text-font-detail">Stationery</td>
-                        <td className="p-3 text-sm font-medium text-error">-25</td>
-                        <td className="p-3 text-sm text-font-detail">S. Williams</td>
-                        <td className="p-3 text-sm text-font-detail">Education program</td>
-                      </tr>
+                      {transactions.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-font-detail">
+                            <i className="fa-solid fa-inbox text-4xl mb-3 block"></i>
+                            No transactions yet. Add items or checkout to see activity here.
+                          </td>
+                        </tr>
+                      ) : (
+                        transactions.map((transaction: any) => (
+                          <tr key={transaction.id} className="border-b border-bd hover:bg-bg-subtle">
+                            <td className="p-3 text-sm text-font-detail">{formatDate(transaction.transactionDate)}</td>
+                            <td className="p-3">
+                              <span className={`${transaction.transactionType === 'ADDITION' ? 'bg-success' : 'bg-error'} text-white px-2 py-1 rounded text-xs`}>
+                                {transaction.transactionType === 'ADDITION' ? 'Added' : 'Checkout'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-sm font-medium">{transaction.itemName}</td>
+                            <td className="p-3 text-sm text-font-detail">{transaction.category}</td>
+                            <td className={`p-3 text-sm font-medium ${transaction.quantity > 0 ? 'text-success' : 'text-error'}`}>
+                              {transaction.quantity > 0 ? '+' : ''}{transaction.quantity}
+                            </td>
+                            <td className="p-3 text-sm text-font-detail">{transaction.staffName}</td>
+                            <td className="p-3 text-sm text-font-detail">{transaction.purpose || transaction.notes || '-'}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
                 <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-                  <p className="text-sm text-font-detail">Showing 5 of 1,247 log entries</p>
-                  <button className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
-                    View Full Log
-                    <i className="fa-solid fa-arrow-right ml-2"></i>
+                  <p className="text-sm text-font-detail">Showing {transactions.length} recent transactions</p>
+                  <button onClick={fetchTransactions} className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
+                    <i className="fa-solid fa-refresh mr-2"></i>
+                    Refresh
                   </button>
                 </div>
               </div>
@@ -280,7 +421,7 @@ export default function InventoryPage() {
               {/* Add Item Form */}
               <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
                 <h3 className="text-lg font-semibold text-font-base mb-6">Add New Items</h3>
-                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                <form className="space-y-6" onSubmit={handleAddItem}>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Staff Adding Items <span className="text-font-detail">(Auto-filled)</span></label>
                     <input 
@@ -292,46 +433,90 @@ export default function InventoryPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Item Name</label>
-                      <input type="text" placeholder="Enter item name" className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" />
+                      <label className="block text-sm font-medium text-font-base mb-2">Item Name <span className="text-error">*</span></label>
+                      <input 
+                        type="text" 
+                        placeholder="Enter item name"
+                        value={addItemForm.itemName}
+                        onChange={(e) => setAddItemForm({...addItemForm, itemName: e.target.value})}
+                        required
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Category</label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option>Select Category</option>
-                        <option>Food</option>
-                        <option>Clothing</option>
-                        <option>Toiletries</option>
-                        <option>Medical</option>
-                        <option>Stationery</option>
-                        <option>Other (Specify in Notes)</option>
+                      <label className="block text-sm font-medium text-font-base mb-2">Category <span className="text-error">*</span></label>
+                      <select 
+                        value={addItemForm.category}
+                        onChange={(e) => setAddItemForm({...addItemForm, category: e.target.value})}
+                        required
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Select Category</option>
+                        <option value="Food">Food</option>
+                        <option value="Clothing">Clothing</option>
+                        <option value="Toiletries">Toiletries</option>
+                        <option value="Medical">Medical</option>
+                        <option value="Stationery">Stationery</option>
+                        <option value="Other">Other (Specify in Notes)</option>
                       </select>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Quantity</label>
-                      <input type="number" placeholder="0" className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" />
+                      <label className="block text-sm font-medium text-font-base mb-2">Quantity <span className="text-error">*</span></label>
+                      <input 
+                        type="number" 
+                        placeholder="0"
+                        value={addItemForm.quantity}
+                        onChange={(e) => setAddItemForm({...addItemForm, quantity: e.target.value})}
+                        required
+                        min="0"
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Min. Level</label>
-                      <input type="number" placeholder="0" className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" />
+                      <label className="block text-sm font-medium text-font-base mb-2">Min. Level <span className="text-error">*</span></label>
+                      <input 
+                        type="number" 
+                        placeholder="0"
+                        value={addItemForm.minimumQuantity}
+                        onChange={(e) => setAddItemForm({...addItemForm, minimumQuantity: e.target.value})}
+                        required
+                        min="0"
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Location</label>
-                      <input type="text" placeholder="Shelf A-1" className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" />
+                      <input 
+                        type="text" 
+                        placeholder="Shelf A-1"
+                        value={addItemForm.location}
+                        onChange={(e) => setAddItemForm({...addItemForm, location: e.target.value})}
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-font-base mb-2">Notes (Optional)</label>
-                    <textarea placeholder="Additional notes about this item" rows={3} className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+                    <textarea 
+                      placeholder="Additional notes about this item" 
+                      rows={3}
+                      value={addItemForm.notes}
+                      onChange={(e) => setAddItemForm({...addItemForm, notes: e.target.value})}
+                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    ></textarea>
                   </div>
                   <div className="flex space-x-3 pt-2">
-                    <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1">
-                      <i className="fa-solid fa-plus mr-2"></i>
-                      Add Item
+                    <button type="submit" disabled={loading} className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1 disabled:opacity-50">
+                      <i className={`fa-solid ${loading ? 'fa-spinner fa-spin' : 'fa-plus'} mr-2`}></i>
+                      {loading ? 'Adding...' : 'Add Item'}
                     </button>
-                    <button type="button" className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter">
+                    <button 
+                      type="button" 
+                      onClick={() => setAddItemForm({itemName: '', category: '', description: '', quantity: '', minimumQuantity: '', location: '', notes: ''})}
+                      className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter"
+                    >
                       <i className="fa-solid fa-eraser mr-2"></i>
                       Clear
                     </button>
@@ -423,239 +608,79 @@ export default function InventoryPage() {
                 
                 {/* Items Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Item Card 1 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">Toothpaste - Colgate</h4>
-                        <p className="text-xs text-font-detail">Toiletries</p>
-                      </div>
-                      <span className="bg-error text-white px-2 py-1 rounded text-xs">Critical</span>
+                  {inventoryItems.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <i className="fa-solid fa-inbox text-5xl text-font-detail mb-4 block"></i>
+                      <p className="text-font-detail">No inventory items yet. Add items to see them here.</p>
                     </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-error">2 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Shelf A-2</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-triangle-exclamation w-4 mr-2"></i>
-                        <span>Min: 15 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="2"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Card 2 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">Breakfast Cereal</h4>
-                        <p className="text-xs text-font-detail">Food</p>
-                      </div>
-                      <span className="bg-warning text-white px-2 py-1 rounded text-xs">Low</span>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-warning">8 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Pantry B-1</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-triangle-exclamation w-4 mr-2"></i>
-                        <span>Min: 20 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="8"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Card 3 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">T-Shirt - Medium</h4>
-                        <p className="text-xs text-font-detail">Clothing</p>
-                      </div>
-                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-success">45 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Storage C-3</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
-                        <span>Min: 30 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="45"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Card 4 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">First Aid Kit</h4>
-                        <p className="text-xs text-font-detail">Medical</p>
-                      </div>
-                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-success">12 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Med Cabinet</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
-                        <span>Min: 5 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="12"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Card 5 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">Pencils - #2</h4>
-                        <p className="text-xs text-font-detail">Stationery</p>
-                      </div>
-                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-success">120 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Office D-1</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
-                        <span>Min: 50 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="120"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Card 6 */}
-                  <div className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-font-base mb-1">Hand Sanitizer</h4>
-                        <p className="text-xs text-font-detail">Toiletries</p>
-                      </div>
-                      <span className="bg-success text-white px-2 py-1 rounded text-xs">Good</span>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-box w-4 mr-2"></i>
-                        <span className="font-medium text-success">35 units available</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-location-dot w-4 mr-2"></i>
-                        <span>Shelf A-5</span>
-                      </div>
-                      <div className="flex items-center text-xs text-font-detail">
-                        <i className="fa-solid fa-check-circle w-4 mr-2"></i>
-                        <span>Min: 20 units</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="Qty"
-                        min="1" 
-                        max="35"
-                        defaultValue="1"
-                        className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
-                      />
-                      <button className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light">
-                        <i className="fa-solid fa-cart-plus mr-1"></i>
-                        Checkout
-                      </button>
-                    </div>
-                  </div>
+                  ) : (
+                    inventoryItems.map((item: any) => {
+                      const statusColor = item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK' ? 'error' :
+                                        item.status === 'LOW' ? 'warning' : 'success';
+                      const statusIcon = item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK' ? 'triangle-exclamation' :
+                                       item.status === 'LOW' ? 'triangle-exclamation' : 'check-circle';
+                      const quantityColor = statusColor === 'error' ? 'text-error' :
+                                          statusColor === 'warning' ? 'text-warning' : 'text-success';
+                      
+                      return (
+                        <div key={item.id} className="border border-bd rounded-lg p-4 hover:shadow-lg transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-font-base mb-1">{item.itemName}</h4>
+                              <p className="text-xs text-font-detail">{item.category}</p>
+                            </div>
+                            <span className={`bg-${statusColor} text-white px-2 py-1 rounded text-xs`}>
+                              {item.status === 'OUT_OF_STOCK' ? 'Out' : item.status === 'CRITICAL' ? 'Critical' : 
+                               item.status === 'LOW' ? 'Low' : 'Good'}
+                            </span>
+                          </div>
+                          <div className="space-y-2 mb-3">
+                            <div className="flex items-center text-xs text-font-detail">
+                              <i className="fa-solid fa-box w-4 mr-2"></i>
+                              <span className={`font-medium ${quantityColor}`}>
+                                {item.currentQuantity} {item.unitOfMeasurement || 'units'} available
+                              </span>
+                            </div>
+                            {item.location && (
+                              <div className="flex items-center text-xs text-font-detail">
+                                <i className="fa-solid fa-location-dot w-4 mr-2"></i>
+                                <span>{item.location}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center text-xs text-font-detail">
+                              <i className={`fa-solid fa-${statusIcon} w-4 mr-2`}></i>
+                              <span>Min: {item.minimumQuantity} {item.unitOfMeasurement || 'units'}</span>
+                            </div>
+                          </div>
+                          {item.currentQuantity > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="number" 
+                                placeholder="Qty"
+                                min="1" 
+                                max={item.currentQuantity}
+                                value={checkoutForms[item.id]?.quantity || 1}
+                                onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" 
+                              />
+                              <button 
+                                onClick={() => handleCheckout(item)}
+                                disabled={loading}
+                                className="flex-1 bg-primary text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-light disabled:opacity-50"
+                              >
+                                <i className={`fa-solid ${loading ? 'fa-spinner fa-spin' : 'fa-cart-plus'} mr-1`}></i>
+                                Checkout
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="bg-error-lightest text-error text-xs px-3 py-2 rounded text-center">
+                              Out of Stock
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1087,6 +1112,8 @@ export default function InventoryPage() {
             </div>
           )}
         </div>
+        
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
