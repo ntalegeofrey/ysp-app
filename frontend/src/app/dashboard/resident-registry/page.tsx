@@ -14,6 +14,7 @@ export default function ResidentRegistryPage() {
   type ResidentInfo = { pk: number|string; name: string; residentId: string; room: string; status: string; advocate: string; admissionDate: string };
   const [residentEdit, setResidentEdit] = useState<ResidentInfo | null>(null);
   const [residentAction, setResidentAction] = useState<null | { pk: number|string; action: 'discharge'; name: string }>(null);
+  const [dischargedResident, setDischargedResident] = useState<null | { id: number|string; firstName: string; lastName: string; dateOfBirth: string; admissionDate: string }>(null);
 
   // Resident form minimal state
   const [resResidentId, setResResidentId] = useState<string>('');
@@ -269,6 +270,34 @@ export default function ResidentRegistryPage() {
               try {
                 if (!programId) { addToast('No program selected', 'error'); return; }
                 const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                
+                // Check for discharged resident with same name and DOB
+                if (resFirstName.trim() && resLastName.trim() && resDob) {
+                  const checkResp = await fetch(`/api/programs/${programId}/residents`, { 
+                    credentials:'include', 
+                    headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } 
+                  });
+                  if (checkResp.ok) {
+                    const allResidents = await checkResp.json();
+                    const discharged = allResidents.find((r: any) => 
+                      r.status === 'DISCHARGED' && 
+                      r.firstName?.toLowerCase() === resFirstName.trim().toLowerCase() &&
+                      r.lastName?.toLowerCase() === resLastName.trim().toLowerCase() &&
+                      r.dateOfBirth === resDob
+                    );
+                    if (discharged) {
+                      setDischargedResident({
+                        id: discharged.id,
+                        firstName: discharged.firstName,
+                        lastName: discharged.lastName,
+                        dateOfBirth: discharged.dateOfBirth,
+                        admissionDate: discharged.admissionDate || ''
+                      });
+                      return; // Stop and show reactivation modal
+                    }
+                  }
+                }
+                
                 const payload = {
                   firstName: resFirstName.trim(),
                   lastName: resLastName.trim(),
@@ -575,6 +604,117 @@ export default function ResidentRegistryPage() {
                 }}
               >
                 <i className="fa-solid fa-right-from-bracket mr-2"></i>Confirm Discharge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reactivate Discharged Resident Modal */}
+      {dischargedResident && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-primary w-full max-w-lg p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <i className="fa-solid fa-user-check text-blue-600 text-xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-font-base">Resident Found</h3>
+              </div>
+              <button className="text-font-detail hover:text-primary" onClick={() => setDischargedResident(null)}>
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-info-circle text-blue-600 mt-0.5"></i>
+                <div className="text-sm text-font-base">
+                  <p className="font-semibold mb-2">A previously discharged resident was found:</p>
+                  <div className="space-y-1 text-font-detail">
+                    <p><strong>Name:</strong> {dischargedResident.firstName} {dischargedResident.lastName}</p>
+                    <p><strong>Date of Birth:</strong> {dischargedResident.dateOfBirth ? new Date(dischargedResident.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                    {dischargedResident.admissionDate && (
+                      <p><strong>Previous Admission:</strong> {new Date(dischargedResident.admissionDate).toLocaleDateString()}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-lightbulb text-yellow-600 mt-0.5"></i>
+                <div className="text-sm text-font-detail">
+                  <p className="font-semibold text-font-base mb-2">What would you like to do?</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li><strong>Reactivate:</strong> Restore this resident with all their historical data</li>
+                    <li><strong>Create New:</strong> Add as a new resident (not recommended if same person)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                className="px-4 py-2 rounded-lg border border-bd text-sm font-medium hover:bg-gray-50" 
+                onClick={() => setDischargedResident(null)}
+              >
+                <i className="fa-solid fa-times mr-2"></i>Cancel
+              </button>
+              <button 
+                className="px-4 py-2 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-blue-50" 
+                onClick={async () => {
+                  // Continue with creating new resident despite match
+                  setDischargedResident(null);
+                  // The form will submit normally on next attempt
+                  addToast('Please submit the form again to create a new record', 'info');
+                }}
+              >
+                <i className="fa-solid fa-user-plus mr-2"></i>Create New Anyway
+              </button>
+              <button 
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-light" 
+                onClick={async () => {
+                  if (!programId) return;
+                  try {
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                    const resp = await fetch(`/api/programs/${programId}/residents/${dischargedResident.id}`, { 
+                      method:'PUT', 
+                      credentials:'include', 
+                      headers: { 
+                        'Content-Type':'application/json', 
+                        ...(token? { Authorization: `Bearer ${token}` }: {}) 
+                      }, 
+                      body: JSON.stringify({ 
+                        status: 'General Population',
+                        room: resRoom || undefined,
+                        admissionDate: resAdmissionDate || undefined,
+                        advocate: resAdvocate || undefined
+                      }) 
+                    });
+                    if (!resp.ok) { 
+                      addToast('Failed to reactivate resident', 'error'); 
+                      return; 
+                    }
+                    addToast('Resident successfully reactivated!', 'success');
+                    try { 
+                      localStorage.setItem('global-toast', JSON.stringify({ 
+                        title: 'Resident successfully reactivated', 
+                        tone: 'success' 
+                      })); 
+                    } catch {}
+                    // Clear form
+                    setResFirstName(''); setResLastName(''); setResDob(''); setResAdmissionDate(''); 
+                    setResResidentId(''); setResRoom(''); setResStatus('General Population'); setResAdvocate('');
+                    setDischargedResident(null);
+                    await loadResidents();
+                  } catch { 
+                    addToast('Reactivation failed', 'error'); 
+                  }
+                }}
+              >
+                <i className="fa-solid fa-rotate-right mr-2"></i>Reactivate Resident
               </button>
             </div>
           </div>
