@@ -232,6 +232,130 @@ function MedicationSheetInner() {
     }
   };
 
+  const openEditMedication = (med: any) => {
+    setEditingMedication(med);
+    setEditMedName(med.medicationName);
+    setEditMedDosage(med.dosage);
+    setEditMedFrequency(med.frequency);
+    setEditMedPhysician(med.prescribingPhysician || '');
+    setEditMedInstructions(med.specialInstructions || '');
+    setShowEditMedicationModal(true);
+  };
+
+  const handleEditMedication = async () => {
+    if (!programId || !editingMedication) return;
+    
+    if (!editMedName || !editMedDosage) {
+      addToast('Please fill in all required fields', 'warning');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await medicationApi.updateResidentMedication(programId, editingMedication.id, {
+        medicationName: editMedName,
+        dosage: editMedDosage,
+        frequency: editMedFrequency,
+        prescribingPhysician: editMedPhysician || undefined,
+        specialInstructions: editMedInstructions || undefined,
+      });
+      
+      addToast('Medication updated successfully', 'success');
+      setShowEditMedicationModal(false);
+      setEditingMedication(null);
+      fetchMedications();
+    } catch (err: any) {
+      console.error('Failed to update medication:', err);
+      addToast(err.message || 'Failed to update medication', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openDeleteMedication = (med: any) => {
+    setDeletingMedication(med);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteMedication = async () => {
+    if (!programId || !deletingMedication) return;
+
+    setLoading(true);
+    try {
+      await medicationApi.deleteResidentMedication(programId, deletingMedication.id);
+      addToast(`${deletingMedication.medicationName} removed successfully`, 'success');
+      setShowDeleteModal(false);
+      setDeletingMedication(null);
+      fetchMedications();
+    } catch (err: any) {
+      console.error('Failed to delete medication:', err);
+      addToast(err.message || 'Failed to delete medication', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAdministerMedication = (med: any) => {
+    setAdministeringMedication(med);
+    setAdministerStatus('given');
+    setAdministerQuantity('1');
+    setAdministerNotes('');
+    setShowAdministerModal(true);
+  };
+
+  const handleAdministerMedication = async () => {
+    if (!programId || !residentId || !administeringMedication) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const administrationData = {
+        medicationId: administeringMedication.id,
+        residentId: parseInt(residentId),
+        status: administerStatus,
+        quantity: administerStatus === 'given' ? parseInt(administerQuantity) : 0,
+        notes: administerNotes || undefined,
+        administeredBy: currentStaff,
+        administeredAt: new Date().toISOString(),
+      };
+
+      const res = await fetch(`/api/programs/${programId}/medications/${administeringMedication.id}/administer`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(administrationData),
+      });
+
+      if (!res.ok) throw new Error('Failed to record administration');
+
+      addToast(`Medication ${administerStatus === 'given' ? 'administered' : administerStatus} successfully`, 'success');
+      setShowAdministerModal(false);
+      setAdministeringMedication(null);
+      fetchMedications();
+      fetchAdministrationLogs();
+    } catch (err: any) {
+      console.error('Failed to administer medication:', err);
+      addToast(err.message || 'Failed to record administration', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateAllergies = async () => {
+    if (!programId || !resident?.id) return;
+    
+    try {
+      await updateResidentMedicalInfo('medicalAllergies', allergies);
+      setEditingAllergies(false);
+    } catch (err) {
+      console.error('Failed to update allergies:', err);
+    }
+  };
+
   return (
     <main id="medication-main" className="flex-1 p-6 overflow-auto">
       <div id="resident-info-section" className="bg-white rounded-lg border border-bd mb-8">
@@ -320,10 +444,34 @@ function MedicationSheetInner() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-font-base mb-1">Known Allergies</label>
-                <div className={`text-font-base p-2 rounded border-l-4 ${allergies && allergies !== 'None reported' ? 'bg-error-lightest border-error' : 'bg-bg-subtle border-bd'}`}>
-                  {allergies}
-                </div>
+                <label className="block text-sm font-medium text-font-base mb-1">
+                  Known Allergies
+                  <button 
+                    onClick={() => setEditingAllergies(!editingAllergies)}
+                    className="ml-2 text-primary hover:text-primary/80 text-xs"
+                  >
+                    <i className="fa-solid fa-pencil"></i>
+                  </button>
+                </label>
+                {editingAllergies ? (
+                  <textarea
+                    value={allergies}
+                    onChange={(e) => setAllergies(e.target.value)}
+                    onBlur={updateAllergies}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        updateAllergies();
+                      }
+                    }}
+                    className="w-full border border-bd rounded px-2 py-1 text-sm h-20"
+                    placeholder="List known allergies..."
+                    autoFocus
+                  />
+                ) : (
+                  <div className={`text-font-base p-2 rounded border-l-4 ${allergies && allergies !== 'None reported' ? 'bg-error-lightest border-error' : 'bg-bg-subtle border-bd'}`}>
+                    {allergies}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-font-base mb-1">
