@@ -154,7 +154,13 @@ function HeaderWithParams({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [programName, setProgramName] = useState<string | null>(null);
-  const [residentName, setResidentName] = useState<string | null>(null);
+  // Initialize with cached value to prevent flickering
+  const [residentName, setResidentName] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('currentResidentName');
+    }
+    return null;
+  });
 
   let title = baseTitle;
   let breadcrumb = baseBreadcrumb;
@@ -196,11 +202,22 @@ function HeaderWithParams({
             const data = await res.json();
             const name = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Resident';
             setResidentName(name);
+            // Store in sessionStorage to prevent header flickering on navigation
+            sessionStorage.setItem('currentResidentName', name);
+          } else {
+            // Clear only if fetch fails
+            setResidentName(null);
+            sessionStorage.removeItem('currentResidentName');
           }
-        } catch {}
+        } catch {
+          setResidentName(null);
+          sessionStorage.removeItem('currentResidentName');
+        }
       })();
-    } else {
+    } else if (!pathname.startsWith('/dashboard/resident-registry/')) {
+      // Only clear when completely leaving resident registry section
       setResidentName(null);
+      sessionStorage.removeItem('currentResidentName');
     }
   }, [pathname]);
 
