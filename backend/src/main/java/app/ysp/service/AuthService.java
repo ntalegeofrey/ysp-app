@@ -59,7 +59,6 @@ public class AuthService {
         mfa.setUsed(true);
         mfaCodeRepository.save(mfa);
         var claims = new HashMap<String, Object>();
-        claims.put("id", user.getId());
         claims.put("role", user.getRole());
         return jwtService.generateToken(user.getEmail(), claims);
     }

@@ -1,6 +1,8 @@
 package app.ysp.controller;
 
+import app.ysp.domain.User;
 import app.ysp.dto.*;
+import app.ysp.repo.UserRepository;
 import app.ysp.service.InventoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,9 +16,11 @@ import java.util.Map;
 public class InventoryController {
     
     private final InventoryService inventoryService;
+    private final UserRepository userRepository;
     
-    public InventoryController(InventoryService inventoryService) {
+    public InventoryController(InventoryService inventoryService, UserRepository userRepository) {
         this.inventoryService = inventoryService;
+        this.userRepository = userRepository;
     }
     
     // ========== INVENTORY ITEMS ==========
@@ -180,37 +184,16 @@ public class InventoryController {
     // ========== HELPER METHODS ==========
     
     /**
-     * Extract staff ID from authentication
-     * Handles both JWT and session-based authentication
+     * Extract staff ID from authentication by email lookup
      */
     private Long getStaffIdFromAuth(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
+        if (authentication == null || authentication.getName() == null) {
             throw new RuntimeException("Authentication required");
         }
         
-        try {
-            // Try to get ID from principal if it's a Map (JWT)
-            if (authentication.getPrincipal() instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> principal = (Map<String, Object>) authentication.getPrincipal();
-                Object idObj = principal.get("id");
-                if (idObj instanceof Number) {
-                    return ((Number) idObj).longValue();
-                } else if (idObj instanceof String) {
-                    return Long.parseLong((String) idObj);
-                }
-            }
-            
-            // Fallback: try to parse authentication name as ID
-            String name = authentication.getName();
-            try {
-                return Long.parseLong(name);
-            } catch (NumberFormatException e) {
-                // If name is not a number (e.g., email), throw error
-                throw new RuntimeException("Unable to extract staff ID from authentication. User ID: " + name);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to extract staff ID from authentication", e);
-        }
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 }
