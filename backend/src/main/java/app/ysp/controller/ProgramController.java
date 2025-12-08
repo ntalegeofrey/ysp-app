@@ -146,13 +146,14 @@ public class ProgramController {
 
         // Active repairs count (approved or pending_review, not revoked, not expired)
         try {
-            Long activeRepairs = (Long) entityManager.createNativeQuery(
+            Object result = entityManager.createNativeQuery(
                 "SELECT COUNT(*) FROM repair_interventions " +
                 "WHERE resident_id = :residentId " +
                 "AND status IN ('approved', 'pending_review') " +
                 "AND (repair_end_date IS NULL OR repair_end_date >= CURRENT_DATE)"
             ).setParameter("residentId", residentPk).getSingleResult();
-            stats.put("activeRepairs", activeRepairs != null ? ((Number) activeRepairs).intValue() : 0);
+            int activeRepairs = result != null ? ((Number) result).intValue() : 0;
+            stats.put("activeRepairs", activeRepairs);
         } catch (Exception e) {
             stats.put("activeRepairs", 0);
         }
