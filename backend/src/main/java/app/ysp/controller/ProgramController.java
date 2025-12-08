@@ -124,21 +124,14 @@ public class ProgramController {
 
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         
-        // Total credits from points diary cards (sum of current_balance)
+        // Current week credits from most recent diary card
         try {
-            @SuppressWarnings("unchecked")
-            List<Object> diaryCards = (List<Object>) entityManager.createQuery(
-                "SELECT p FROM PointsDiaryCard p WHERE p.resident.id = :residentId"
-            ).setParameter("residentId", residentPk).getResultList();
-            
-            int totalCredits = 0;
-            for (Object card : diaryCards) {
-                try {
-                    java.lang.reflect.Method method = card.getClass().getMethod("getCurrentBalance");
-                    Integer points = (Integer) method.invoke(card);
-                    if (points != null) totalCredits += points;
-                } catch (Exception ignored) {}
-            }
+            Object result = entityManager.createNativeQuery(
+                "SELECT current_balance FROM points_diary_cards " +
+                "WHERE resident_id = :residentId " +
+                "ORDER BY week_start_date DESC LIMIT 1"
+            ).setParameter("residentId", residentPk).getSingleResult();
+            int totalCredits = result != null ? ((Number) result).intValue() : 0;
             stats.put("totalCredits", totalCredits);
         } catch (Exception e) {
             stats.put("totalCredits", 0);
@@ -161,36 +154,28 @@ public class ProgramController {
             stats.put("activeRepairs", 0);
         }
 
-        // Sleep log days (count of distinct dates in watch log entries for last 30 days)
+        // Active watch days (days since current active watch started)
         try {
-            Long sleepLogDays = (Long) entityManager.createQuery(
-                "SELECT COUNT(DISTINCT DATE(w.observedAt)) FROM WatchLogEntry w WHERE w.watch.residentId = :residentId AND w.observedAt >= :thirtyDaysAgo"
-            ).setParameter("residentId", residentPk)
-             .setParameter("thirtyDaysAgo", java.time.LocalDateTime.now().minusDays(30))
-             .getSingleResult();
-            stats.put("sleepLogDays", sleepLogDays != null ? sleepLogDays.intValue() : 0);
+            Object result = entityManager.createNativeQuery(
+                "SELECT CURRENT_DATE - start_date + 1 as days_active " +
+                "FROM watch_assignments " +
+                "WHERE resident_id = :residentId AND end_date IS NULL " +
+                "ORDER BY start_date DESC LIMIT 1"
+            ).setParameter("residentId", residentPk).getSingleResult();
+            int sleepLogDays = result != null ? ((Number) result).intValue() : 0;
+            stats.put("sleepLogDays", sleepLogDays);
         } catch (Exception e) {
             stats.put("sleepLogDays", 0);
         }
 
-        // Incidents in last 30 days
-        try {
-            Long incidents = (Long) entityManager.createQuery(
-                "SELECT COUNT(i) FROM IncidentReport i WHERE i.residentId = :residentId AND i.incidentDate >= :thirtyDaysAgo"
-            ).setParameter("residentId", residentPk)
-             .setParameter("thirtyDaysAgo", java.time.LocalDate.now().minusDays(30))
-             .getSingleResult();
-            stats.put("incidents30d", incidents != null ? incidents.intValue() : 0);
-        } catch (Exception e) {
-            stats.put("incidents30d", 0);
-        }
-
         // Active medications count
         try {
-            Long medications = (Long) entityManager.createQuery(
-                "SELECT COUNT(m) FROM ResidentMedication m WHERE m.residentId = :residentId AND m.status = 'ACTIVE'"
+            Object result = entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM resident_medications " +
+                "WHERE resident_id = :residentId AND status = 'active'"
             ).setParameter("residentId", residentPk).getSingleResult();
-            stats.put("activeMedications", medications != null ? medications.intValue() : 0);
+            int medications = result != null ? ((Number) result).intValue() : 0;
+            stats.put("activeMedications", medications);
         } catch (Exception e) {
             stats.put("activeMedications", 0);
         }

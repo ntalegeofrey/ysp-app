@@ -17,12 +17,10 @@ export default function ResidentProfilePage() {
     totalCredits: 0,
     activeRepairs: 0,
     sleepLogDays: 0,
-    incidents30d: 0,
     activeMedications: 0
   });
   const [medications, setMedications] = useState<any[]>([]);
   const [repairs, setRepairs] = useState<any[]>([]);
-  const [incidents, setIncidents] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
@@ -125,7 +123,6 @@ export default function ResidentProfilePage() {
           totalCredits: data.totalCredits || 0,
           activeRepairs: data.activeRepairs || 0,
           sleepLogDays: data.sleepLogDays || 0,
-          incidents30d: data.incidents30d || 0,
           activeMedications: data.activeMedications || 0
         });
       }
@@ -384,7 +381,7 @@ export default function ResidentProfilePage() {
       }
 
       // Load repairs
-      if (activeTab === 'incidents' || activeTab === 'overview') {
+      if (activeTab === 'repairs' || activeTab === 'overview') {
         try {
           const repairRes = await fetch(`/api/programs/${programId}/repairs/interventions/resident/${residentId}`, {
             credentials: 'include',
@@ -399,27 +396,6 @@ export default function ResidentProfilePage() {
         }
       }
 
-      // Load incidents
-      if (activeTab === 'incidents' || activeTab === 'overview') {
-        try {
-          const incidentRes = await fetch(`/api/programs/${programId}/incidents/incident-reports`, {
-            credentials: 'include',
-            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-          });
-          if (incidentRes.ok) {
-            const incidentData = await incidentRes.json();
-            // Filter for this resident and last 30 days
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            setIncidents(incidentData.filter((i: any) => 
-              i.residentId === parseInt(residentId) && 
-              new Date(i.incidentDate) >= thirtyDaysAgo
-            ));
-          }
-        } catch (err) {
-          console.error('Failed to load incidents:', err);
-        }
-      }
     } catch (error) {
       console.error('Failed to load tab data:', error);
     } finally {
@@ -595,15 +571,6 @@ export default function ResidentProfilePage() {
         <div className="bg-white rounded-lg border border-bd p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-warning">{stats.incidents30d}</p>
-              <p className="text-sm text-font-detail">Incidents (30d)</p>
-            </div>
-            <i className="fa-solid fa-triangle-exclamation text-warning text-xl"></i>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-bd p-4">
-          <div className="flex items-center justify-between">
-            <div>
               <p className="text-2xl font-bold text-primary-alt">{stats.activeMedications}</p>
               <p className="text-sm text-font-detail">Medications</p>
             </div>
@@ -639,15 +606,15 @@ export default function ResidentProfilePage() {
               Medications
             </button>
             <button 
-              onClick={() => setActiveTab('incidents')} 
+              onClick={() => setActiveTab('repairs')} 
               className={`flex items-center py-4 text-sm font-medium border-b-2 ${
-                activeTab === 'incidents' 
+                activeTab === 'repairs' 
                   ? 'border-primary text-primary' 
                   : 'border-transparent text-font-detail hover:text-font-base'
               }`}
             >
-              <i className={`fa-solid fa-triangle-exclamation mr-2 ${activeTab === 'incidents' ? 'text-primary' : 'text-font-detail'}`}></i>
-              Incidents & Repairs
+              <i className={`fa-solid fa-exclamation-triangle mr-2 ${activeTab === 'repairs' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Repairs
             </button>
             <button 
               onClick={() => setActiveTab('behavior')} 
@@ -822,82 +789,40 @@ export default function ResidentProfilePage() {
           </div>
         )}
 
-        {/* Incidents & Repairs Tab Content */}
-        {activeTab === 'incidents' && (
+        {/* Repairs Tab Content */}
+        {activeTab === 'repairs' && (
           <div className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-lg font-semibold text-font-base mb-4">Active Repairs</h4>
-                {loadingTabs ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-font-detail">Loading repairs...</div>
-                  </div>
-                ) : repairs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
-                    <i className="fa-solid fa-wrench text-4xl text-font-detail mb-3"></i>
-                    <h5 className="text-base font-semibold text-font-base mb-1">No Active Repairs</h5>
-                    <p className="text-sm text-font-detail">This resident has no active repair interventions.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {repairs.map((repair) => (
-                      <div key={repair.id} className={`rounded-lg p-4 border ${
-                        repair.status === 'ACTIVE' ? 'bg-error-lightest border-error-lighter' : 'bg-warning-lightest border-warning-lighter'
-                      }`}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h5 className="font-medium text-font-base">{repair.behaviorType || 'Repair Intervention'}</h5>
-                            <p className="text-sm text-font-detail mt-1">Assigned: {repair.assignedDate ? new Date(repair.assignedDate).toLocaleDateString() : 'N/A'}</p>
-                            <p className="text-sm text-font-detail">Due: {repair.dueDate ? new Date(repair.dueDate).toLocaleDateString() : 'N/A'}</p>
-                          </div>
-                          <span className={`px-2 py-1 text-white text-xs rounded-full ${
-                            repair.status === 'ACTIVE' ? 'bg-error' : repair.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-warning'
-                          }`}>{repair.status}</span>
-                        </div>
+            <h4 className="text-lg font-semibold text-font-base mb-4">Active Repairs</h4>
+            {loadingTabs ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-font-detail">Loading repairs...</div>
+              </div>
+            ) : repairs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
+                <i className="fa-solid fa-wrench text-4xl text-font-detail mb-3"></i>
+                <h5 className="text-base font-semibold text-font-base mb-1">No Active Repairs</h5>
+                <p className="text-sm text-font-detail">This resident has no active repair interventions.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {repairs.map((repair) => (
+                  <div key={repair.id} className={`rounded-lg p-4 border ${
+                    repair.status === 'ACTIVE' ? 'bg-error-lightest border-error-lighter' : 'bg-warning-lightest border-warning-lighter'
+                  }`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h5 className="font-medium text-font-base">{repair.behaviorType || 'Repair Intervention'}</h5>
+                        <p className="text-sm text-font-detail mt-1">Assigned: {repair.assignedDate ? new Date(repair.assignedDate).toLocaleDateString() : 'N/A'}</p>
+                        <p className="text-sm text-font-detail">Due: {repair.dueDate ? new Date(repair.dueDate).toLocaleDateString() : 'N/A'}</p>
                       </div>
-                    ))}
+                      <span className={`px-2 py-1 text-white text-xs rounded-full ${
+                        repair.status === 'ACTIVE' ? 'bg-error' : repair.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-warning'
+                      }`}>{repair.status}</span>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-
-              <div>
-                <h4 className="text-lg font-semibold text-font-base mb-4">Recent Incidents (Last 30 Days)</h4>
-                {loadingTabs ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-font-detail">Loading incidents...</div>
-                  </div>
-                ) : incidents.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-bd">
-                    <i className="fa-solid fa-triangle-exclamation text-4xl text-font-detail mb-3"></i>
-                    <h5 className="text-base font-semibold text-font-base mb-1">No Recent Incidents</h5>
-                    <p className="text-sm text-font-detail">This resident has no incidents in the last 30 days.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border border-bd">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Type</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Description</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-font-detail uppercase">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-bd">
-                        {incidents.map((incident) => (
-                          <tr key={incident.id}>
-                            <td className="px-4 py-3 text-sm text-font-base">{incident.incidentDate ? new Date(incident.incidentDate).toLocaleDateString() : 'N/A'}</td>
-                            <td className="px-4 py-3 text-sm text-font-base">{incident.incidentType || 'N/A'}</td>
-                            <td className="px-4 py-3 text-sm text-font-detail">{incident.description || 'No description'}</td>
-                            <td className="px-4 py-3"><span className="px-2 py-1 bg-primary text-white text-xs rounded-full">{incident.status || 'Reported'}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -910,7 +835,7 @@ export default function ResidentProfilePage() {
               <h5 className="text-lg font-semibold text-font-base mb-2">Behavior Analytics Coming Soon</h5>
               <p className="text-sm text-font-detail">Detailed behavior trend charts and analysis will be available here.</p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-primary-alt-lightest rounded-lg p-4">
                 <p className="text-2xl font-bold text-success">{stats.totalCredits > 0 ? Math.floor(stats.totalCredits / 10) : 0}</p>
                 <p className="text-sm text-font-detail">Positive Behaviors</p>
@@ -918,10 +843,6 @@ export default function ResidentProfilePage() {
               <div className="bg-warning-lightest rounded-lg p-4">
                 <p className="text-2xl font-bold text-warning">{repairs.length}</p>
                 <p className="text-sm text-font-detail">Active Repairs</p>
-              </div>
-              <div className="bg-error-lightest rounded-lg p-4">
-                <p className="text-2xl font-bold text-error">{incidents.length}</p>
-                <p className="text-sm text-font-detail">Recent Incidents (30d)</p>
               </div>
             </div>
           </div>
