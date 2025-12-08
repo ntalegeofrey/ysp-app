@@ -686,43 +686,46 @@ export default function ResidentProfilePage() {
               {/* Left Column */}
               <div className="space-y-6">
                 {/* Current Status */}
-                <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Current Status</h4>
+                <div className="bg-white rounded-lg border border-bd p-4">
+                  <h4 className="text-lg font-semibold text-font-base mb-4 flex items-center gap-2">
+                    <i className="fa-solid fa-chart-simple text-primary"></i>
+                    Current Status
+                  </h4>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-white rounded-lg border border-blue-100">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-primary hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
                         <i className="fa-solid fa-eye text-primary"></i>
                         Watch Status
                       </span>
                       {watches.filter(w => w.status === 'ACTIVE').length > 0 ? (
-                        <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full font-medium">
+                        <span className="px-3 py-1 bg-error text-white text-xs rounded-full font-medium">
                           {watches.filter(w => w.status === 'ACTIVE')[0]?.watchType || 'On Watch'}
                         </span>
                       ) : (
-                        <span className="px-3 py-1 bg-green-500 text-white text-xs rounded-full font-medium">Normal</span>
+                        <span className="px-3 py-1 bg-success text-white text-xs rounded-full font-medium">Normal</span>
                       )}
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-purple-50 to-white rounded-lg border border-purple-100">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-warning hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
                         <i className="fa-solid fa-coins text-warning"></i>
                         Current Credits
                       </span>
-                      <span className="text-xl font-bold text-primary">{stats.totalCredits}</span>
+                      <span className="text-xl font-bold text-warning">{stats.totalCredits}</span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-white rounded-lg border border-green-100">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-success hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
                         <i className="fa-solid fa-flag text-success"></i>
                         Program Track
                       </span>
                       <span className={`px-3 py-1 text-white text-xs rounded-full font-medium ${
-                        resident.status === 'Restricted' ? 'bg-red-500' : 
-                        resident.status === 'ALOYO' ? 'bg-yellow-500' : 
-                        resident.status === 'Team Leader' ? 'bg-blue-500' : 'bg-green-500'
+                        resident.status === 'Restricted' ? 'bg-error' : 
+                        resident.status === 'ALOYO' ? 'bg-warning' : 
+                        resident.status === 'Team Leader' ? 'bg-primary' : 'bg-success'
                       }`}>
                         {resident.status || 'General Population'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-orange-50 to-white rounded-lg border border-orange-100">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-error hover:bg-gray-100 transition-colors">
                       <span className="text-sm font-medium text-font-base flex items-center gap-2">
                         <i className="fa-solid fa-wrench text-error"></i>
                         Active Repairs
@@ -732,145 +735,176 @@ export default function ResidentProfilePage() {
                   </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Quick Stats</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-                      <p className="text-3xl font-bold">{medications.length}</p>
-                      <p className="text-xs opacity-90 mt-1">Medications</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
-                      <p className="text-3xl font-bold">{stats.sleepLogDays}</p>
-                      <p className="text-xs opacity-90 mt-1">Days on Watch</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
-                      <p className="text-3xl font-bold">{repairs.length + historicalRepairs.length}</p>
-                      <p className="text-xs opacity-90 mt-1">Total Repairs</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
-                      <p className="text-3xl font-bold">{watches.length}</p>
-                      <p className="text-xs opacity-90 mt-1">Watch History</p>
-                    </div>
+                {/* Recent Activity / Updates */}
+                <div className="bg-white rounded-lg border border-bd p-4">
+                  <h4 className="text-lg font-semibold text-font-base mb-4 flex items-center gap-2">
+                    <i className="fa-solid fa-bell text-warning"></i>
+                    Recent Updates
+                  </h4>
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {/* Active Repairs */}
+                    {repairs.slice(0, 2).map((repair) => (
+                      <div key={repair.id} className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border-l-4 border-error">
+                        <i className="fa-solid fa-wrench text-error mt-1"></i>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-font-base truncate">{repair.repairLevel} - {repair.infractionBehavior}</p>
+                          <p className="text-xs text-font-detail">
+                            {repair.infractionDate ? new Date(repair.infractionDate).toLocaleDateString() : 'Recently assigned'}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 text-white text-xs rounded-full ${
+                          repair.repairLevel === 'Repair 3' ? 'bg-red-600' : 
+                          repair.repairLevel === 'Repair 2' ? 'bg-yellow-600' : 'bg-blue-600'
+                        }`}>Active</span>
+                      </div>
+                    ))}
+                    
+                    {/* Active Watch */}
+                    {watches.filter(w => w.status === 'ACTIVE').slice(0, 1).map((watch) => (
+                      <div key={watch.id} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border-l-4 border-warning">
+                        <i className="fa-solid fa-eye text-warning mt-1"></i>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-font-base">{watch.watchType} Assigned</p>
+                          <p className="text-xs text-font-detail truncate">
+                            {watch.clinicalReason || 'Active monitoring'}
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 bg-warning text-white text-xs rounded-full">Watch</span>
+                      </div>
+                    ))}
+
+                    {/* Active Medications */}
+                    {medications.slice(0, 2).map((med) => (
+                      <div key={med.id} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-primary">
+                        <i className="fa-solid fa-pills text-primary mt-1"></i>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-font-base truncate">{med.medicationName}</p>
+                          <p className="text-xs text-font-detail">{med.dosage} - {med.frequency}</p>
+                        </div>
+                        <span className="px-2 py-1 bg-success text-white text-xs rounded-full">Active</span>
+                      </div>
+                    ))}
+
+                    {/* Empty State */}
+                    {repairs.length === 0 && watches.filter(w => w.status === 'ACTIVE').length === 0 && medications.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <i className="fa-solid fa-check-circle text-success text-4xl mb-3"></i>
+                        <p className="text-sm font-medium text-font-base">All Clear!</p>
+                        <p className="text-xs text-font-detail mt-1">No outstanding items for this resident</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Right Column - Charts */}
               <div className="space-y-6">
-                {/* Credit Trend - Beautiful Area Chart */}
-                <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Credit Balance Trend</h4>
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-100">
-                    <div className="h-48 relative">
-                      <svg viewBox="0 0 300 150" className="w-full h-full">
-                        <defs>
-                          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{stopColor: '#8b5cf6', stopOpacity: 0.4}} />
-                            <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 0.05}} />
-                          </linearGradient>
-                        </defs>
-                        {/* Grid lines */}
-                        <line x1="0" y1="30" x2="300" y2="30" stroke="#e5e7eb" strokeWidth="1" />
-                        <line x1="0" y1="60" x2="300" y2="60" stroke="#e5e7eb" strokeWidth="1" />
-                        <line x1="0" y1="90" x2="300" y2="90" stroke="#e5e7eb" strokeWidth="1" />
-                        <line x1="0" y1="120" x2="300" y2="120" stroke="#e5e7eb" strokeWidth="1" />
-                        {/* Area path - showing trend */}
-                        <path d="M 0,120 L 30,100 L 60,90 L 90,95 L 120,80 L 150,85 L 180,75 L 210,70 L 240,65 L 270,55 L 300,50 L 300,150 L 0,150 Z" 
-                          fill="url(#areaGradient)" />
-                        {/* Line path */}
-                        <path d="M 0,120 L 30,100 L 60,90 L 90,95 L 120,80 L 150,85 L 180,75 L 210,70 L 240,65 L 270,55 L 300,50" 
-                          fill="none" stroke="#8b5cf6" strokeWidth="3" />
-                        {/* Data points */}
-                        <circle cx="0" cy="120" r="4" fill="#8b5cf6" />
-                        <circle cx="60" cy="90" r="4" fill="#8b5cf6" />
-                        <circle cx="120" cy="80" r="4" fill="#8b5cf6" />
-                        <circle cx="180" cy="75" r="4" fill="#8b5cf6" />
-                        <circle cx="240" cy="65" r="4" fill="#8b5cf6" />
-                        <circle cx="300" cy="50" r="5" fill="#8b5cf6" stroke="white" strokeWidth="2" />
-                      </svg>
+                {/* Credit Balance Trend */}
+                <div className="bg-white rounded-lg border border-bd p-4">
+                  <h4 className="text-lg font-semibold text-font-base mb-4 flex items-center gap-2">
+                    <i className="fa-solid fa-chart-line text-warning"></i>
+                    Credit Balance Trend
+                  </h4>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="h-48 flex items-center justify-center bg-white rounded-lg border-2 border-dashed border-bd">
+                      <div className="text-center">
+                        <i className="fa-solid fa-chart-area text-primary text-4xl mb-3"></i>
+                        <p className="text-sm font-medium text-font-base">Current Balance: {stats.totalCredits}</p>
+                        <p className="text-xs text-font-detail mt-1">Historical trend chart coming soon</p>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-4 text-xs text-font-detail">
-                      <span>7 days ago</span>
-                      <span className="font-semibold text-primary">Current: {stats.totalCredits} credits</span>
-                      <span>Today</span>
+                    <div className="flex items-center justify-between mt-4 px-2">
+                      <div className="text-center">
+                        <p className="text-xs text-font-detail">Week Start</p>
+                        <p className="text-sm font-medium text-font-base">—</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-font-detail">Current</p>
+                        <p className="text-lg font-bold text-warning">{stats.totalCredits}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-font-detail">Today</p>
+                        <p className="text-sm font-medium text-font-base">Active</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Repairs Distribution - Bar Chart */}
-                <div>
-                  <h4 className="text-lg font-semibold text-font-base mb-4">Repairs Distribution</h4>
-                  <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-lg p-4 border border-red-100">
-                    <div className="space-y-4">
-                      {/* R1 Bar */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-font-base">Repair 1</span>
-                          <span className="text-sm font-bold text-blue-600">
-                            {repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length}
-                          </span>
-                        </div>
-                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
-                          <div 
-                            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
-                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
-                          >
-                            {(repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length) > 0 && (
-                              <span className="text-xs font-semibold text-white">
-                                {repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                {/* Repairs Distribution */}
+                <div className="bg-white rounded-lg border border-bd p-4">
+                  <h4 className="text-lg font-semibold text-font-base mb-4 flex items-center gap-2">
+                    <i className="fa-solid fa-chart-bar text-error"></i>
+                    Repairs Summary
+                  </h4>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    {/* R1 Bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                          <span className="w-3 h-3 bg-primary rounded"></span>
+                          Repair 1
+                        </span>
+                        <span className="text-sm font-bold text-primary">
+                          {repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length}
+                        </span>
                       </div>
-                      {/* R2 Bar */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-font-base">Repair 2</span>
-                          <span className="text-sm font-bold text-yellow-600">
-                            {repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length}
-                          </span>
-                        </div>
-                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
-                          <div 
-                            className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
-                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
-                          >
-                            {(repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length) > 0 && (
-                              <span className="text-xs font-semibold text-white">
-                                {repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {/* R3 Bar */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-font-base">Repair 3</span>
-                          <span className="text-sm font-bold text-red-600">
-                            {repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length}
-                          </span>
-                        </div>
-                        <div className="h-8 bg-white rounded-lg overflow-hidden shadow-inner">
-                          <div 
-                            className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
-                            style={{width: `${Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100)}%`}}
-                          >
-                            {(repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length) > 0 && (
-                              <span className="text-xs font-semibold text-white">
-                                {repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length}
-                              </span>
-                            )}
-                          </div>
+                      <div className="h-6 bg-white rounded-full overflow-hidden border border-bd">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500 flex items-center justify-end pr-2"
+                          style={{width: `${Math.max(5, Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 1').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 1').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100))}%`}}
+                        >
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 pt-4 border-t border-orange-200">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-font-base">Total Repairs</span>
-                        <span className="text-xl font-bold text-error">{repairs.length + historicalRepairs.length}</span>
+                    
+                    {/* R2 Bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                          <span className="w-3 h-3 bg-warning rounded"></span>
+                          Repair 2
+                        </span>
+                        <span className="text-sm font-bold text-warning">
+                          {repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length}
+                        </span>
+                      </div>
+                      <div className="h-6 bg-white rounded-full overflow-hidden border border-bd">
+                        <div 
+                          className="h-full bg-warning transition-all duration-500 flex items-center justify-end pr-2"
+                          style={{width: `${Math.max(5, Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 2').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 2').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100))}%`}}
+                        >
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* R3 Bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-font-base flex items-center gap-2">
+                          <span className="w-3 h-3 bg-error rounded"></span>
+                          Repair 3
+                        </span>
+                        <span className="text-sm font-bold text-error">
+                          {repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length}
+                        </span>
+                      </div>
+                      <div className="h-6 bg-white rounded-full overflow-hidden border border-bd">
+                        <div 
+                          className="h-full bg-error transition-all duration-500 flex items-center justify-end pr-2"
+                          style={{width: `${Math.max(5, Math.min(100, ((repairs.filter(r => r.repairLevel === 'Repair 3').length + historicalRepairs.filter(r => r.repairLevel === 'Repair 3').length) / Math.max(1, repairs.length + historicalRepairs.length)) * 100))}%`}}
+                        >
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-3 mt-3 border-t border-bd">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-font-base">Total Repairs</span>
+                        <span className="text-2xl font-bold text-error">{repairs.length + historicalRepairs.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-xs text-font-detail">
+                        <span>Active: {repairs.length}</span>
+                        <span>Historical: {historicalRepairs.length}</span>
                       </div>
                     </div>
                   </div>
