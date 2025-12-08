@@ -14,6 +14,13 @@ export default function OffsiteMovementsPage() {
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // Movements data
+  const [scheduledMovements, setScheduledMovements] = useState<any[]>([]);
+  const [urgentMovements, setUrgentMovements] = useState<any[]>([]);
+  const [archivedMovements, setArchivedMovements] = useState<any[]>([]);
+  const [totalArchived, setTotalArchived] = useState(0);
+  const [archivePage, setArchivePage] = useState(0);
+  
   // Archive filters
   const [archiveSearchFilter, setArchiveSearchFilter] = useState('');
   const [archiveDateFilter, setArchiveDateFilter] = useState('');
@@ -70,12 +77,62 @@ export default function OffsiteMovementsPage() {
     }
   }, []);
   
-  // Fetch residents when tab opens
+  // Fetch data based on active tab
   useEffect(() => {
-    if (programId && activeTab === 'schedule') {
+    if (!programId) return;
+    
+    if (activeTab === 'schedule') {
       fetchResidents();
       fetchStaff();
+    } else if (activeTab === 'overview') {
+      fetchScheduledMovements();
+      fetchUrgentMovements();
+    } else if (activeTab === 'archive') {
+      fetchArchivedMovements();
     }
+  }, [programId, activeTab]);
+  
+  // Re-fetch archive when filters change
+  useEffect(() => {
+    if (programId && activeTab === 'archive') {
+      fetchArchivedMovements(0);
+    }
+  }, [archiveDateFilter, archiveTypeFilter, archiveStatusFilter]);
+  
+  // SSE for real-time updates
+  useEffect(() => {
+    if (!programId) return;
+    
+    const token = localStorage.getItem('token');
+    const eventSource = new EventSource(`/api/events${token ? `?token=${token}` : ''}`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Refresh movements when created, updated, or completed
+        if (data.type === 'movement_scheduled' || 
+            data.type === 'movement_started' ||
+            data.type === 'movement_completed' ||
+            data.type === 'movement_cancelled') {
+          if (data.programId && String(data.programId) === String(programId)) {
+            // Refresh all movement lists
+            if (activeTab === 'overview') {
+              fetchScheduledMovements();
+              fetchUrgentMovements();
+            } else if (activeTab === 'archive') {
+              fetchArchivedMovements();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('SSE parse error:', err);
+      }
+    };
+    
+    return () => {
+      eventSource.close();
+    };
   }, [programId, activeTab]);
   
   const fetchResidents = async () => {
@@ -122,6 +179,74 @@ export default function OffsiteMovementsPage() {
     } catch (err) {
       console.error('Failed to fetch staff:', err);
       addToast('Failed to load staff members', 'error');
+    }
+  };
+  
+  const fetchScheduledMovements = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/movements/scheduled`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setScheduledMovements(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch scheduled movements:', err);
+    }
+  };
+  
+  const fetchUrgentMovements = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/movements/urgent`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUrgentMovements(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch urgent movements:', err);
+    }
+  };
+  
+  const fetchArchivedMovements = async (page = 0) => {
+    if (!programId) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('size', '50');
+      
+      // Apply filters
+      if (archiveDateFilter) {
+        params.append('startDate', archiveDateFilter);
+        params.append('endDate', archiveDateFilter);
+      }
+      if (archiveTypeFilter) params.append('movementType', archiveTypeFilter);
+      if (archiveStatusFilter) params.append('status', archiveStatusFilter);
+      
+      const res = await fetch(`/api/programs/${programId}/movements/archive?${params.toString()}`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setArchivedMovements(data.content || []);
+        setTotalArchived(data.totalElements || 0);
+        setArchivePage(page);
+      }
+    } catch (err) {
+      console.error('Failed to fetch archived movements:', err);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -241,82 +366,16 @@ export default function OffsiteMovementsPage() {
     'Other'
   ];
 
-  // Mock archive data
-  const archiveData = [
-    {
-      id: 1,
-      date: '2024-12-07',
-      time: '8:00 AM',
-      resident: 'Resident A01',
-      type: 'Medical Appointment',
-      destination: 'Taunton Family Health Center',
-      staff: 'Officer Johnson, Officer Lee',
-      status: 'Completed',
-      duration: '2.5 hours',
-      notes: 'Routine checkup completed successfully'
-    },
-    {
-      id: 2,
-      date: '2024-12-06',
-      time: '10:00 AM',
-      resident: 'Resident B01',
-      type: 'Court Appearance',
-      destination: 'Taunton District Court',
-      staff: 'Officer Martinez, Officer Chen',
-      status: 'Completed',
-      duration: '4 hours',
-      notes: 'Court hearing concluded, next date scheduled'
-    },
-    {
-      id: 3,
-      date: '2024-12-05',
-      time: '1:30 PM',
-      resident: 'Resident C02',
-      type: 'Hospital Emergency',
-      destination: 'Springfield General Hospital',
-      staff: 'Officer Johnson, Officer Davis',
-      status: 'Completed',
-      duration: '6 hours',
-      notes: 'Emergency treated, youth returned safely'
-    },
-    {
-      id: 4,
-      date: '2024-12-04',
-      time: '9:00 AM',
-      resident: 'Resident A02',
-      type: 'Probation Meeting',
-      destination: 'Bristol County Probation Office',
-      staff: 'Officer Lee, Officer Martinez',
-      status: 'Completed',
-      duration: '1.5 hours',
-      notes: 'Monthly check-in completed'
-    },
-    {
-      id: 5,
-      date: '2024-12-03',
-      time: '2:00 PM',
-      resident: 'Resident B03',
-      type: 'Psychological Evaluation',
-      destination: 'Youth Services Mental Health Center',
-      staff: 'Officer Chen, Officer Davis',
-      status: 'Cancelled',
-      duration: '-',
-      notes: 'Cancelled due to staff availability - rescheduled'
-    }
-  ];
-
-  // Filter archive data
-  const filteredArchiveData = archiveData.filter(record => {
-    const matchesSearch = !archiveSearchFilter ||
-      record.resident.toLowerCase().includes(archiveSearchFilter.toLowerCase()) ||
-      record.destination.toLowerCase().includes(archiveSearchFilter.toLowerCase()) ||
-      record.staff.toLowerCase().includes(archiveSearchFilter.toLowerCase());
-    
-    const matchesDate = !archiveDateFilter || record.date === archiveDateFilter;
-    const matchesType = !archiveTypeFilter || record.type === archiveTypeFilter;
-    const matchesStatus = !archiveStatusFilter || record.status === archiveStatusFilter;
-    
-    return matchesSearch && matchesDate && matchesType && matchesStatus;
+  // Filter archive data with search
+  const filteredArchiveData = archivedMovements.filter(record => {
+    if (!archiveSearchFilter) return true;
+    const search = archiveSearchFilter.toLowerCase();
+    return (
+      record.residentName?.toLowerCase().includes(search) ||
+      record.destination?.toLowerCase().includes(search) ||
+      record.primaryStaffName?.toLowerCase().includes(search) ||
+      record.secondaryStaffName?.toLowerCase().includes(search)
+    );
   });
 
   return (
@@ -361,22 +420,58 @@ export default function OffsiteMovementsPage() {
               </div>
             </div>
             <div className="p-6">
-              <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success-lightest mb-4">
-                  <i className="fa-solid fa-clipboard-check text-4xl text-success opacity-50"></i>
+              {urgentMovements.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success-lightest mb-4">
+                    <i className="fa-solid fa-clipboard-check text-4xl text-success opacity-50"></i>
+                  </div>
+                  <h4 className="text-xl font-semibold text-font-base mb-2">No Urgent Movements</h4>
+                  <p className="text-font-detail mb-4">
+                    All urgent and emergency off-site movements have been completed or assigned.
+                  </p>
+                  <button 
+                    onClick={() => setActiveTab('schedule')}
+                    className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    <i className="fa-solid fa-calendar-plus mr-2"></i>
+                    Schedule New Movement
+                  </button>
                 </div>
-                <h4 className="text-xl font-semibold text-font-base mb-2">No Urgent Movements</h4>
-                <p className="text-font-detail mb-4">
-                  All urgent and emergency off-site movements have been completed or assigned.
-                </p>
-                <button 
-                  onClick={() => setActiveTab('schedule')}
-                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                >
-                  <i className="fa-solid fa-calendar-plus mr-2"></i>
-                  Schedule New Movement
-                </button>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {urgentMovements.map((movement: any) => (
+                    <div key={movement.id} className="border border-error/30 bg-error-lightest rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="px-2.5 py-1 bg-error text-white text-xs font-semibold rounded-full">
+                              {movement.priorityLevel}
+                            </span>
+                            <span className="text-sm font-semibold text-font-base">{movement.residentName}</span>
+                          </div>
+                          <div className="text-sm text-font-detail space-y-1">
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-calendar-day w-4"></i>
+                              <span>{new Date(movement.movementDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {movement.movementTime}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-location-dot w-4"></i>
+                              <span>{movement.destination}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-users w-4"></i>
+                              <span>{movement.primaryStaffName}, {movement.secondaryStaffName}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 bg-warning text-white text-xs font-medium rounded">
+                          {movement.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -391,22 +486,69 @@ export default function OffsiteMovementsPage() {
               </div>
             </div>
             <div className="p-6">
-              <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
-                  <i className="fa-solid fa-calendar-xmark text-4xl text-primary opacity-50"></i>
+              {scheduledMovements.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                    <i className="fa-solid fa-calendar-xmark text-4xl text-primary opacity-50"></i>
+                  </div>
+                  <h4 className="text-xl font-semibold text-font-base mb-2">No Scheduled Movements</h4>
+                  <p className="text-font-detail mb-4">
+                    There are currently no off-site movements scheduled. Create a new movement to get started.
+                  </p>
+                  <button 
+                    onClick={() => setActiveTab('schedule')}
+                    className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    <i className="fa-solid fa-calendar-plus mr-2"></i>
+                    Schedule Off-Site Movement
+                  </button>
                 </div>
-                <h4 className="text-xl font-semibold text-font-base mb-2">No Scheduled Movements</h4>
-                <p className="text-font-detail mb-4">
-                  There are currently no off-site movements scheduled. Create a new movement to get started.
-                </p>
-                <button 
-                  onClick={() => setActiveTab('schedule')}
-                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                >
-                  <i className="fa-solid fa-calendar-plus mr-2"></i>
-                  Schedule Off-Site Movement
-                </button>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {scheduledMovements.map((movement: any) => (
+                    <div key={movement.id} className="border border-bd bg-bg-subtle rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-sm font-semibold text-font-base">{movement.residentName}</span>
+                            <span className="text-xs text-font-detail">#{movement.residentId}</span>
+                          </div>
+                          <div className="text-sm text-font-detail space-y-1">
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-calendar-day w-4"></i>
+                              <span>{new Date(movement.movementDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {movement.movementTime}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-location-dot w-4"></i>
+                              <span>{movement.destination}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-tag w-4"></i>
+                              <span>{movement.movementType}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-users w-4"></i>
+                              <span>{movement.primaryStaffName}, {movement.secondaryStaffName}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`px-3 py-1 text-xs font-medium rounded ${
+                            movement.priorityLevel === 'EMERGENCY' ? 'bg-error text-white' :
+                            movement.priorityLevel === 'URGENT' ? 'bg-warning text-white' :
+                            'bg-primary-lightest text-primary'
+                          }`}>
+                            {movement.priorityLevel}
+                          </span>
+                          <span className="px-3 py-1 bg-success-lightest text-success text-xs font-medium rounded">
+                            {movement.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -726,8 +868,8 @@ export default function OffsiteMovementsPage() {
                 className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="">All Statuses</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
               </select>
             </div>
           </div>
@@ -767,27 +909,27 @@ export default function OffsiteMovementsPage() {
                   filteredArchiveData.map((record) => (
                     <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
                       <td className="px-4 py-3 text-font-base">
-                        {new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(record.movementDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="px-4 py-3 text-font-detail">{record.time}</td>
-                      <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
-                      <td className="px-4 py-3 text-font-detail">{record.type}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.movementTime}</td>
+                      <td className="px-4 py-3 text-font-base font-medium">{record.residentName}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.movementType}</td>
                       <td className="px-4 py-3 text-font-detail">{record.destination}</td>
-                      <td className="px-4 py-3 text-font-detail text-xs">{record.staff}</td>
-                      <td className="px-4 py-3 text-font-detail">{record.duration}</td>
+                      <td className="px-4 py-3 text-font-detail text-xs">{record.primaryStaffName}, {record.secondaryStaffName}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.actualDuration || record.estimatedDuration || '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          record.status === 'Completed'
+                          record.status === 'COMPLETED'
                             ? 'bg-success/10 text-success'
-                            : record.status === 'Cancelled'
+                            : record.status === 'CANCELLED'
                             ? 'bg-error/10 text-error'
                             : 'bg-info/10 text-info'
                         }`}>
                           {record.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-font-detail text-xs max-w-xs truncate" title={record.notes}>
-                        {record.notes || '-'}
+                      <td className="px-4 py-3 text-font-detail text-xs max-w-xs truncate" title={record.movementNotes}>
+                        {record.movementNotes || '-'}
                       </td>
                     </tr>
                   ))
