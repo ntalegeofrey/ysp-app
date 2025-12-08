@@ -25,6 +25,7 @@ type NewMed = {
 };
 
 type MedicationCount = {
+  id?: number;
   medicationName: string;
   dosage: string;
   previousCount: number;
@@ -126,6 +127,13 @@ export default function MedicationPage() {
   useEffect(() => {
     if (programId && activeTab === 'alerts') {
       fetchAlerts();
+    }
+  }, [programId, activeTab]);
+
+  // Fetch data when tabs change
+  useEffect(() => {
+    if (programId && activeTab === 'audit') {
+      fetchResidentMedsForAudit();
     }
   }, [programId, activeTab]);
 
@@ -269,7 +277,12 @@ export default function MedicationPage() {
       setAlerts(data.map((alert: any) => ({
         id: alert.id,
         type: alert.alertType.toLowerCase() as 'critical' | 'warning' | 'info',
-        time: new Date(alert.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        time: new Date(alert.createdAt).toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
         title: alert.title,
         description: alert.description,
         resolved: false,
@@ -277,6 +290,69 @@ export default function MedicationPage() {
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
       addToast('Failed to load alerts', 'error');
+    }
+  };
+
+  const fetchResidentMedsForAudit = async () => {
+    if (!programId) return;
+    setLoading(true);
+    try {
+      // Fetch all program medications
+      const allMeds = await medicationApi.getProgramMedications(programId);
+      
+      // Group by resident
+      const residentMap = new Map<number, any[]>();
+      allMeds.forEach((med: any) => {
+        if (med.status === 'ACTIVE') {
+          if (!residentMap.has(med.residentId)) {
+            residentMap.set(med.residentId, []);
+          }
+          residentMap.get(med.residentId)?.push(med);
+        }
+      });
+      
+      // Fetch resident details
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const residents = await res.json();
+        const auditData: ResidentMedCount[] = [];
+        
+        Array.from(residentMap.keys()).forEach(residentId => {
+          const resident = residents.find((r: any) => r.id === residentId);
+          const meds = residentMap.get(residentId) || [];
+          
+          if (resident && meds.length > 0) {
+            auditData.push({
+              residentId: String(residentId),
+              residentName: `${resident.firstName} ${resident.lastName}`,
+              medications: meds.map((med: any) => ({
+                id: med.id, // Store medication ID for submission
+                medicationName: med.medicationName,
+                dosage: med.dosage,
+                previousCount: med.currentCount || 0,
+                previousStaff: currentStaff,
+                currentCount: '',
+                notes: '',
+              })),
+            });
+          }
+        });
+        
+        setResidentMedCounts(auditData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch medications for audit:', err);
+      addToast('Failed to load medications', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -429,17 +505,15 @@ export default function MedicationPage() {
 
     setLoading(true);
     try {
-      // Note: This assumes medications have IDs. In real implementation,
-      // you'd need to fetch medications first to get their IDs
       const auditData = {
         auditDate,
         auditTime,
         shift: selectedShift,
         auditNotes,
         counts: residentMedCounts.flatMap(resident =>
-          resident.medications.map((med, idx) => ({
-            residentId: parseInt(resident.residentId.replace(/\D/g, '')) || idx + 1,
-            residentMedicationId: idx + 1, // Placeholder - would come from fetched data
+          resident.medications.map((med: any) => ({
+            residentId: parseInt(resident.residentId),
+            residentMedicationId: med.id, // Use actual medication ID
             previousCount: med.previousCount,
             currentCount: Number(med.currentCount),
             notes: med.notes,
@@ -450,14 +524,9 @@ export default function MedicationPage() {
       await medicationApi.submitAudit(programId, auditData);
       addToast(`Medication Audit submitted for ${selectedShift} shift. Pending nurse approval.`, 'success');
       
-      // Reset counts
-      setResidentMedCounts(prev =>
-        prev.map(resident => ({
-          ...resident,
-          medications: resident.medications.map(med => ({ ...med, currentCount: '', notes: '' })),
-        }))
-      );
+      // Clear form and reload data
       setAuditNotes('');
+      fetchResidentMedsForAudit(); // Refresh to get updated counts
       
       // Refresh pending audits if on that tab
       if (activeTab === 'pending-approvals') {
