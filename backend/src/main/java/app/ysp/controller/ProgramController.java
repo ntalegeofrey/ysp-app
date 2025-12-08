@@ -153,8 +153,11 @@ public class ProgramController {
                 "AND (repair_end_date IS NULL OR repair_end_date >= CURRENT_DATE)"
             ).setParameter("residentId", residentPk).getSingleResult();
             int activeRepairs = result != null ? ((Number) result).intValue() : 0;
+            System.out.println("DEBUG: Active repairs for resident " + residentPk + " = " + activeRepairs + " (result type: " + (result != null ? result.getClass().getName() : "null") + ")");
             stats.put("activeRepairs", activeRepairs);
         } catch (Exception e) {
+            System.err.println("ERROR: Failed to get active repairs count for resident " + residentPk + ": " + e.getMessage());
+            e.printStackTrace();
             stats.put("activeRepairs", 0);
         }
 
