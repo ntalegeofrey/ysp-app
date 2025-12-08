@@ -9,7 +9,7 @@ export default function OffsiteMovementsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'archive'>('overview');
   const [showOtherMovementType, setShowOtherMovementType] = useState(false);
   const [programId, setProgramId] = useState<number | null>(null);
-  const [currentStaff, setCurrentStaff] = useState<{id: number; name: string} | null>(null);
+  const [currentStaff, setCurrentStaff] = useState('');
   const [residents, setResidents] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,19 +43,30 @@ export default function OffsiteMovementsPage() {
 
   // Load user and program data
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      setCurrentStaff({
-        id: user.id,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
-      });
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const firstName = user.firstName || '';
+        const lastName = user.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        // Use multiple fallbacks like medication form
+        const staffName = user.fullName || fullName || user.name || user.email || 'Unknown User';
+        console.log('[Movements] Loading user:', { firstName, lastName, fullName, staffName });
+        setCurrentStaff(staffName);
+      }
+    } catch (err) {
+      console.error('[Movements] Failed to parse user:', err);
     }
     
     const selectedProgram = localStorage.getItem('selectedProgram');
     if (selectedProgram) {
-      const program = JSON.parse(selectedProgram);
-      setProgramId(program.id || program.programId);
+      try {
+        const program = JSON.parse(selectedProgram);
+        setProgramId(program.id || program.programId);
+      } catch (err) {
+        console.error('[Movements] Failed to parse program:', err);
+      }
     }
   }, []);
   
@@ -88,16 +99,26 @@ export default function OffsiteMovementsPage() {
     if (!programId) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/staff`, {
+      // Use assignments endpoint to get staff members
+      const res = await fetch(`/api/programs/${programId}/assignments`, {
         credentials: 'include',
         headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       });
       if (res.ok) {
         const data = await res.json();
-        setStaff(data);
+        // Extract unique staff members from assignments
+        const uniqueStaff = data.reduce((acc: any[], assignment: any) => {
+          if (assignment.user && !acc.find(s => s.id === assignment.user.id)) {
+            acc.push(assignment.user);
+          }
+          return acc;
+        }, []);
+        console.log('[Movements] Staff loaded:', uniqueStaff.length);
+        setStaff(uniqueStaff);
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
+      addToast('Failed to load staff members', 'error');
     }
   };
   
@@ -200,7 +221,7 @@ export default function OffsiteMovementsPage() {
   const handleAssign = () => addToast('Staff assignment workflow coming soon', 'info');
   const handleContact = () => addToast('Contact team action coming soon', 'info');
   const handleAutoAssign = () => {
-    if (staff.length >= 2) {
+    if (staff && staff.length >= 2 && staff[0]?.id && staff[1]?.id) {
       setFormData(prev => ({
         ...prev,
         primaryStaffId: staff[0].id.toString(),
@@ -470,7 +491,7 @@ export default function OffsiteMovementsPage() {
                         <label className="block text-sm font-medium text-font-base mb-2">Scheduled By <span className="text-font-detail">(Auto-filled)</span></label>
                         <input 
                           type="text" 
-                          value={currentStaff?.name || 'Loading...'}
+                          value={currentStaff || 'Loading...'}
                           disabled
                           className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed"
                         />
@@ -668,9 +689,9 @@ export default function OffsiteMovementsPage() {
                               className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
                             >
                               <option value="">Select Primary Staff</option>
-                              {staff.map((s) => (
+                              {staff && staff.length > 0 ? staff.map((s) => (
                                 <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
-                              ))}
+                              )) : null}
                             </select>
                           </div>
                           <div>
@@ -681,9 +702,9 @@ export default function OffsiteMovementsPage() {
                               className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
                             >
                               <option value="">Select Secondary Staff</option>
-                              {staff.filter(s => s.id.toString() !== formData.primaryStaffId).map((s) => (
+                              {staff && staff.length > 0 ? staff.filter(s => s?.id && s.id.toString() !== formData.primaryStaffId).map((s) => (
                                 <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
-                              ))}
+                              )) : null}
                             </select>
                           </div>
                         </div>
