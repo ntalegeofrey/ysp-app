@@ -369,41 +369,22 @@ export default function OffsiteMovementsPage() {
                 Scheduled movements requiring immediate attention and staff assignment
               </div>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-error-lightest border-l-4 border-error p-4 rounded-r-lg">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="flex items-center mb-1">
-                      <span className="text-sm font-semibold text-error">URGENT</span>
-                      <span className="mx-2 text-font-detail">|</span>
-                      <span className="text-sm font-medium text-font-base">Hospital Emergency</span>
-                    </div>
-                    <p className="text-sm text-font-base font-medium">Resident C02 - Springfield General Hospital</p>
-                    <p className="text-xs text-font-detail mt-1">Tomorrow, 9:00 AM - Emergency Department</p>
-                  </div>
-                  <span className="bg-error text-white px-3 py-1 rounded-full text-xs font-medium">Unassigned</span>
+            <div className="p-6">
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success-lightest mb-4">
+                  <i className="fa-solid fa-clipboard-check text-4xl text-success opacity-50"></i>
                 </div>
-                <button onClick={handleAssign} className="text-xs text-error font-medium hover:underline">
-                  Assign Staff Now
+                <h4 className="text-xl font-semibold text-font-base mb-2">No Urgent Movements</h4>
+                <p className="text-font-detail mb-4">
+                  All urgent and emergency off-site movements have been completed or assigned.
+                </p>
+                <button 
+                  onClick={() => setActiveTab('schedule')}
+                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  <i className="fa-solid fa-calendar-plus mr-2"></i>
+                  Schedule New Movement
                 </button>
-              </div>
-
-              <div className="bg-warning-lightest border-l-4 border-warning p-4 rounded-r-lg">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="flex items-center mb-1">
-                      <span className="text-sm font-semibold text-warning">PRIORITY</span>
-                      <span className="mx-2 text-font-detail">|</span>
-                      <span className="text-sm font-medium text-font-base">Court Appearance</span>
-                    </div>
-                    <p className="text-sm text-font-base font-medium">Resident B01 - Taunton District Court</p>
-                    <p className="text-xs text-font-detail mt-1">Dec 6, 10:00 AM - Courtroom 3A</p>
-                  </div>
-                  <span className="bg-warning text-white px-3 py-1 rounded-full text-xs font-medium">Partial</span>
-                </div>
-                <div className="text-xs text-font-detail">
-                  <span className="font-medium">Assigned:</span> Officer Martinez (1 of 2 required)
-                </div>
               </div>
             </div>
           </div>
@@ -412,57 +393,28 @@ export default function OffsiteMovementsPage() {
             <div className="p-6 border-b border-bd">
               <h3 className="text-lg font-semibold text-font-base flex items-center">
                 <i className="fa-solid fa-calendar-day text-primary mr-3"></i>
-                Today's Off-Site Movement Schedule
+                Scheduled Off-Site Movement Schedules
               </h3>
               <div className="mt-2 text-sm text-font-detail">
-                All scheduled off-site movements for today with staff assignments
+                All scheduled off-site movements with staff assignments
               </div>
             </div>
             <div className="p-6">
-              <div className="space-y-4">
-                <div className="bg-bg-subtle border border-bd rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <span className="bg-primary text-white px-2 py-1 rounded text-xs font-medium mr-2">8:00 AM</span>
-                        <span className="text-sm font-medium text-font-base">Medical Appointment</span>
-                      </div>
-                      <p className="text-sm text-font-base font-medium mb-1">Resident A01 - Taunton Family Health Center</p>
-                      <p className="text-xs text-font-detail">Dr. Sarah Wilson - Routine Checkup</p>
-                    </div>
-                    <span className="bg-success text-white px-3 py-1 rounded-full text-xs font-medium">Assigned</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-bd">
-                    <div className="text-xs text-font-detail">
-                      <span className="font-medium">Staff:</span> Officer Johnson, Officer Lee
-                    </div>
-                    <button onClick={handleContact} className="text-xs text-primary font-medium hover:underline">
-                      Contact Team
-                    </button>
-                  </div>
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                  <i className="fa-solid fa-calendar-xmark text-4xl text-primary opacity-50"></i>
                 </div>
-
-                <div className="bg-bg-subtle border border-bd rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <span className="bg-primary text-white px-2 py-1 rounded text-xs font-medium mr-2">1:00 PM</span>
-                        <span className="text-sm font-medium text-font-base">Probation Meeting</span>
-                      </div>
-                      <p className="text-sm text-font-base font-medium mb-1">Resident B03 - Bristol County Probation Office</p>
-                      <p className="text-xs text-font-detail">Officer Thomas - Monthly Check-in</p>
-                    </div>
-                    <span className="bg-success text-white px-3 py-1 rounded-full text-xs font-medium">Assigned</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-bd">
-                    <div className="text-xs text-font-detail">
-                      <span className="font-medium">Staff:</span> Officer Martinez, Officer Chen
-                    </div>
-                    <button onClick={handleContact} className="text-xs text-primary font-medium hover:underline">
-                      Contact Team
-                    </button>
-                  </div>
-                </div>
+                <h4 className="text-xl font-semibold text-font-base mb-2">No Scheduled Movements</h4>
+                <p className="text-font-detail mb-4">
+                  There are currently no off-site movements scheduled. Create a new movement to get started.
+                </p>
+                <button 
+                  onClick={() => setActiveTab('schedule')}
+                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  <i className="fa-solid fa-calendar-plus mr-2"></i>
+                  Schedule Off-Site Movement
+                </button>
               </div>
             </div>
           </div>
