@@ -182,6 +182,100 @@ export default function MedicationPage() {
     }
   }, [programId, activeTab]);
 
+  // Real-time updates via SSE
+  useEffect(() => {
+    if (!programId) return;
+    
+    let es: EventSource | null = null;
+    try {
+      const token = localStorage.getItem('token');
+      const eventUrl = `/api/events${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      es = new EventSource(eventUrl);
+      
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data || '{}') as { type?: string; programId?: number };
+          if (!data?.type) return;
+          
+          // Only process events for current program
+          const eventProgramId = data.programId ? Number(data.programId) : null;
+          if (eventProgramId && eventProgramId !== programId) return;
+          
+          console.log('[Medication SSE] Event received:', data.type);
+          
+          // Refresh pending audits count when audit submitted or reviewed
+          if (data.type === 'audit_submitted') {
+            if (userRole.includes('NURSE') || userRole.includes('ADMIN')) {
+              fetchPendingAudits();
+              if (activeTab !== 'pending-approvals') {
+                addToast('New audit submitted for approval', 'info', 2000);
+              }
+            }
+          }
+          
+          if (data.type === 'audit_reviewed') {
+            if (userRole.includes('NURSE') || userRole.includes('ADMIN')) {
+              fetchPendingAudits();
+            }
+            // Show notification if audit was approved
+            const status = (data as any).status;
+            if (status === 'APPROVED' && activeTab === 'med-sheets') {
+              addToast('Medication counts updated from audit', 'success', 2000);
+              fetchResidentsWithMedications();
+            }
+          }
+          
+          // Refresh audit archive when audit reviewed
+          if (data.type === 'audit_reviewed') {
+            if (activeTab === 'audit-archive') {
+              fetchAuditArchive();
+            }
+          }
+          
+          // Refresh admin archive and med sheets when medication administered
+          if (data.type === 'medication_administered') {
+            if (activeTab === 'admin-archive') {
+              fetchAdminArchive();
+            }
+            // Also refresh med sheets to show updated counts
+            if (activeTab === 'med-sheets') {
+              fetchResidentsWithMedications();
+            }
+          }
+          
+          // Refresh medication lists when medication added
+          if (data.type === 'medication_added') {
+            if (activeTab === 'med-sheets') {
+              fetchResidentsWithMedications();
+              addToast('Medication inventory updated', 'info', 2000);
+            }
+            if (activeTab === 'audit') {
+              fetchResidentMedsForAudit();
+            }
+          }
+          
+          // Refresh alerts when new alert created
+          if (data.type === 'new_alert' || data.type === 'alert_resolved') {
+            if (activeTab === 'alerts') {
+              fetchAlerts();
+            }
+          }
+        } catch (err) {
+          console.error('[Medication SSE] Error parsing event:', err);
+        }
+      };
+      
+      es.onerror = () => {
+        // Silently handle SSE errors
+        try { es && es.close(); } catch {}
+      };
+    } catch (err) {
+      console.error('[Medication SSE] Error setting up event source:', err);
+    }
+    
+    return () => { try { es && es.close(); } catch {} };
+  }, [programId, userRole, activeTab]);
+
   const fetchResidents = async () => {
     if (!programId) {
       console.log('[Medication] Cannot fetch residents - no programId');
