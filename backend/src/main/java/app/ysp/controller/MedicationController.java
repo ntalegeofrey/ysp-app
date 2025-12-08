@@ -183,7 +183,20 @@ public class MedicationController {
             
             // Set current date/time if not provided
             request.setAdministrationDate(java.time.LocalDate.now());
-            request.setAdministrationTime(java.time.LocalTime.now());
+            java.time.LocalTime now = java.time.LocalTime.now();
+            request.setAdministrationTime(now);
+            
+            // Determine shift based on time
+            int hour = now.getHour();
+            String shift;
+            if (hour >= 7 && hour < 15) {
+                shift = "MORNING";  // 7 AM - 3 PM (First shift)
+            } else if (hour >= 15 && hour < 23) {
+                shift = "EVENING";  // 3 PM - 11 PM (Second shift)
+            } else {
+                shift = "NIGHT";    // 11 PM - 7 AM (Third shift)
+            }
+            request.setShift(shift);
             
             // Add notes if provided
             if (body.containsKey("notes")) {
