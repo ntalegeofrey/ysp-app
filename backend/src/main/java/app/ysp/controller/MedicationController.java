@@ -72,6 +72,45 @@ public class MedicationController {
     }
 
     /**
+     * Update medication details
+     * PUT /programs/{programId}/medications/{medicationId}
+     */
+    @PutMapping("/{medicationId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> updateMedication(
+            @PathVariable Long programId,
+            @PathVariable Long medicationId,
+            @RequestBody Map<String, Object> body) {
+        try {
+            medicationService.updateMedication(medicationId, body);
+            return ResponseEntity.ok(Map.of("message", "Medication updated successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error updating medication: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a medication
+     * DELETE /programs/{programId}/medications/{medicationId}
+     */
+    @DeleteMapping("/{medicationId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> deleteMedication(
+            @PathVariable Long programId,
+            @PathVariable Long medicationId) {
+        try {
+            medicationService.deleteMedication(medicationId);
+            return ResponseEntity.ok(Map.of("message", "Medication deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error deleting medication: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Update medication count
      * PATCH /programs/{programId}/medications/{medicationId}/count
      */
@@ -109,6 +148,62 @@ public class MedicationController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error discontinuing medication: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Administer a medication (alternative endpoint)
+     * POST /programs/{programId}/medications/{medicationId}/administer
+     */
+    @PostMapping("/{medicationId}/administer")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> administerMedication(
+            @PathVariable Long programId,
+            @PathVariable Long medicationId,
+            @RequestBody Map<String, Object> body,
+            Authentication auth) {
+        try {
+            Long staffId = getUserIdFromAuth(auth);
+            
+            // Map frontend fields to backend DTO
+            MedicationAdministrationRequest request = new MedicationAdministrationRequest();
+            request.setResidentId(body.get("residentId") != null ? 
+                    Long.valueOf(body.get("residentId").toString()) : null);
+            request.setResidentMedicationId(medicationId);
+            
+            // Map status to action (given -> ADMINISTERED, denied -> REFUSED, other -> HELD)
+            String status = (String) body.get("status");
+            String action = "ADMINISTERED";
+            if ("denied".equals(status)) {
+                action = "REFUSED";
+            } else if ("other".equals(status)) {
+                action = "HELD";
+            }
+            request.setAction(action);
+            
+            // Set current date/time if not provided
+            request.setAdministrationDate(java.time.LocalDate.now());
+            request.setAdministrationTime(java.time.LocalTime.now());
+            
+            // Add notes if provided
+            if (body.containsKey("notes")) {
+                request.setNotes((String) body.get("notes"));
+            }
+            
+            MedicationAdministrationResponse response = medicationService.logAdministration(programId, request, staffId);
+            
+            // Update medication count if given
+            if ("given".equals(status) && body.containsKey("quantity")) {
+                Integer quantity = Integer.valueOf(body.get("quantity").toString());
+                medicationService.decrementMedicationCount(medicationId, quantity);
+            }
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error administering medication: " + e.getMessage()));
         }
     }
 
@@ -159,6 +254,19 @@ public class MedicationController {
         
         Map<String, Object> response = medicationService.getAdministrations(programId, startDate, endDate, page, size);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get medication administrations for a specific resident
+     * GET /programs/{programId}/medications/administrations/resident/{residentId}
+     */
+    @GetMapping("/administrations/resident/{residentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<MedicationAdministrationResponse>> getResidentAdministrations(
+            @PathVariable Long programId,
+            @PathVariable Long residentId) {
+        List<MedicationAdministrationResponse> administrations = medicationService.getResidentAdministrations(residentId);
+        return ResponseEntity.ok(administrations);
     }
 
     // ============ MEDICATION AUDITS ============

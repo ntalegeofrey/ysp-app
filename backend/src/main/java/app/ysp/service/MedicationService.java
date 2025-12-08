@@ -128,6 +128,19 @@ public class MedicationService {
     }
 
     /**
+     * Decrement medication count by quantity
+     */
+    @Transactional
+    public void decrementMedicationCount(Long medicationId, Integer quantity) {
+        ResidentMedication medication = medicationRepository.findById(medicationId)
+                .orElseThrow(() -> new RuntimeException("Medication not found"));
+        Integer currentCount = medication.getCurrentCount();
+        Integer newCount = Math.max(0, currentCount - quantity);
+        medication.setCurrentCount(newCount);
+        medicationRepository.save(medication);
+    }
+
+    /**
      * Discontinue a medication
      */
     @Transactional
@@ -135,6 +148,46 @@ public class MedicationService {
         ResidentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new RuntimeException("Medication not found"));
         medication.setStatus("DISCONTINUED");
+        medicationRepository.save(medication);
+    }
+
+    /**
+     * Update medication details
+     */
+    @Transactional
+    public void updateMedication(Long medicationId, Map<String, Object> updates) {
+        ResidentMedication medication = medicationRepository.findById(medicationId)
+                .orElseThrow(() -> new RuntimeException("Medication not found"));
+        
+        if (updates.containsKey("medicationName")) {
+            medication.setMedicationName((String) updates.get("medicationName"));
+        }
+        if (updates.containsKey("dosage")) {
+            medication.setDosage((String) updates.get("dosage"));
+        }
+        if (updates.containsKey("frequency")) {
+            medication.setFrequency((String) updates.get("frequency"));
+        }
+        if (updates.containsKey("prescribingPhysician")) {
+            medication.setPrescribingPhysician((String) updates.get("prescribingPhysician"));
+        }
+        if (updates.containsKey("specialInstructions")) {
+            medication.setSpecialInstructions((String) updates.get("specialInstructions"));
+        }
+        
+        medication.setUpdatedAt(Instant.now());
+        medicationRepository.save(medication);
+    }
+
+    /**
+     * Delete a medication (sets status to DELETED)
+     */
+    @Transactional
+    public void deleteMedication(Long medicationId) {
+        ResidentMedication medication = medicationRepository.findById(medicationId)
+                .orElseThrow(() -> new RuntimeException("Medication not found"));
+        medication.setStatus("DELETED");
+        medication.setUpdatedAt(Instant.now());
         medicationRepository.save(medication);
     }
 
@@ -213,6 +266,17 @@ public class MedicationService {
         response.put("totalElements", adminPage.getTotalElements());
         response.put("currentPage", adminPage.getNumber());
         return response;
+    }
+
+    /**
+     * Get medication administrations for a specific resident
+     */
+    public List<MedicationAdministrationResponse> getResidentAdministrations(Long residentId) {
+        List<MedicationAdministration> administrations = administrationRepository
+                .findByResident_IdOrderByAdministrationDateDescAdministrationTimeDesc(residentId);
+        return administrations.stream()
+                .map(this::mapToAdministrationResponse)
+                .collect(Collectors.toList());
     }
 
     // ============ MEDICATION AUDITS ============
