@@ -15,6 +15,7 @@ function MedicationSheetInner() {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedFrequency, setNewMedFrequency] = useState('Once Daily');
+  const [newMedType, setNewMedType] = useState('COUNTABLE');
   const [newMedInitialCount, setNewMedInitialCount] = useState('');
   const [newMedPhysician, setNewMedPhysician] = useState('');
   const [newMedInstructions, setNewMedInstructions] = useState('');

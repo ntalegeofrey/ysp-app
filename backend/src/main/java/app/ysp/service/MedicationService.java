@@ -533,8 +533,12 @@ public class MedicationService {
         response.setNotes(admin.getNotes());
         response.setWasLate(admin.getWasLate());
         response.setMinutesLate(admin.getMinutesLate());
-        response.setAdministeredByStaffId(admin.getAdministeredByStaff().getId());
-        response.setAdministeredByStaffName(admin.getAdministeredByStaff().getFirstName() + " " + admin.getAdministeredByStaff().getLastName());
+        if (admin.getAdministeredByStaff() != null) {
+            response.setAdministeredByStaffId(admin.getAdministeredByStaff().getId());
+            String firstName = admin.getAdministeredByStaff().getFirstName() != null ? admin.getAdministeredByStaff().getFirstName() : "";
+            String lastName = admin.getAdministeredByStaff().getLastName() != null ? admin.getAdministeredByStaff().getLastName() : "";
+            response.setAdministeredByStaffName((firstName + " " + lastName).trim());
+        }
         response.setCreatedAt(admin.getCreatedAt());
         return response;
     }
