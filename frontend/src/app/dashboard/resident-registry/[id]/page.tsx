@@ -65,6 +65,17 @@ export default function ResidentProfilePage() {
     loadProfilePicture();
   }, [residentId]);
 
+  // Set page title with resident name
+  useEffect(() => {
+    if (resident) {
+      const name = `${resident.firstName || ''} ${resident.lastName || ''}`.trim();
+      document.title = name ? `${name} - Resident Profile` : 'Resident Profile';
+    }
+    return () => {
+      document.title = 'YSP Management System';
+    };
+  }, [resident]);
+
   useEffect(() => {
     if (activeTab) {
       loadTabData();
@@ -538,6 +549,11 @@ export default function ResidentProfilePage() {
         } catch (err) {
           console.error('Failed to load credit history:', err);
         }
+      }
+
+      // Load documents
+      if (activeTab === 'files') {
+        loadDocuments();
       }
 
     } catch (error) {
