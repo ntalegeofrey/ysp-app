@@ -23,6 +23,7 @@ export default function ResidentProfilePage() {
   const [repairs, setRepairs] = useState<any[]>([]);
   const [historicalRepairs, setHistoricalRepairs] = useState<any[]>([]);
   const [watches, setWatches] = useState<any[]>([]);
+  const [creditHistory, setCreditHistory] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
@@ -434,6 +435,22 @@ export default function ResidentProfilePage() {
         }
       }
 
+      // Load credit history for chart
+      if (activeTab === 'overview') {
+        try {
+          const creditRes = await fetch(`/api/programs/${programId}/residents/${residentId}/credit-history`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          });
+          if (creditRes.ok) {
+            const creditData = await creditRes.json();
+            setCreditHistory(creditData);
+          }
+        } catch (err) {
+          console.error('Failed to load credit history:', err);
+        }
+      }
+
     } catch (error) {
       console.error('Failed to load tab data:', error);
     } finally {
@@ -806,25 +823,84 @@ export default function ResidentProfilePage() {
                     Credit Balance Trend
                   </h4>
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="h-48 flex items-center justify-center bg-white rounded-lg border-2 border-dashed border-bd">
-                      <div className="text-center">
-                        <i className="fa-solid fa-chart-area text-primary text-4xl mb-3"></i>
-                        <p className="text-sm font-medium text-font-base">Current Balance: {stats.totalCredits}</p>
-                        <p className="text-xs text-font-detail mt-1">Historical trend chart coming soon</p>
+                    {creditHistory.length === 0 ? (
+                      <div className="h-48 flex items-center justify-center bg-white rounded-lg border-2 border-dashed border-bd">
+                        <div className="text-center">
+                          <i className="fa-solid fa-chart-area text-primary text-4xl mb-3"></i>
+                          <p className="text-sm font-medium text-font-base">Current Balance: {stats.totalCredits}</p>
+                          <p className="text-xs text-font-detail mt-1">No historical data yet</p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="h-48 bg-white rounded-lg p-3">
+                        <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="creditGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" style={{stopColor: '#eab308', stopOpacity: 0.3}} />
+                              <stop offset="100%" style={{stopColor: '#eab308', stopOpacity: 0.05}} />
+                            </linearGradient>
+                          </defs>
+                          {/* Grid lines */}
+                          {[0, 10, 20, 30, 40].map((y) => (
+                            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.1" />
+                          ))}
+                          {(() => {
+                            const maxBalance = Math.max(...creditHistory.map((h: any) => h.currentBalance), 1);
+                            const points = creditHistory.map((h: any, i: number) => {
+                              const x = (i / Math.max(creditHistory.length - 1, 1)) * 100;
+                              const y = 40 - ((h.currentBalance / maxBalance) * 35);
+                              return `${x},${y}`;
+                            }).join(' ');
+                            const areaPoints = `0,40 ${points} 100,40`;
+                            return (
+                              <>
+                                {/* Area fill */}
+                                <polygon points={areaPoints} fill="url(#creditGradient)" />
+                                {/* Line */}
+                                <polyline
+                                  points={points}
+                                  fill="none"
+                                  stroke="#eab308"
+                                  strokeWidth="0.5"
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
+                                />
+                                {/* Data points */}
+                                {creditHistory.map((h: any, i: number) => {
+                                  const x = (i / Math.max(creditHistory.length - 1, 1)) * 100;
+                                  const y = 40 - ((h.currentBalance / maxBalance) * 35);
+                                  return (
+                                    <circle
+                                      key={i}
+                                      cx={x}
+                                      cy={y}
+                                      r={i === creditHistory.length - 1 ? "0.8" : "0.5"}
+                                      fill="#eab308"
+                                      stroke="white"
+                                      strokeWidth={i === creditHistory.length - 1 ? "0.3" : "0.1"}
+                                    />
+                                  );
+                                })}
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-4 px-2">
                       <div className="text-center">
-                        <p className="text-xs text-font-detail">Week Start</p>
-                        <p className="text-sm font-medium text-font-base">—</p>
+                        <p className="text-xs text-font-detail">
+                          {creditHistory.length > 0 ? new Date(creditHistory[0].weekStart).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : '—'}
+                        </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-font-detail">Current</p>
+                        <p className="text-xs text-font-detail">Current Balance</p>
                         <p className="text-lg font-bold text-warning">{stats.totalCredits}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-font-detail">Today</p>
-                        <p className="text-sm font-medium text-font-base">Active</p>
+                        <p className="text-xs text-font-detail">
+                          {creditHistory.length > 0 ? new Date(creditHistory[creditHistory.length - 1].weekStart).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : 'Today'}
+                        </p>
                       </div>
                     </div>
                   </div>

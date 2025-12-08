@@ -112,6 +112,49 @@ public class ProgramController {
         return ResponseEntity.ok(pr);
     }
 
+    @GetMapping("/{id}/residents/{residentPk}/credit-history")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getResidentCreditHistory(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
+        Optional<ProgramResident> opt = residents.findById(residentPk);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        ProgramResident pr = opt.get();
+        if (pr.getProgram() == null || pr.getProgram().getId() == null || !Objects.equals(pr.getProgram().getId(), id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Get last 10 weeks of credit history for charting
+        try {
+            @SuppressWarnings("unchecked")
+            java.util.List<Object[]> results = entityManager.createNativeQuery(
+                "SELECT week_start_date, week_end_date, starting_points, total_points_earned, current_balance " +
+                "FROM points_diary_cards " +
+                "WHERE resident_id = :residentId " +
+                "ORDER BY week_start_date DESC " +
+                "LIMIT 10"
+            ).setParameter("residentId", residentPk).getResultList();
+
+            java.util.List<java.util.Map<String, Object>> history = new java.util.ArrayList<>();
+            for (Object[] row : results) {
+                java.util.Map<String, Object> weekData = new java.util.HashMap<>();
+                weekData.put("weekStart", row[0] != null ? row[0].toString() : null);
+                weekData.put("weekEnd", row[1] != null ? row[1].toString() : null);
+                weekData.put("startingPoints", row[2] != null ? ((Number) row[2]).intValue() : 0);
+                weekData.put("pointsEarned", row[3] != null ? ((Number) row[3]).intValue() : 0);
+                weekData.put("currentBalance", row[4] != null ? ((Number) row[4]).intValue() : 0);
+                history.add(weekData);
+            }
+
+            // Reverse to show oldest first (for chronological charting)
+            java.util.Collections.reverse(history);
+            
+            return ResponseEntity.ok(history);
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to get credit history for resident " + residentPk + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(new java.util.ArrayList<>());
+        }
+    }
+
     @GetMapping("/{id}/residents/{residentPk}/stats")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getResidentStats(@PathVariable Long id, @PathVariable("residentPk") Long residentPk) {
