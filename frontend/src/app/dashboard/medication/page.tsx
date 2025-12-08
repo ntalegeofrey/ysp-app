@@ -152,12 +152,19 @@ export default function MedicationPage() {
     }
   }, [programId, activeTab]);
 
-  // Fetch pending audits when tab changes
+  // Fetch pending audits when tab changes OR on initial load for badge count
   useEffect(() => {
-    if (programId && activeTab === 'pending-approvals') {
+    if (programId && (activeTab === 'pending-approvals' || (userRole.includes('NURSE') || userRole.includes('ADMIN')))) {
       fetchPendingAudits();
     }
   }, [programId, activeTab]);
+
+  // Fetch pending audits count on mount for badge (nurses/admins only)
+  useEffect(() => {
+    if (programId && (userRole.includes('NURSE') || userRole.includes('ADMIN'))) {
+      fetchPendingAudits();
+    }
+  }, [programId, userRole]);
 
   // Fetch residents when needed
   useEffect(() => {
@@ -704,7 +711,7 @@ export default function MedicationPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/medications/administrations`, {
+      const res = await fetch(`/api/programs/${programId}/medications/administrations?size=1000`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -713,7 +720,8 @@ export default function MedicationPage() {
       });
       
       if (res.ok) {
-        const data = await res.json();
+        const response = await res.json();
+        const data = response.content || response; // Handle paginated response
         const formattedData = data.map((record: any) => ({
           id: record.id,
           date: new Date(record.administrationDate).toLocaleDateString(),
@@ -742,7 +750,7 @@ export default function MedicationPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/medications/audits/approved`, {
+      const res = await fetch(`/api/programs/${programId}/medications/audits?status=APPROVED&size=1000`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -751,7 +759,8 @@ export default function MedicationPage() {
       });
       
       if (res.ok) {
-        const audits = await res.json();
+        const response = await res.json();
+        const audits = response.content || response; // Handle paginated response
         const formattedData: any[] = [];
         
         audits.forEach((audit: any) => {
