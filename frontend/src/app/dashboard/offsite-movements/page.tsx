@@ -3,8 +3,14 @@
 import { useState } from 'react';
 
 export default function OffsiteMovementsPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'archive'>('overview');
   const [showOtherMovementType, setShowOtherMovementType] = useState(false);
+  
+  // Archive filters
+  const [archiveSearchFilter, setArchiveSearchFilter] = useState('');
+  const [archiveDateFilter, setArchiveDateFilter] = useState('');
+  const [archiveTypeFilter, setArchiveTypeFilter] = useState('');
+  const [archiveStatusFilter, setArchiveStatusFilter] = useState('');
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -32,6 +38,84 @@ export default function OffsiteMovementsPage() {
     'Other'
   ];
 
+  // Mock archive data
+  const archiveData = [
+    {
+      id: 1,
+      date: '2024-12-07',
+      time: '8:00 AM',
+      resident: 'Resident A01',
+      type: 'Medical Appointment',
+      destination: 'Taunton Family Health Center',
+      staff: 'Officer Johnson, Officer Lee',
+      status: 'Completed',
+      duration: '2.5 hours',
+      notes: 'Routine checkup completed successfully'
+    },
+    {
+      id: 2,
+      date: '2024-12-06',
+      time: '10:00 AM',
+      resident: 'Resident B01',
+      type: 'Court Appearance',
+      destination: 'Taunton District Court',
+      staff: 'Officer Martinez, Officer Chen',
+      status: 'Completed',
+      duration: '4 hours',
+      notes: 'Court hearing concluded, next date scheduled'
+    },
+    {
+      id: 3,
+      date: '2024-12-05',
+      time: '1:30 PM',
+      resident: 'Resident C02',
+      type: 'Hospital Emergency',
+      destination: 'Springfield General Hospital',
+      staff: 'Officer Johnson, Officer Davis',
+      status: 'Completed',
+      duration: '6 hours',
+      notes: 'Emergency treated, youth returned safely'
+    },
+    {
+      id: 4,
+      date: '2024-12-04',
+      time: '9:00 AM',
+      resident: 'Resident A02',
+      type: 'Probation Meeting',
+      destination: 'Bristol County Probation Office',
+      staff: 'Officer Lee, Officer Martinez',
+      status: 'Completed',
+      duration: '1.5 hours',
+      notes: 'Monthly check-in completed'
+    },
+    {
+      id: 5,
+      date: '2024-12-03',
+      time: '2:00 PM',
+      resident: 'Resident B03',
+      type: 'Psychological Evaluation',
+      destination: 'Youth Services Mental Health Center',
+      staff: 'Officer Chen, Officer Davis',
+      status: 'Cancelled',
+      duration: '-',
+      notes: 'Cancelled due to staff availability - rescheduled'
+    }
+  ];
+
+  // Filter archive data
+  const filteredArchiveData = archiveData.filter(record => {
+    const matchesSearch = !archiveSearchFilter ||
+      record.resident.toLowerCase().includes(archiveSearchFilter.toLowerCase()) ||
+      record.destination.toLowerCase().includes(archiveSearchFilter.toLowerCase()) ||
+      record.staff.toLowerCase().includes(archiveSearchFilter.toLowerCase());
+    
+    const matchesDate = !archiveDateFilter || record.date === archiveDateFilter;
+    const matchesType = !archiveTypeFilter || record.type === archiveTypeFilter;
+    const matchesStatus = !archiveStatusFilter || record.status === archiveStatusFilter;
+    
+    return matchesSearch && matchesDate && matchesType && matchesStatus;
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -49,6 +133,13 @@ export default function OffsiteMovementsPage() {
           >
             <i className={`fa-solid fa-calendar-plus mr-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-font-detail'}`}></i>
             Schedule Off-Site Movement
+          </button>
+          <button
+            className={`${tabBtnBase} ${activeTab === 'archive' ? tabBtnActive : tabBtnInactive}`}
+            onClick={() => setActiveTab('archive')}
+          >
+            <i className={`fa-solid fa-box-archive mr-2 ${activeTab === 'archive' ? 'text-primary' : 'text-font-detail'}`}></i>
+            Movement Archive
           </button>
         </nav>
       </div>
@@ -309,6 +400,120 @@ export default function OffsiteMovementsPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'archive' && (
+        <div className="bg-white rounded-lg border border-bd">
+          <div className="p-6 border-b border-bd">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-font-base flex items-center">
+                <i className="fa-solid fa-box-archive text-primary mr-3"></i>
+                Off-Site Movement Archive
+              </h3>
+              <div className="mt-2 text-sm text-font-detail">
+                Historical records of all completed and cancelled off-site movements
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Search by resident, destination, or staff..."
+                value={archiveSearchFilter}
+                onChange={(e) => setArchiveSearchFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <input
+                type="date"
+                value={archiveDateFilter}
+                onChange={(e) => setArchiveDateFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <select
+                value={archiveTypeFilter}
+                onChange={(e) => setArchiveTypeFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Movement Types</option>
+                {movementTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <select
+                value={archiveStatusFilter}
+                onChange={(e) => setArchiveStatusFilter(e.target.value)}
+                className="border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="">All Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-bg-subtle border-b border-bd">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Date</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Time</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Resident</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Movement Type</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Destination</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Staff</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Duration</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredArchiveData.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-16">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
+                          <i className="fa-solid fa-box-archive text-4xl text-primary opacity-50"></i>
+                        </div>
+                        <h4 className="text-xl font-semibold text-font-base mb-2">No Movement Records Found</h4>
+                        <p className="text-font-detail">
+                          {archiveSearchFilter || archiveDateFilter || archiveTypeFilter || archiveStatusFilter
+                            ? 'No movements match your current filters. Try adjusting your search criteria.'
+                            : 'No historical movement records available yet.'}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredArchiveData.map((record) => (
+                    <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="px-4 py-3 text-font-base">
+                        {new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 text-font-detail">{record.time}</td>
+                      <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.type}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.destination}</td>
+                      <td className="px-4 py-3 text-font-detail text-xs">{record.staff}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.duration}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          record.status === 'Completed'
+                            ? 'bg-success/10 text-success'
+                            : record.status === 'Cancelled'
+                            ? 'bg-error/10 text-error'
+                            : 'bg-info/10 text-info'
+                        }`}>
+                          {record.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-font-detail text-xs max-w-xs truncate" title={record.notes}>
+                        {record.notes || '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
