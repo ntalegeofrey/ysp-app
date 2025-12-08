@@ -106,15 +106,18 @@ export default function OffsiteMovementsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        // Extract unique staff members from assignments
-        const uniqueStaff = data.reduce((acc: any[], assignment: any) => {
-          if (assignment.user && !acc.find(s => s.id === assignment.user.id)) {
-            acc.push(assignment.user);
-          }
-          return acc;
-        }, []);
-        console.log('[Movements] Staff loaded:', uniqueStaff.length);
-        setStaff(uniqueStaff);
+        // Map assignments to staff objects with id, firstName, lastName
+        const staffList = data
+          .filter((assignment: any) => assignment.userId && assignment.firstName && assignment.lastName)
+          .map((assignment: any) => ({
+            id: assignment.userId,
+            firstName: assignment.firstName,
+            lastName: assignment.lastName,
+            fullName: assignment.fullName || `${assignment.firstName} ${assignment.lastName}`,
+            email: assignment.userEmail
+          }));
+        console.log('[Movements] Staff loaded:', staffList.length, staffList);
+        setStaff(staffList);
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
@@ -220,18 +223,6 @@ export default function OffsiteMovementsPage() {
 
   const handleAssign = () => addToast('Staff assignment workflow coming soon', 'info');
   const handleContact = () => addToast('Contact team action coming soon', 'info');
-  const handleAutoAssign = () => {
-    if (staff && staff.length >= 2 && staff[0]?.id && staff[1]?.id) {
-      setFormData(prev => ({
-        ...prev,
-        primaryStaffId: staff[0].id.toString(),
-        secondaryStaffId: staff[1].id.toString()
-      }));
-      addToast('Staff auto-assigned', 'success');
-    } else {
-      addToast('Not enough staff available', 'error');
-    }
-  };
 
   const movementTypes = [
     'Medical Appointment',
@@ -660,13 +651,6 @@ export default function OffsiteMovementsPage() {
                             </select>
                           </div>
                         </div>
-                        <button 
-                          type="button"
-                          onClick={handleAutoAssign} 
-                          className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 text-sm font-medium transition-colors"
-                        >
-                          Auto-Assign Available Staff
-                        </button>
                       </div>
                     </div>
                   </div>
