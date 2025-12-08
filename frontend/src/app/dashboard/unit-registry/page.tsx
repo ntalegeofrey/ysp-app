@@ -150,7 +150,9 @@ export default function OnboardingPage() {
   useEffect(() => {
     let es: EventSource | null = null;
     try {
-      es = new EventSource('/api/events');
+      const token = localStorage.getItem('token');
+      const eventUrl = `/api/events${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      es = new EventSource(eventUrl);
       es.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data || '{}') as { type?: string; programId?: number|string };
@@ -165,7 +167,10 @@ export default function OnboardingPage() {
           }
         } catch {}
       };
-      es.onerror = () => {};
+      es.onerror = () => {
+        // Silently handle SSE errors
+        try { es && es.close(); } catch {}
+      };
     } catch {}
     return () => { try { es && es.close(); } catch {} };
   }, [programId]);
