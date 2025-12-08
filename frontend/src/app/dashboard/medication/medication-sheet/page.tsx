@@ -543,17 +543,35 @@ function MedicationSheetInner() {
             </div>
           ) : (
             medications.map((med) => (
-              <div key={med.id} className="border border-bd rounded-lg p-6">
+              <div key={med.id} className="border border-bd rounded-lg p-6 bg-gradient-to-br from-white to-blue-50/30 hover:shadow-lg transition-shadow">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <h4 className="text-lg font-semibold text-font-base">{med.medicationName} {med.dosage}</h4>
                     <span className="ml-3 bg-primary text-white px-2 py-1 rounded text-xs">{med.frequency}</span>
                   </div>
                   <div className="flex space-x-2">
-                    <button className="text-primary hover:bg-primary-lightest p-2 rounded">
+                    {/* Administer Button */}
+                    <button 
+                      onClick={() => openAdministerMedication(med)}
+                      className="text-success hover:bg-success/10 p-2 rounded transition-colors"
+                      title="Administer Medication"
+                    >
+                      <i className="fa-solid fa-syringe"></i>
+                    </button>
+                    {/* Edit Button */}
+                    <button 
+                      onClick={() => openEditMedication(med)}
+                      className="text-primary hover:bg-primary/10 p-2 rounded transition-colors"
+                      title="Edit Medication"
+                    >
                       <i className="fa-solid fa-edit"></i>
                     </button>
-                    <button className="text-error hover:bg-error-lightest p-2 rounded">
+                    {/* Delete Button */}
+                    <button 
+                      onClick={() => openDeleteMedication(med)}
+                      className="text-error hover:bg-error/10 p-2 rounded transition-colors"
+                      title="Delete Medication"
+                    >
                       <i className="fa-solid fa-trash"></i>
                     </button>
                   </div>
