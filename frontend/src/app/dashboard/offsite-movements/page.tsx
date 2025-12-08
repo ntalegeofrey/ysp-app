@@ -27,6 +27,11 @@ export default function OffsiteMovementsPage() {
   const [archiveTypeFilter, setArchiveTypeFilter] = useState('');
   const [archiveStatusFilter, setArchiveStatusFilter] = useState('');
   
+  // Cancel modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [movementToCancel, setMovementToCancel] = useState<number | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  
   // Form state
   const [formData, setFormData] = useState({
     residentId: '',
@@ -250,6 +255,93 @@ export default function OffsiteMovementsPage() {
     }
   };
   
+  const handleCompleteMovement = async (movementId: number) => {
+    if (!programId) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/movements/${movementId}/complete`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          outcomeNotes: 'Movement completed successfully'
+        })
+      });
+      
+      if (res.ok) {
+        addToast('Movement marked as completed', 'success');
+        // Refresh lists
+        fetchScheduledMovements();
+        fetchUrgentMovements();
+        fetchArchivedMovements();
+      } else {
+        const error = await res.json();
+        addToast(error.message || 'Failed to complete movement', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to complete movement:', err);
+      addToast('Failed to complete movement', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleCancelMovement = (movementId: number) => {
+    setMovementToCancel(movementId);
+    setCancelModalOpen(true);
+  };
+  
+  const confirmCancelMovement = async () => {
+    if (!programId || !movementToCancel) return;
+    
+    if (!cancellationReason.trim()) {
+      addToast('Please provide a cancellation reason', 'warning');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/movements/${movementToCancel}/cancel`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          reason: cancellationReason
+        })
+      });
+      
+      if (res.ok) {
+        addToast('Movement cancelled successfully', 'success');
+        setCancelModalOpen(false);
+        setMovementToCancel(null);
+        setCancellationReason('');
+        // Refresh lists
+        fetchScheduledMovements();
+        fetchUrgentMovements();
+        fetchArchivedMovements();
+      } else {
+        const error = await res.json();
+        addToast(error.message || 'Failed to cancel movement', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to cancel movement:', err);
+      addToast('Failed to cancel movement', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const handleSubmit = async () => {
     if (!programId) {
       addToast('Program not selected', 'error');
@@ -306,34 +398,43 @@ export default function OffsiteMovementsPage() {
         body: JSON.stringify(payload)
       });
       
-      if (res.ok) {
-        addToast('Movement scheduled successfully', 'success');
-        // Reset form
-        setFormData({
-          residentId: '',
-          movementType: '',
-          otherMovementType: '',
-          movementDate: '',
-          movementTime: '',
-          destination: '',
-          destinationAddress: '',
-          destinationContact: '',
-          estimatedDuration: '2 Hours',
-          priorityLevel: 'ROUTINE',
-          requiresRestraints: false,
-          wheelchairAccessible: false,
-          medicalEquipmentNeeded: false,
-          behavioralPrecautions: false,
-          movementNotes: '',
-          primaryStaffId: '',
-          secondaryStaffId: ''
-        });
-        setShowOtherMovementType(false);
-        setActiveTab('overview');
-      } else {
-        const error = await res.json();
-        addToast(error.message || 'Failed to schedule movement', 'error');
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorMessage = 'Failed to schedule movement';
+        try {
+          const error = JSON.parse(errorText);
+          errorMessage = error.message || error.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        console.error('Schedule movement error:', errorText);
+        addToast(errorMessage, 'error');
+        return;
       }
+      
+      addToast('Movement scheduled successfully', 'success');
+      // Reset form
+      setFormData({
+        residentId: '',
+        movementType: '',
+        otherMovementType: '',
+        movementDate: '',
+        movementTime: '',
+        destination: '',
+        destinationAddress: '',
+        destinationContact: '',
+        estimatedDuration: '2 Hours',
+        priorityLevel: 'ROUTINE',
+        requiresRestraints: false,
+        wheelchairAccessible: false,
+        medicalEquipmentNeeded: false,
+        behavioralPrecautions: false,
+        movementNotes: '',
+        primaryStaffId: '',
+        secondaryStaffId: ''
+      });
+      setShowOtherMovementType(false);
+      setActiveTab('overview');
     } catch (err) {
       console.error('Failed to schedule movement:', err);
       addToast('Failed to schedule movement', 'error');
@@ -367,14 +468,14 @@ export default function OffsiteMovementsPage() {
   ];
 
   // Filter archive data with search
-  const filteredArchiveData = archivedMovements.filter(record => {
+  const filteredArchiveData = archivedMovements.filter((record: any) => {
     if (!archiveSearchFilter) return true;
     const search = archiveSearchFilter.toLowerCase();
+    const staffNames = record.staffAssignments?.map((s: any) => s.staffName.toLowerCase()).join(' ') || '';
     return (
       record.residentName?.toLowerCase().includes(search) ||
       record.destination?.toLowerCase().includes(search) ||
-      record.primaryStaffName?.toLowerCase().includes(search) ||
-      record.secondaryStaffName?.toLowerCase().includes(search)
+      staffNames.includes(search)
     );
   });
 
@@ -455,12 +556,21 @@ export default function OffsiteMovementsPage() {
                               <span>{new Date(movement.movementDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {movement.movementTime}</span>
                             </div>
                             <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-tag w-4"></i>
+                              <span>{movement.movementType}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <i className="fa-solid fa-location-dot w-4"></i>
-                              <span>{movement.destination}</span>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{movement.destination}</span>
+                                {movement.destinationAddress && (
+                                  <span className="text-xs">{movement.destinationAddress}</span>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <i className="fa-solid fa-users w-4"></i>
-                              <span>{movement.primaryStaffName}, {movement.secondaryStaffName}</span>
+                              <span>{movement.staffAssignments?.map((s: any) => s.staffName).join(', ') || 'Not assigned'}</span>
                             </div>
                           </div>
                         </div>
@@ -507,11 +617,11 @@ export default function OffsiteMovementsPage() {
                 <div className="space-y-4">
                   {scheduledMovements.map((movement: any) => (
                     <div key={movement.id} className="border border-bd bg-bg-subtle rounded-lg p-4">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <span className="text-sm font-semibold text-font-base">{movement.residentName}</span>
-                            <span className="text-xs text-font-detail">#{movement.residentId}</span>
+                            <span className="text-xs text-font-detail">#{movement.residentNumber}</span>
                           </div>
                           <div className="text-sm text-font-detail space-y-1">
                             <div className="flex items-center gap-2">
@@ -519,16 +629,21 @@ export default function OffsiteMovementsPage() {
                               <span>{new Date(movement.movementDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {movement.movementTime}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <i className="fa-solid fa-location-dot w-4"></i>
-                              <span>{movement.destination}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
                               <i className="fa-solid fa-tag w-4"></i>
                               <span>{movement.movementType}</span>
                             </div>
                             <div className="flex items-center gap-2">
+                              <i className="fa-solid fa-location-dot w-4"></i>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{movement.destination}</span>
+                                {movement.destinationAddress && (
+                                  <span className="text-xs">{movement.destinationAddress}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <i className="fa-solid fa-users w-4"></i>
-                              <span>{movement.primaryStaffName}, {movement.secondaryStaffName}</span>
+                              <span>{movement.staffAssignments?.map((s: any) => s.staffName).join(', ') || 'Not assigned'}</span>
                             </div>
                           </div>
                         </div>
@@ -540,9 +655,27 @@ export default function OffsiteMovementsPage() {
                           }`}>
                             {movement.priorityLevel}
                           </span>
-                          <span className="px-3 py-1 bg-success-lightest text-success text-xs font-medium rounded">
+                          <span className="px-3 py-1 bg-info-lightest text-info text-xs font-medium rounded">
                             {movement.status}
                           </span>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleCompleteMovement(movement.id)}
+                              className="px-3 py-1.5 bg-success text-white rounded-lg hover:bg-success/90 transition-colors text-xs font-medium flex items-center gap-1"
+                              title="Mark as completed"
+                            >
+                              <i className="fa-solid fa-check"></i>
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => handleCancelMovement(movement.id)}
+                              className="px-3 py-1.5 bg-error text-white rounded-lg hover:bg-error/90 transition-colors text-xs font-medium flex items-center gap-1"
+                              title="Cancel movement"
+                            >
+                              <i className="fa-solid fa-times"></i>
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -906,36 +1039,103 @@ export default function OffsiteMovementsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredArchiveData.map((record) => (
-                    <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="px-4 py-3 text-font-base">
-                        {new Date(record.movementDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 py-3 text-font-detail">{record.movementTime}</td>
-                      <td className="px-4 py-3 text-font-base font-medium">{record.residentName}</td>
-                      <td className="px-4 py-3 text-font-detail">{record.movementType}</td>
-                      <td className="px-4 py-3 text-font-detail">{record.destination}</td>
-                      <td className="px-4 py-3 text-font-detail text-xs">{record.primaryStaffName}, {record.secondaryStaffName}</td>
-                      <td className="px-4 py-3 text-font-detail">{record.actualDuration || record.estimatedDuration || '-'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          record.status === 'COMPLETED'
-                            ? 'bg-success/10 text-success'
-                            : record.status === 'CANCELLED'
-                            ? 'bg-error/10 text-error'
-                            : 'bg-info/10 text-info'
-                        }`}>
-                          {record.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-font-detail text-xs max-w-xs truncate" title={record.movementNotes}>
-                        {record.movementNotes || '-'}
-                      </td>
-                    </tr>
-                  ))
+                  filteredArchiveData.map((record) => {
+                    const staffNames = record.staffAssignments?.map((s: any) => s.staffName).join(', ') || '-';
+                    const statusDisplay = record.status === 'COMPLETED' ? 'Completed' :
+                                         record.status === 'CANCELLED' ? 'Cancelled' :
+                                         record.status === 'IN_PROGRESS' ? 'In Progress' :
+                                         record.status || '-';
+                    return (
+                      <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
+                        <td className="px-4 py-3 text-font-base">
+                          {new Date(record.movementDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3 text-font-detail">{record.movementTime}</td>
+                        <td className="px-4 py-3 text-font-base font-medium">{record.residentName}</td>
+                        <td className="px-4 py-3 text-font-detail">{record.movementType}</td>
+                        <td className="px-4 py-3 text-font-detail">{record.destination}</td>
+                        <td className="px-4 py-3 text-font-detail text-xs">{staffNames}</td>
+                        <td className="px-4 py-3 text-font-detail">{record.actualDuration || record.estimatedDuration || '-'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            record.status === 'COMPLETED'
+                              ? 'bg-success/10 text-success'
+                              : record.status === 'CANCELLED'
+                              ? 'bg-error/10 text-error'
+                              : 'bg-info/10 text-info'
+                          }`}>
+                            {statusDisplay}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-font-detail text-xs max-w-xs truncate" title={record.movementNotes}>
+                          {record.movementNotes || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Cancel Movement Modal */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center">
+                <i className="fa-solid fa-exclamation-triangle text-error text-xl"></i>
+              </div>
+              <h3 className="text-xl font-semibold text-font-base">Cancel Movement?</h3>
+            </div>
+            
+            <p className="text-font-detail mb-4">
+              This will cancel the scheduled movement and notify all assigned staff.
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-font-base mb-2">
+                Cancellation Reason <span className="text-error">*</span>
+              </label>
+              <textarea
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Please provide a reason for cancelling this movement..."
+                rows={4}
+                className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setMovementToCancel(null);
+                  setCancellationReason('');
+                }}
+                disabled={loading}
+                className="px-4 py-2 border border-bd rounded-lg text-font-base hover:bg-bg-subtle transition-colors disabled:opacity-50">
+                Keep Movement
+              </button>
+              <button
+                onClick={confirmCancelMovement}
+                disabled={loading || !cancellationReason.trim()}
+                className="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-colors disabled:opacity-50 flex items-center gap-2">
+                {loading ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-ban"></i>
+                    Confirm Cancellation
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
