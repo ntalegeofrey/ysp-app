@@ -10,24 +10,8 @@ const getAuthHeaders = () => {
   };
 };
 
-// Get program ID from localStorage
-const getProgramId = () => {
-  if (typeof window !== 'undefined') {
-    const programStr = localStorage.getItem('selectedProgram');
-    if (programStr) {
-      try {
-        const program = JSON.parse(programStr);
-        return program.id;
-      } catch (e) {
-        console.error('Failed to parse selectedProgram:', e);
-      }
-    }
-  }
-  return null;
-};
-
 // Add new inventory item
-export const addInventoryItem = async (itemData: {
+export const addInventoryItem = async (programId: number, itemData: {
   itemName: string;
   category: string;
   description?: string;
@@ -38,8 +22,6 @@ export const addInventoryItem = async (itemData: {
   storageZone?: string;
   notes?: string;
 }) => {
-  const programId = getProgramId();
-  
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'POST',
     credentials: 'include',
@@ -56,8 +38,7 @@ export const addInventoryItem = async (itemData: {
 };
 
 // Get all inventory items
-export const getInventoryItems = async () => {
-  const programId = getProgramId();
+export const getInventoryItems = async (programId: number) => {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'GET',
@@ -73,15 +54,13 @@ export const getInventoryItems = async () => {
 };
 
 // Filter inventory items
-export const filterInventoryItems = async (filters: {
+export const filterInventoryItems = async (programId: number, filters: {
   category?: string;
   status?: string;
   searchTerm?: string;
   page?: number;
   size?: number;
 }) => {
-  const programId = getProgramId();
-  
   const params = new URLSearchParams();
   if (filters.category) params.append('category', filters.category);
   if (filters.status) params.append('status', filters.status);
@@ -106,15 +85,13 @@ export const filterInventoryItems = async (filters: {
 };
 
 // Checkout items
-export const checkoutInventoryItem = async (checkoutData: {
+export const checkoutInventoryItem = async (programId: number, checkoutData: {
   inventoryItemId: number;
   quantity: number;
   purpose: string;
   recipientDepartment?: string;
   notes: string;
 }) => {
-  const programId = getProgramId();
-  
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/checkout`, {
     method: 'POST',
     credentials: 'include',
@@ -131,15 +108,13 @@ export const checkoutInventoryItem = async (checkoutData: {
 };
 
 // Get transaction history (log)
-export const getTransactionHistory = async (filters?: {
+export const getTransactionHistory = async (programId: number, filters?: {
   transactionType?: string;
   category?: string;
   searchTerm?: string;
   page?: number;
   size?: number;
 }) => {
-  const programId = getProgramId();
-  
   const params = new URLSearchParams();
   if (filters?.transactionType) params.append('transactionType', filters.transactionType);
   if (filters?.category) params.append('category', filters.category);
@@ -164,8 +139,7 @@ export const getTransactionHistory = async (filters?: {
 };
 
 // Get inventory statistics
-export const getInventoryStats = async () => {
-  const programId = getProgramId();
+export const getInventoryStats = async (programId: number) => {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/stats`, {
     method: 'GET',
@@ -181,7 +155,7 @@ export const getInventoryStats = async () => {
 };
 
 // Create requisition
-export const createRequisition = async (requisitionData: {
+export const createRequisition = async (programId: number, requisitionData: {
   itemName: string;
   category: string;
   quantityRequested: number;
@@ -193,8 +167,6 @@ export const createRequisition = async (requisitionData: {
   preferredVendor?: string;
   requestDate: string;
 }) => {
-  const programId = getProgramId();
-  
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/requisitions`, {
     method: 'POST',
     credentials: 'include',
@@ -211,7 +183,7 @@ export const createRequisition = async (requisitionData: {
 };
 
 // Get requisitions
-export const getRequisitions = async (filters?: {
+export const getRequisitions = async (programId: number, filters?: {
   status?: string;
   category?: string;
   priority?: string;
@@ -219,8 +191,6 @@ export const getRequisitions = async (filters?: {
   page?: number;
   size?: number;
 }) => {
-  const programId = getProgramId();
-  
   const params = new URLSearchParams();
   if (filters?.status) params.append('status', filters.status);
   if (filters?.category) params.append('category', filters.category);

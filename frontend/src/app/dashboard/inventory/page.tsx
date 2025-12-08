@@ -11,6 +11,7 @@ export default function InventoryPage() {
   const router = useRouter();
   const [currentStaff, setCurrentStaff] = useState('');
   const { toasts, addToast, removeToast } = useToast();
+  const [programId, setProgramId] = useState<number | null>(null);
   
   // State for inventory items
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -49,11 +50,26 @@ export default function InventoryPage() {
       console.error('Failed to parse user:', err);
     }
   }, []);
+
+  // Get programId from localStorage
+  useEffect(() => {
+    const selectedProgram = localStorage.getItem('selectedProgram');
+    if (selectedProgram) {
+      try {
+        const program = JSON.parse(selectedProgram);
+        const id = program.id || program.programId;
+        setProgramId(id);
+      } catch (err) {
+        console.error('Failed to parse selectedProgram:', err);
+      }
+    }
+  }, []);
   
   // Fetch inventory items
   const fetchInventoryItems = async () => {
+    if (!programId) return;
     try {
-      const items = await inventoryApi.getInventoryItems();
+      const items = await inventoryApi.getInventoryItems(programId);
       setInventoryItems(items);
     } catch (error: any) {
       console.error('Error fetching inventory:', error);
@@ -63,8 +79,9 @@ export default function InventoryPage() {
   
   // Fetch transaction history
   const fetchTransactions = async () => {
+    if (!programId) return;
     try {
-      const response = await inventoryApi.getTransactionHistory({ page: 0, size: 10 });
+      const response = await inventoryApi.getTransactionHistory(programId, { page: 0, size: 10 });
       setTransactions(response.content || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
@@ -73,12 +90,12 @@ export default function InventoryPage() {
   
   // Load data on mount and tab change
   useEffect(() => {
-    if (activeTab === 'overview') {
+    if (programId && activeTab === 'overview') {
       fetchTransactions();
-    } else if (activeTab === 'checkout') {
+    } else if (programId && activeTab === 'checkout') {
       fetchInventoryItems();
     }
-  }, [activeTab]);
+  }, [programId, activeTab]);
   
   // Handle Add Item form submit
   const handleAddItem = async (e: React.FormEvent) => {
@@ -86,7 +103,11 @@ export default function InventoryPage() {
     setLoading(true);
     
     try {
-      await inventoryApi.addInventoryItem({
+      if (!programId) {
+        addToast('No program selected', 'error');
+        return;
+      }
+      await inventoryApi.addInventoryItem(programId, {
         itemName: addItemForm.itemName,
         category: addItemForm.category,
         description: addItemForm.description,
@@ -140,8 +161,12 @@ export default function InventoryPage() {
     
     setLoading(true);
     
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
     try {
-      await inventoryApi.checkoutInventoryItem({
+      await inventoryApi.checkoutInventoryItem(programId, {
         inventoryItemId: item.id,
         quantity: quantity,
         purpose: 'Resident Use', // Default purpose
