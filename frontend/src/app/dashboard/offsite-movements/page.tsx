@@ -1044,6 +1044,7 @@ export default function OffsiteMovementsPage() {
                     const statusDisplay = record.status === 'COMPLETED' ? 'Completed' :
                                          record.status === 'CANCELLED' ? 'Cancelled' :
                                          record.status === 'IN_PROGRESS' ? 'In Progress' :
+                                         record.status === 'SCHEDULED' ? 'Scheduled' :
                                          record.status || '-';
                     return (
                       <tr key={record.id} className="border-b border-bd hover:bg-bg-subtle">
@@ -1062,6 +1063,10 @@ export default function OffsiteMovementsPage() {
                               ? 'bg-success/10 text-success'
                               : record.status === 'CANCELLED'
                               ? 'bg-error/10 text-error'
+                              : record.status === 'SCHEDULED'
+                              ? 'bg-primary/10 text-primary'
+                              : record.status === 'IN_PROGRESS'
+                              ? 'bg-warning/10 text-warning'
                               : 'bg-info/10 text-info'
                           }`}>
                             {statusDisplay}
