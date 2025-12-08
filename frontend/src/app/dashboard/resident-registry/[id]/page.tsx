@@ -25,6 +25,7 @@ export default function ResidentProfilePage() {
   const [watches, setWatches] = useState<any[]>([]);
   const [creditHistory, setCreditHistory] = useState<any[]>([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
+  const [creditChartRendered, setCreditChartRendered] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
@@ -65,12 +66,100 @@ export default function ResidentProfilePage() {
   }, [residentId]);
 
   useEffect(() => {
-    if (activeTab === 'files') {
-      loadDocuments();
-    } else if (activeTab !== 'overview') {
+    if (activeTab) {
       loadTabData();
     }
-  }, [activeTab]);
+  }, [activeTab, residentId]);
+
+  // Render credit trend chart with Highcharts
+  useEffect(() => {
+    if (typeof window === 'undefined' || !creditHistory.length || creditChartRendered) return;
+
+    const Highcharts = (window as any).Highcharts;
+    const chartContainer = document.getElementById('credit-trend-chart');
+
+    if (Highcharts && chartContainer) {
+      setCreditChartRendered(true);
+
+      const dates = creditHistory.map((h: any) => {
+        const date = new Date(h.weekStart);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      });
+      
+      const balances = creditHistory.map((h: any) => h.currentBalance);
+
+      Highcharts.chart('credit-trend-chart', {
+        chart: {
+          type: 'areaspline',
+          backgroundColor: 'transparent',
+          height: 200,
+        },
+        title: { text: null },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+          categories: dates,
+          lineColor: '#e5e7eb',
+          tickColor: '#e5e7eb',
+          labels: {
+            style: { color: '#6b7280', fontSize: '11px' }
+          }
+        },
+        yAxis: {
+          title: { text: null },
+          gridLineColor: '#f3f4f6',
+          labels: {
+            style: { color: '#6b7280', fontSize: '11px' }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#ffffff',
+          borderColor: '#3b82f6',
+          borderRadius: 8,
+          style: { color: '#1f2937' },
+          formatter: function(this: any) {
+            return `<b>${this.x}</b><br/>Balance: <b>${this.y}</b> credits`;
+          }
+        },
+        plotOptions: {
+          areaspline: {
+            fillColor: {
+              linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+              stops: [
+                [0, 'rgba(59, 130, 246, 0.3)'],
+                [1, 'rgba(59, 130, 246, 0.02)']
+              ]
+            },
+            lineWidth: 3,
+            lineColor: '#3b82f6',
+            marker: {
+              enabled: true,
+              fillColor: '#ffffff',
+              lineWidth: 2,
+              lineColor: '#3b82f6',
+              radius: 4,
+              symbol: 'circle'
+            },
+            states: {
+              hover: {
+                lineWidth: 3
+              }
+            }
+          }
+        },
+        series: [{
+          name: 'Credit Balance',
+          data: balances,
+          color: '#3b82f6'
+        }]
+      });
+    }
+  }, [creditHistory, creditChartRendered]);
+
+  // Reset chart rendered flag when switching tabs or resident
+  useEffect(() => {
+    setCreditChartRendered(false);
+  }, [residentId, activeTab]);
 
   const loadResidentProfile = async () => {
     try {
@@ -822,7 +911,7 @@ export default function ResidentProfilePage() {
                     <i className="fa-solid fa-chart-line text-primary"></i>
                     Credit Balance Trend
                   </h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gradient-to-b from-blue-50/30 to-white rounded-lg p-3">
                     {creditHistory.length === 0 ? (
                       <div className="h-48 flex items-center justify-center bg-white rounded-lg border-2 border-dashed border-bd">
                         <div className="text-center">
@@ -832,80 +921,7 @@ export default function ResidentProfilePage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="h-48 bg-gradient-to-b from-blue-50/50 to-white rounded-lg p-4">
-                        <svg viewBox="0 0 300 100" className="w-full h-full" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" style={{stopColor: '#6366f1', stopOpacity: 0.3}} />
-                              <stop offset="100%" style={{stopColor: '#6366f1', stopOpacity: 0.02}} />
-                            </linearGradient>
-                          </defs>
-                          {(() => {
-                            const padding = 10;
-                            const maxBalance = Math.max(...creditHistory.map((h: any) => h.currentBalance), 1);
-                            const minBalance = Math.min(...creditHistory.map((h: any) => h.currentBalance), 0);
-                            const range = maxBalance - minBalance || 1;
-                            
-                            // Map data points to coordinates
-                            const points = creditHistory.map((h: any, i: number) => ({
-                              x: padding + (i / Math.max(creditHistory.length - 1, 1)) * (300 - 2 * padding),
-                              y: padding + (1 - ((h.currentBalance - minBalance) / range)) * (100 - 2 * padding)
-                            }));
-                            
-                            // Create super smooth Catmull-Rom spline
-                            const getControlPoints = (i: number) => {
-                              const p0 = points[Math.max(0, i - 1)];
-                              const p1 = points[i];
-                              const p2 = points[Math.min(points.length - 1, i + 1)];
-                              const p3 = points[Math.min(points.length - 1, i + 2)];
-                              
-                              const tension = 0.5;
-                              const cp1x = p1.x + (p2.x - p0.x) / 6 * tension;
-                              const cp1y = p1.y + (p2.y - p0.y) / 6 * tension;
-                              const cp2x = p2.x - (p3.x - p1.x) / 6 * tension;
-                              const cp2y = p2.y - (p3.y - p1.y) / 6 * tension;
-                              
-                              return { cp1x, cp1y, cp2x, cp2y };
-                            };
-                            
-                            let smoothPath = `M ${points[0].x} ${points[0].y}`;
-                            for (let i = 0; i < points.length - 1; i++) {
-                              const { cp1x, cp1y, cp2x, cp2y } = getControlPoints(i);
-                              smoothPath += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${points[i + 1].x} ${points[i + 1].y}`;
-                            }
-                            
-                            const areaPath = `${smoothPath} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
-                            
-                            return (
-                              <>
-                                {/* Area fill */}
-                                <path d={areaPath} fill="url(#areaGradient)" />
-                                {/* Smooth line */}
-                                <path
-                                  d={smoothPath}
-                                  fill="none"
-                                  stroke="#6366f1"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                                {/* Data point markers */}
-                                {points.map((point, i) => (
-                                  <circle
-                                    key={i}
-                                    cx={point.x}
-                                    cy={point.y}
-                                    r={i === points.length - 1 ? "4" : "3"}
-                                    fill="white"
-                                    stroke="#6366f1"
-                                    strokeWidth="2"
-                                  />
-                                ))}
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      </div>
+                      <div id="credit-trend-chart" className="w-full"></div>
                     )}
                     <div className="flex items-center justify-between mt-4 px-2">
                       <div className="text-center">
