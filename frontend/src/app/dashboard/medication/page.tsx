@@ -86,6 +86,8 @@ export default function MedicationPage() {
   const [loading, setLoading] = useState(false);
   const [residentsWithMeds, setResidentsWithMeds] = useState<any[]>([]);
   const [administrationData, setAdministrationData] = useState<Map<number, any>>(new Map());
+  const [adminArchiveData, setAdminArchiveData] = useState<any[]>([]);
+  const [auditArchiveData, setAuditArchiveData] = useState<any[]>([]);
 
   // Load user info and program ID
   useEffect(() => {
@@ -134,6 +136,19 @@ export default function MedicationPage() {
   useEffect(() => {
     if (programId && activeTab === 'audit') {
       fetchResidentMedsForAudit();
+    }
+  }, [programId, activeTab]);
+
+  // Fetch archive data when tabs change
+  useEffect(() => {
+    if (programId && activeTab === 'admin-archive') {
+      fetchAdminArchive();
+    }
+  }, [programId, activeTab]);
+
+  useEffect(() => {
+    if (programId && activeTab === 'audit-archive') {
+      fetchAuditArchive();
     }
   }, [programId, activeTab]);
 
@@ -634,6 +649,91 @@ export default function MedicationPage() {
     }
   };
 
+  const fetchAdminArchive = async () => {
+    if (!programId) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/medications/administrations`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const formattedData = data.map((record: any) => ({
+          id: record.id,
+          date: new Date(record.administrationDate).toLocaleDateString(),
+          time: record.administrationTime,
+          shift: record.shift,
+          resident: record.residentName,
+          medication: `${record.medicationName} ${record.dosage || ''}`,
+          action: record.action === 'ADMINISTERED' ? 'Given' : 
+                  record.action === 'REFUSED' ? 'Denied' : 
+                  record.action === 'HELD' ? 'Held' : record.action,
+          staff: record.administeredByStaffName || '-',
+          notes: record.notes || '',
+        }));
+        setAdminArchiveData(formattedData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin archive:', err);
+      addToast('Failed to load administration records', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAuditArchive = async () => {
+    if (!programId) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/medications/audits/approved`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const audits = await res.json();
+        const formattedData: any[] = [];
+        
+        audits.forEach((audit: any) => {
+          // Each audit can have multiple medication counts
+          if (audit.counts && audit.counts.length > 0) {
+            audit.counts.forEach((count: any) => {
+              const discrepancy = count.currentCount - count.previousCount;
+              formattedData.push({
+                id: `${audit.id}-${count.residentMedicationId}`,
+                date: new Date(audit.auditDate).toLocaleDateString(),
+                shift: audit.shift,
+                staff: audit.auditedByStaffName || '-',
+                resident: count.residentName || '-',
+                medication: count.medicationName || '-',
+                previousCount: count.previousCount,
+                auditedCount: count.currentCount,
+                discrepancy: discrepancy,
+              });
+            });
+          }
+        });
+        
+        setAuditArchiveData(formattedData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit archive:', err);
+      addToast('Failed to load audit records', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // New Resident & Medications form state
   const [selectedResident, setSelectedResident] = useState('');
   const [allergies, setAllergies] = useState('');
@@ -711,11 +811,7 @@ export default function MedicationPage() {
     }
   };
 
-  // Admin archive data (will be fetched from backend)
-  const adminArchiveData: any[] = [];
-
-  // Audit archive data (will be fetched from backend)
-  const auditArchiveData: any[] = [];
+  // Filter archive data
 
   const filteredAdminArchive = adminArchiveData.filter(record => {
     const matchesSearch = !adminArchiveFilter ||
