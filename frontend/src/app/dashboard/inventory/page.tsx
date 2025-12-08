@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function InventoryPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'requisition' | 'requisition-archive' | 'audit'>('overview');
   const router = useRouter();
   const [currentStaff, setCurrentStaff] = useState('');
   
@@ -53,6 +53,20 @@ export default function InventoryPage() {
             >
               <i className={`fa-solid fa-arrow-right-from-bracket mr-2 ${activeTab === 'checkout' ? 'text-primary' : 'text-font-detail'}`}></i>
               Checkout
+            </button>
+            <button
+              className={`${tabBtnBase} ${activeTab === 'requisition' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => setActiveTab('requisition')}
+            >
+              <i className={`fa-solid fa-file-invoice mr-2 ${activeTab === 'requisition' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Requisitions
+            </button>
+            <button
+              className={`${tabBtnBase} ${activeTab === 'requisition-archive' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => setActiveTab('requisition-archive')}
+            >
+              <i className={`fa-solid fa-folder-open mr-2 ${activeTab === 'requisition-archive' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Requisition Archive
             </button>
             <button
               className={`${tabBtnBase} ${activeTab === 'audit' ? tabBtnActive : tabBtnInactive}`}
@@ -576,6 +590,367 @@ export default function InventoryPage() {
                     <p className="text-xs text-font-detail">Qty: 20 | Program Activity</p>
                     <p className="text-xs text-font-detail">Checked out 3 hours ago</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'requisition' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Requisition Form */}
+              <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
+                <h3 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                  <i className="fa-solid fa-file-invoice text-primary mr-3"></i>
+                  Create New Requisition
+                </h3>
+                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Requested By <span className="text-font-detail">(Auto-filled)</span></label>
+                      <input 
+                        type="text" 
+                        value={currentStaff || 'Loading...'}
+                        disabled
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Request Date</label>
+                      <input 
+                        type="date" 
+                        defaultValue={new Date().toISOString().split('T')[0]}
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Item Name <span className="text-error">*</span></label>
+                      <input 
+                        type="text" 
+                        placeholder="Enter item name"
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Category <span className="text-error">*</span></label>
+                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option>Select Category</option>
+                        <option>Food</option>
+                        <option>Clothing</option>
+                        <option>Toiletries</option>
+                        <option>Medical</option>
+                        <option>Stationery</option>
+                        <option>Cleaning Supplies</option>
+                        <option>Equipment</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Quantity Needed <span className="text-error">*</span></label>
+                      <input 
+                        type="number" 
+                        placeholder="0" 
+                        min="1"
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Unit of Measurement</label>
+                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option>Units</option>
+                        <option>Boxes</option>
+                        <option>Packs</option>
+                        <option>Bottles</option>
+                        <option>Pairs</option>
+                        <option>Sets</option>
+                        <option>Kg</option>
+                        <option>Liters</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Priority <span className="text-error">*</span></label>
+                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option>Standard</option>
+                        <option>Urgent</option>
+                        <option>Emergency</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Estimated Cost (Optional)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-font-detail">$</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          placeholder="0.00" 
+                          className="w-full border border-bd-input rounded-lg pl-8 pr-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Preferred Vendor/Supplier</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g., ABC Supplies Co."
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Justification/Purpose <span className="text-error">*</span></label>
+                    <textarea 
+                      placeholder="Explain why this item is needed and how it will be used..." 
+                      rows={4} 
+                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    ></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Additional Notes</label>
+                    <textarea 
+                      placeholder="Any specifications, brand preferences, or special requirements..." 
+                      rows={3} 
+                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    ></textarea>
+                  </div>
+                  <div className="flex items-center space-x-3 p-4 bg-info-lightest border border-info rounded-lg">
+                    <i className="fa-solid fa-info-circle text-info text-xl"></i>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-font-base">Review Process</p>
+                      <p className="text-xs text-font-detail">All requisitions require supervisor approval before procurement. You'll be notified via email once reviewed.</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3 pt-2">
+                    <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1">
+                      <i className="fa-solid fa-paper-plane mr-2"></i>
+                      Submit Requisition
+                    </button>
+                    <button type="button" className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter">
+                      <i className="fa-solid fa-eraser mr-2"></i>
+                      Clear Form
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Pending Requisitions */}
+              <div className="bg-white rounded-lg border border-bd p-6">
+                <h3 className="text-lg font-semibold text-font-base mb-4">My Pending Requisitions</h3>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="bg-warning-lightest p-3 rounded-lg border border-warning">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">First Aid Supplies</p>
+                      <span className="bg-warning text-white text-xs px-2 py-1 rounded">Pending</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 20 units | Medical</p>
+                    <p className="text-xs text-font-detail">Submitted 2 days ago</p>
+                  </div>
+                  <div className="bg-info-lightest p-3 rounded-lg border border-info">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">Office Supplies</p>
+                      <span className="bg-info text-white text-xs px-2 py-1 rounded">Under Review</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 50 units | Stationery</p>
+                    <p className="text-xs text-font-detail">Submitted 5 days ago</p>
+                  </div>
+                  <div className="bg-success-lightest p-3 rounded-lg border border-success">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">Cleaning Products</p>
+                      <span className="bg-success text-white text-xs px-2 py-1 rounded">Approved</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 10 units | Cleaning</p>
+                    <p className="text-xs text-font-detail">Approved 1 week ago</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'requisition-archive' && (
+            <div className="bg-white rounded-lg border border-bd">
+              <div className="p-6 border-b border-bd">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-font-base">Requisition Archive</h3>
+                  <div className="flex items-center space-x-3">
+                    <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                      <option>All Statuses</option>
+                      <option>Pending</option>
+                      <option>Under Review</option>
+                      <option>Approved</option>
+                      <option>Rejected</option>
+                      <option>Fulfilled</option>
+                      <option>Cancelled</option>
+                    </select>
+                    <select className="border border-bd rounded-lg px-3 py-2 text-sm">
+                      <option>All Categories</option>
+                      <option>Food</option>
+                      <option>Clothing</option>
+                      <option>Toiletries</option>
+                      <option>Medical</option>
+                      <option>Stationery</option>
+                    </select>
+                    <input 
+                      type="text" 
+                      placeholder="Search requisitions..." 
+                      className="border border-bd rounded-lg px-3 py-2 text-sm w-56" 
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-warning-lightest p-4 rounded-lg border border-warning">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-font-detail font-medium">Pending</p>
+                        <p className="text-2xl font-bold text-warning mt-1">12</p>
+                      </div>
+                      <i className="fa-solid fa-clock text-warning text-2xl"></i>
+                    </div>
+                  </div>
+                  <div className="bg-info-lightest p-4 rounded-lg border border-info">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-font-detail font-medium">Under Review</p>
+                        <p className="text-2xl font-bold text-info mt-1">8</p>
+                      </div>
+                      <i className="fa-solid fa-search text-info text-2xl"></i>
+                    </div>
+                  </div>
+                  <div className="bg-success-lightest p-4 rounded-lg border border-success">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-font-detail font-medium">Approved</p>
+                        <p className="text-2xl font-bold text-success mt-1">45</p>
+                      </div>
+                      <i className="fa-solid fa-check-circle text-success text-2xl"></i>
+                    </div>
+                  </div>
+                  <div className="bg-error-lightest p-4 rounded-lg border border-error">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-font-detail font-medium">Rejected</p>
+                        <p className="text-2xl font-bold text-error mt-1">3</p>
+                      </div>
+                      <i className="fa-solid fa-times-circle text-error text-2xl"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-bg-subtle border-b border-bd">
+                    <tr>
+                      <th className="text-left p-3 font-medium text-font-base">Req ID</th>
+                      <th className="text-left p-3 font-medium text-font-base">Date</th>
+                      <th className="text-left p-3 font-medium text-font-base">Item</th>
+                      <th className="text-left p-3 font-medium text-font-base">Category</th>
+                      <th className="text-left p-3 font-medium text-font-base">Quantity</th>
+                      <th className="text-left p-3 font-medium text-font-base">Priority</th>
+                      <th className="text-left p-3 font-medium text-font-base">Requested By</th>
+                      <th className="text-left p-3 font-medium text-font-base">Status</th>
+                      <th className="text-left p-3 font-medium text-font-base">Reviewed By</th>
+                      <th className="text-left p-3 font-medium text-font-base">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-3 text-font-base font-medium">#REQ-2024-001</td>
+                      <td className="p-3 text-font-detail">Dec 5, 2024</td>
+                      <td className="p-3 text-font-base">First Aid Kit</td>
+                      <td className="p-3 text-font-detail">Medical</td>
+                      <td className="p-3 text-font-detail">20 units</td>
+                      <td className="p-3"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Urgent</span></td>
+                      <td className="p-3 text-font-detail">J. Smith</td>
+                      <td className="p-3"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Pending</span></td>
+                      <td className="p-3 text-font-detail">-</td>
+                      <td className="p-3">
+                        <button className="text-primary hover:text-primary-dark" title="View Details">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-3 text-font-base font-medium">#REQ-2024-002</td>
+                      <td className="p-3 text-font-detail">Dec 3, 2024</td>
+                      <td className="p-3 text-font-base">Office Supplies</td>
+                      <td className="p-3 text-font-detail">Stationery</td>
+                      <td className="p-3 text-font-detail">50 units</td>
+                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
+                      <td className="p-3 text-font-detail">M. Johnson</td>
+                      <td className="p-3"><span className="bg-info text-white px-2 py-1 rounded text-xs">Under Review</span></td>
+                      <td className="p-3 text-font-detail">A. Davis</td>
+                      <td className="p-3">
+                        <button className="text-primary hover:text-primary-dark" title="View Details">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-3 text-font-base font-medium">#REQ-2024-003</td>
+                      <td className="p-3 text-font-detail">Dec 1, 2024</td>
+                      <td className="p-3 text-font-base">Cleaning Products</td>
+                      <td className="p-3 text-font-detail">Cleaning</td>
+                      <td className="p-3 text-font-detail">10 units</td>
+                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
+                      <td className="p-3 text-font-detail">J. Smith</td>
+                      <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Approved</span></td>
+                      <td className="p-3 text-font-detail">S. Williams</td>
+                      <td className="p-3">
+                        <button className="text-primary hover:text-primary-dark" title="View Details">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-3 text-font-base font-medium">#REQ-2024-004</td>
+                      <td className="p-3 text-font-detail">Nov 28, 2024</td>
+                      <td className="p-3 text-font-base">T-Shirts - Large</td>
+                      <td className="p-3 text-font-detail">Clothing</td>
+                      <td className="p-3 text-font-detail">30 units</td>
+                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
+                      <td className="p-3 text-font-detail">L. Brown</td>
+                      <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Fulfilled</span></td>
+                      <td className="p-3 text-font-detail">S. Williams</td>
+                      <td className="p-3">
+                        <button className="text-primary hover:text-primary-dark" title="View Details">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-bd hover:bg-bg-subtle">
+                      <td className="p-3 text-font-base font-medium">#REQ-2024-005</td>
+                      <td className="p-3 text-font-detail">Nov 25, 2024</td>
+                      <td className="p-3 text-font-base">Tablets - iPad</td>
+                      <td className="p-3 text-font-detail">Equipment</td>
+                      <td className="p-3 text-font-detail">5 units</td>
+                      <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Emergency</span></td>
+                      <td className="p-3 text-font-detail">M. Johnson</td>
+                      <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Rejected</span></td>
+                      <td className="p-3 text-font-detail">A. Davis</td>
+                      <td className="p-3">
+                        <button className="text-primary hover:text-primary-dark" title="View Details">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
+                <p className="text-sm text-font-detail">Showing 5 of 68 requisitions</p>
+                <div className="flex items-center space-x-2">
+                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">
+                    <i className="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button className="px-3 py-1 bg-primary text-white rounded text-sm">1</button>
+                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">2</button>
+                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">3</button>
+                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">
+                    <i className="fa-solid fa-chevron-right"></i>
+                  </button>
                 </div>
               </div>
             </div>
