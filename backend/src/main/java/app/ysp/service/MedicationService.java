@@ -541,13 +541,28 @@ public class MedicationService {
     private MedicationAdministrationResponse mapToAdministrationResponse(MedicationAdministration admin) {
         MedicationAdministrationResponse response = new MedicationAdministrationResponse();
         response.setId(admin.getId());
-        response.setProgramId(admin.getProgram().getId());
-        response.setResidentId(admin.getResident().getId());
-        response.setResidentName(admin.getResident().getFirstName() + " " + admin.getResident().getLastName());
-        response.setResidentNumber(admin.getResident().getResidentId());
-        response.setResidentMedicationId(admin.getResidentMedication().getId());
-        response.setMedicationName(admin.getResidentMedication().getMedicationName());
-        response.setDosage(admin.getResidentMedication().getDosage());
+        
+        // Safely handle program
+        if (admin.getProgram() != null) {
+            response.setProgramId(admin.getProgram().getId());
+        }
+        
+        // Safely handle resident
+        if (admin.getResident() != null) {
+            response.setResidentId(admin.getResident().getId());
+            String firstName = admin.getResident().getFirstName() != null ? admin.getResident().getFirstName() : "";
+            String lastName = admin.getResident().getLastName() != null ? admin.getResident().getLastName() : "";
+            response.setResidentName((firstName + " " + lastName).trim());
+            response.setResidentNumber(admin.getResident().getResidentId());
+        }
+        
+        // Safely handle medication
+        if (admin.getResidentMedication() != null) {
+            response.setResidentMedicationId(admin.getResidentMedication().getId());
+            response.setMedicationName(admin.getResidentMedication().getMedicationName());
+            response.setDosage(admin.getResidentMedication().getDosage());
+        }
+        
         response.setAdministrationDate(admin.getAdministrationDate());
         response.setAdministrationTime(admin.getAdministrationTime());
         response.setShift(admin.getShift());
@@ -555,12 +570,15 @@ public class MedicationService {
         response.setNotes(admin.getNotes());
         response.setWasLate(admin.getWasLate());
         response.setMinutesLate(admin.getMinutesLate());
+        
+        // Safely handle administered by staff
         if (admin.getAdministeredByStaff() != null) {
             response.setAdministeredByStaffId(admin.getAdministeredByStaff().getId());
             String firstName = admin.getAdministeredByStaff().getFirstName() != null ? admin.getAdministeredByStaff().getFirstName() : "";
             String lastName = admin.getAdministeredByStaff().getLastName() != null ? admin.getAdministeredByStaff().getLastName() : "";
             response.setAdministeredByStaffName((firstName + " " + lastName).trim());
         }
+        
         response.setCreatedAt(admin.getCreatedAt());
         return response;
     }

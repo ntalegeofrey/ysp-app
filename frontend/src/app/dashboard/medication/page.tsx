@@ -741,7 +741,18 @@ export default function MedicationPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/programs/${programId}/medications/administrations?size=1000`, {
+      
+      // Calculate date range - last 90 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 90);
+      
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      const url = `/api/programs/${programId}/medications/administrations?startDate=${startDateStr}&endDate=${endDateStr}&size=1000&page=0`;
+      
+      const res = await fetch(url, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -774,8 +785,8 @@ export default function MedicationPage() {
         }
       } else {
         const errorText = await res.text();
-        console.error('Failed to fetch admin archive:', res.status, errorText);
-        addToast(`Failed to load administration records: ${res.status}`, 'error');
+        console.error('Failed to fetch admin archive. Status:', res.status, 'Response:', errorText);
+        addToast(`Failed to load administration records (${res.status})`, 'error');
       }
     } catch (err) {
       console.error('Failed to fetch admin archive:', err);
