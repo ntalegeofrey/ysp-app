@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
 import * as medicationApi from '@/app/utils/medicationApi';
+import { generateMedicationSheetHTML } from '@/app/dashboard/pdfReports';
 
 function MedicationSheetInner() {
   const { toasts, addToast, removeToast } = useToast();
@@ -365,6 +366,42 @@ function MedicationSheetInner() {
     }
   };
 
+  const handlePrintMedsheet = () => {
+    const printData = {
+      residentId: resident?.residentId || residentId,
+      residentName: resident ? `${resident.firstName} ${resident.lastName}` : 'Unknown Resident',
+      dateOfBirth: resident?.dateOfBirth ? formatDate(resident.dateOfBirth) : 'N/A',
+      room: resident?.room || resident?.roomNumber || resident?.unitAssignment || 'N/A',
+      primaryPhysician,
+      lastMedicalReview,
+      allergies: allergies || 'None reported',
+      medications: medications.map(med => ({
+        medicationName: med.medicationName,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        currentCount: med.currentCount,
+        prescribingPhysician: med.prescribingPhysician || 'Not specified',
+        specialInstructions: med.specialInstructions || 'None'
+      })),
+      administrationLogs: administrationLogs,
+      programName: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('selectedProgram') || '{}').name : ''
+    };
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      addToast('Please allow pop-ups to print', 'warning');
+      return;
+    }
+
+    const html = generateMedicationSheetHTML(printData);
+    
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    setTimeout(() => printWindow.print(), 250);
+  };
+
   return (
     <main id="medication-main" className="flex-1 p-6 overflow-auto">
       <div id="resident-info-section" className="bg-white rounded-lg border border-bd mb-8">
@@ -377,7 +414,10 @@ function MedicationSheetInner() {
               </h3>
               <div className="mt-2 text-sm text-font-detail">Complete medical and medication profile</div>
             </div>
-            <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium text-sm">
+            <button 
+              onClick={handlePrintMedsheet}
+              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 font-medium text-sm"
+            >
               <i className="fa-solid fa-print mr-2"></i>
               Print Medsheet
             </button>

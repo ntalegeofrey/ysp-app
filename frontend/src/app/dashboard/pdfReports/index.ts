@@ -6,6 +6,7 @@ export { generateShakedownReportHTML } from './shakedownReportTemplate';
 export { generateShiftLogReportHTML } from './shiftLogReportTemplate';
 export { generateRepairHistoryReportHTML } from './repairHistoryReportTemplate';
 export { generateWatchReportHTML } from './watchReportTemplate';
+export { generateMedicationSheetHTML } from './medicationSheetTemplate';
 
 // Future exports (to be added):
 // export { generateFirePlanHTML } from './firePlanTemplate';
