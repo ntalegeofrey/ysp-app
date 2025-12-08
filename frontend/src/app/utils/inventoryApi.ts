@@ -42,6 +42,7 @@ export const addInventoryItem = async (itemData: {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'POST',
+    credentials: 'include',
     headers: getAuthHeaders(),
     body: JSON.stringify(itemData),
   });
@@ -60,6 +61,7 @@ export const getInventoryItems = async () => {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'GET',
+    credentials: 'include',
     headers: getAuthHeaders(),
   });
   
@@ -91,6 +93,7 @@ export const filterInventoryItems = async (filters: {
     `${API_BASE}/programs/${programId}/inventory/items/filter?${params}`,
     {
       method: 'GET',
+      credentials: 'include',
       headers: getAuthHeaders(),
     }
   );
@@ -114,6 +117,7 @@ export const checkoutInventoryItem = async (checkoutData: {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/checkout`, {
     method: 'POST',
+    credentials: 'include',
     headers: getAuthHeaders(),
     body: JSON.stringify(checkoutData),
   });
@@ -147,6 +151,7 @@ export const getTransactionHistory = async (filters?: {
     `${API_BASE}/programs/${programId}/inventory/transactions?${params}`,
     {
       method: 'GET',
+      credentials: 'include',
       headers: getAuthHeaders(),
     }
   );
@@ -164,6 +169,7 @@ export const getInventoryStats = async () => {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/stats`, {
     method: 'GET',
+    credentials: 'include',
     headers: getAuthHeaders(),
   });
   
@@ -191,6 +197,7 @@ export const createRequisition = async (requisitionData: {
   
   const response = await fetch(`${API_BASE}/programs/${programId}/inventory/requisitions`, {
     method: 'POST',
+    credentials: 'include',
     headers: getAuthHeaders(),
     body: JSON.stringify(requisitionData),
   });
@@ -226,6 +233,7 @@ export const getRequisitions = async (filters?: {
     `${API_BASE}/programs/${programId}/inventory/requisitions?${params}`,
     {
       method: 'GET',
+      credentials: 'include',
       headers: getAuthHeaders(),
     }
   );

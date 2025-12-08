@@ -383,9 +383,12 @@ export default function InventoryPage() {
                     <tbody>
                       {transactions.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-font-detail">
-                            <i className="fa-solid fa-inbox text-4xl mb-3 block"></i>
-                            No transactions yet. Add items or checkout to see activity here.
+                          <td colSpan={7} className="p-12">
+                            <div className="text-center">
+                              <i className="fa-solid fa-inbox text-5xl text-font-detail mb-4 block"></i>
+                              <p className="text-font-detail text-sm">No transactions yet.</p>
+                              <p className="text-font-detail text-xs mt-1">Add items or checkout to see activity here.</p>
+                            </div>
                           </td>
                         </tr>
                       ) : (
