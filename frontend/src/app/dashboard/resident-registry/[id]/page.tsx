@@ -1068,7 +1068,7 @@ export default function ResidentProfilePage() {
             <div className="flex items-center justify-between mb-6">
               <h4 className="text-lg font-semibold text-font-base">Watch Assignments</h4>
               <a
-                href={`/dashboard/watch?residentId=${residentId}`}
+                href={`/dashboard/sleep-log?residentId=${residentId}`}
                 className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm inline-flex items-center gap-2"
               >
                 <i className="fa-solid fa-eye"></i>
