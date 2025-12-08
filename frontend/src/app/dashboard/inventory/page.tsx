@@ -24,6 +24,8 @@ export default function InventoryPage() {
     description: '',
     quantity: '',
     minimumQuantity: '',
+    unitOfMeasurement: 'Units',
+    customUnit: '',
     location: '',
     notes: ''
   });
@@ -90,6 +92,7 @@ export default function InventoryPage() {
         description: addItemForm.description,
         quantity: parseInt(addItemForm.quantity) || 0,
         minimumQuantity: parseInt(addItemForm.minimumQuantity) || 0,
+        unitOfMeasurement: addItemForm.unitOfMeasurement === 'Other' ? addItemForm.customUnit : addItemForm.unitOfMeasurement,
         location: addItemForm.location,
         notes: addItemForm.notes
       });
@@ -103,6 +106,8 @@ export default function InventoryPage() {
         description: '',
         quantity: '',
         minimumQuantity: '',
+        unitOfMeasurement: 'Units',
+        customUnit: '',
         location: '',
         notes: ''
       });
@@ -461,7 +466,7 @@ export default function InventoryPage() {
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Quantity <span className="text-error">*</span></label>
                       <input 
@@ -486,7 +491,54 @@ export default function InventoryPage() {
                         className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Unit of Measurement <span className="text-error">*</span></label>
+                      <select 
+                        value={addItemForm.unitOfMeasurement}
+                        onChange={(e) => setAddItemForm({...addItemForm, unitOfMeasurement: e.target.value, customUnit: e.target.value === 'Other' ? addItemForm.customUnit : ''})}
+                        required
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="Units">Units</option>
+                        <option value="Pieces">Pieces</option>
+                        <option value="Boxes">Boxes</option>
+                        <option value="Packs">Packs</option>
+                        <option value="Bottles">Bottles</option>
+                        <option value="Cans">Cans</option>
+                        <option value="Bags">Bags</option>
+                        <option value="Rolls">Rolls</option>
+                        <option value="Pairs">Pairs</option>
+                        <option value="Sets">Sets</option>
+                        <option value="Kits">Kits</option>
+                        <option value="Liters">Liters (L)</option>
+                        <option value="Milliliters">Milliliters (mL)</option>
+                        <option value="Gallons">Gallons</option>
+                        <option value="Kilograms">Kilograms (kg)</option>
+                        <option value="Grams">Grams (g)</option>
+                        <option value="Pounds">Pounds (lb)</option>
+                        <option value="Ounces">Ounces (oz)</option>
+                        <option value="Meters">Meters (m)</option>
+                        <option value="Feet">Feet (ft)</option>
+                        <option value="Inches">Inches (in)</option>
+                        <option value="Other">Other (Specify)</option>
+                      </select>
+                    </div>
+                    {addItemForm.unitOfMeasurement === 'Other' && (
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Custom Unit <span className="text-error">*</span></label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Cartons, Pallets"
+                          value={addItemForm.customUnit}
+                          onChange={(e) => setAddItemForm({...addItemForm, customUnit: e.target.value})}
+                          required={addItemForm.unitOfMeasurement === 'Other'}
+                          className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                        />
+                      </div>
+                    )}
+                    <div className={addItemForm.unitOfMeasurement !== 'Other' ? '' : 'md:col-span-2'}>
                       <label className="block text-sm font-medium text-font-base mb-2">Location</label>
                       <input 
                         type="text" 
@@ -514,7 +566,7 @@ export default function InventoryPage() {
                     </button>
                     <button 
                       type="button" 
-                      onClick={() => setAddItemForm({itemName: '', category: '', description: '', quantity: '', minimumQuantity: '', location: '', notes: ''})}
+                      onClick={() => setAddItemForm({itemName: '', category: '', description: '', quantity: '', minimumQuantity: '', unitOfMeasurement: 'Units', customUnit: '', location: '', notes: ''})}
                       className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter"
                     >
                       <i className="fa-solid fa-eraser mr-2"></i>

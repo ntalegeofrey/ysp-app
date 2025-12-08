@@ -1,11 +1,13 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE = '/api';
 
-// Get auth token from localStorage
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 };
 
 // Get program ID from localStorage
@@ -37,14 +39,10 @@ export const addInventoryItem = async (itemData: {
   notes?: string;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/programs/${programId}/inventory/items`, {
+  const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(itemData),
   });
   
@@ -59,13 +57,10 @@ export const addInventoryItem = async (itemData: {
 // Get all inventory items
 export const getInventoryItems = async () => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/programs/${programId}/inventory/items`, {
+  const response = await fetch(`${API_BASE}/programs/${programId}/inventory/items`, {
     method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   });
   
   if (!response.ok) {
@@ -84,7 +79,6 @@ export const filterInventoryItems = async (filters: {
   size?: number;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
   const params = new URLSearchParams();
   if (filters.category) params.append('category', filters.category);
@@ -94,12 +88,10 @@ export const filterInventoryItems = async (filters: {
   if (filters.size !== undefined) params.append('size', filters.size.toString());
   
   const response = await fetch(
-    `${API_BASE_URL}/api/programs/${programId}/inventory/items/filter?${params}`,
+    `${API_BASE}/programs/${programId}/inventory/items/filter?${params}`,
     {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: getAuthHeaders(),
     }
   );
   
@@ -119,14 +111,10 @@ export const checkoutInventoryItem = async (checkoutData: {
   notes: string;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/programs/${programId}/inventory/checkout`, {
+  const response = await fetch(`${API_BASE}/programs/${programId}/inventory/checkout`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(checkoutData),
   });
   
@@ -147,7 +135,6 @@ export const getTransactionHistory = async (filters?: {
   size?: number;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
   const params = new URLSearchParams();
   if (filters?.transactionType) params.append('transactionType', filters.transactionType);
@@ -157,12 +144,10 @@ export const getTransactionHistory = async (filters?: {
   if (filters?.size !== undefined) params.append('size', filters.size.toString());
   
   const response = await fetch(
-    `${API_BASE_URL}/api/programs/${programId}/inventory/transactions?${params}`,
+    `${API_BASE}/programs/${programId}/inventory/transactions?${params}`,
     {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: getAuthHeaders(),
     }
   );
   
@@ -176,13 +161,10 @@ export const getTransactionHistory = async (filters?: {
 // Get inventory statistics
 export const getInventoryStats = async () => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/programs/${programId}/inventory/stats`, {
+  const response = await fetch(`${API_BASE}/programs/${programId}/inventory/stats`, {
     method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   });
   
   if (!response.ok) {
@@ -206,14 +188,10 @@ export const createRequisition = async (requisitionData: {
   requestDate: string;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/programs/${programId}/inventory/requisitions`, {
+  const response = await fetch(`${API_BASE}/programs/${programId}/inventory/requisitions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(requisitionData),
   });
   
@@ -235,7 +213,6 @@ export const getRequisitions = async (filters?: {
   size?: number;
 }) => {
   const programId = getProgramId();
-  const token = getAuthToken();
   
   const params = new URLSearchParams();
   if (filters?.status) params.append('status', filters.status);
@@ -246,12 +223,10 @@ export const getRequisitions = async (filters?: {
   if (filters?.size !== undefined) params.append('size', filters.size.toString());
   
   const response = await fetch(
-    `${API_BASE_URL}/api/programs/${programId}/inventory/requisitions?${params}`,
+    `${API_BASE}/programs/${programId}/inventory/requisitions?${params}`,
     {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: getAuthHeaders(),
     }
   );
   
