@@ -229,7 +229,8 @@ function HeaderWithParams({
   if (pathname.startsWith('/dashboard/resident-registry/') && pathname !== '/dashboard/resident-registry') {
     const firstName = searchParams.get('firstName') || '';
     const lastName = searchParams.get('lastName') || '';
-    const displayName = firstName && lastName ? `${firstName} ${lastName}` : (residentName || 'Resident Profile');
+    // Prioritize searchParams for immediate display, fallback to fetched residentName
+    const displayName = firstName && lastName ? `${firstName} ${lastName}`.trim() : (residentName || 'Resident Profile');
     title = displayName;
     breadcrumb = `Resident Registry • ${displayName}`;
     showBackButton = true;

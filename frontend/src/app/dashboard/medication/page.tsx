@@ -938,7 +938,9 @@ export default function MedicationPage() {
       matchesDate = record.date === filterDate;
     }
     
-    const matchesShift = !adminArchiveShiftFilter || record.shift === adminArchiveShiftFilter;
+    const matchesShift = !adminArchiveShiftFilter || 
+      record.shift.toLowerCase().includes(adminArchiveShiftFilter.toLowerCase()) ||
+      record.shift === adminArchiveShiftFilter;
     return matchesSearch && matchesDate && matchesShift;
   });
 
@@ -1709,9 +1711,13 @@ export default function MedicationPage() {
                       <td className="px-4 py-3 text-font-detail">{record.medication}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          record.action === 'Administered' 
+                          record.action === 'Given' 
                             ? 'bg-success/10 text-success' 
-                            : 'bg-error/10 text-error'
+                            : record.action === 'Denied'
+                            ? 'bg-error/10 text-error'
+                            : record.action === 'Held'
+                            ? 'bg-warning/10 text-warning'
+                            : 'bg-info/10 text-info'
                         }`}>
                           {record.action}
                         </span>

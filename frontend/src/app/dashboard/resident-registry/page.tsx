@@ -238,7 +238,7 @@ export default function ResidentRegistryPage() {
                           <td className="px-4 py-3 text-sm">{r.admissionDate ? new Date(r.admissionDate).toLocaleDateString() : ''}</td>
                           {canAddResident && (
                             <td className="px-4 py-3 text-sm space-x-3">
-                              <button className="text-primary hover:text-primary-light" title="View Profile" onClick={() => router.push(`/dashboard/resident-registry/${r.id}`)}>
+                              <button className="text-primary hover:text-primary-light" title="View Profile" onClick={() => router.push(`/dashboard/resident-registry/${r.id}?firstName=${encodeURIComponent(r.firstName || '')}&lastName=${encodeURIComponent(r.lastName || '')}`)}>
                                 <i className="fa-solid fa-user"></i>
                               </button>
                               {canDischargeResident && (
