@@ -128,15 +128,28 @@ public class MedicationService {
     }
 
     /**
-     * Decrement medication count by quantity
+     * Decrement medication count by quantity (handles different medication types)
      */
     @Transactional
     public void decrementMedicationCount(Long medicationId, Integer quantity) {
         ResidentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new RuntimeException("Medication not found"));
-        Integer currentCount = medication.getCurrentCount();
-        Integer newCount = Math.max(0, currentCount - quantity);
-        medication.setCurrentCount(newCount);
+        
+        String medType = medication.getMedicationType();
+        
+        if ("COUNTABLE".equals(medType)) {
+            // Normal medications - decrement count
+            Integer currentCount = medication.getCurrentCount();
+            Integer newCount = Math.max(0, currentCount - quantity);
+            medication.setCurrentCount(newCount);
+        } else if ("NON_COUNTABLE".equals(medType)) {
+            // Ointments, sprays, mouthwash - always keep at 1 (always available)
+            medication.setCurrentCount(1);
+        } else if ("RECORD_ONLY".equals(medType)) {
+            // Inhalers, ventolins - don't change count (record only)
+            // Do nothing - just log the administration
+        }
+        
         medicationRepository.save(medication);
     }
 

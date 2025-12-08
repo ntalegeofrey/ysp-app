@@ -47,6 +47,9 @@ public class ResidentMedication {
     @Column(name = "status", nullable = false, length = 50)
     private String status = "ACTIVE"; // ACTIVE, DISCONTINUED, EXPIRED, ON_HOLD
 
+    @Column(name = "medication_type", nullable = false, length = 50)
+    private String medicationType = "COUNTABLE"; // COUNTABLE, NON_COUNTABLE, RECORD_ONLY
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "added_by_staff_id", nullable = false)
     private User addedByStaff;
@@ -163,6 +166,14 @@ public class ResidentMedication {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getMedicationType() {
+        return medicationType;
+    }
+
+    public void setMedicationType(String medicationType) {
+        this.medicationType = medicationType;
     }
 
     public User getAddedByStaff() {

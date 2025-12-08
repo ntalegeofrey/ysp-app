@@ -217,9 +217,11 @@ function MedicationSheetInner() {
         medicationName: newMedName,
         dosage: newMedDosage,
         frequency: newMedFrequency,
-        initialCount: parseInt(newMedInitialCount),
+        medicationType: newMedType,
+        initialCount: newMedType === 'RECORD_ONLY' ? 0 : (newMedType === 'NON_COUNTABLE' ? 1 : parseInt(newMedInitialCount)),
         prescribingPhysician: newMedPhysician || undefined,
         specialInstructions: newMedInstructions || undefined,
+        prescriptionDate: new Date().toISOString().split('T')[0]
       });
       
       addToast(`Medication ${newMedName} added successfully`, 'success');
@@ -228,6 +230,7 @@ function MedicationSheetInner() {
       setNewMedName('');
       setNewMedDosage('');
       setNewMedFrequency('Once Daily');
+      setNewMedType('COUNTABLE');
       setNewMedInitialCount('');
       setNewMedPhysician('');
       setNewMedInstructions('');
@@ -819,15 +822,38 @@ function MedicationSheetInner() {
 
                 <div>
                   <label className="block text-sm font-medium text-font-base mb-2">
-                    Initial Count <span className="text-error">*</span>
+                    Medication Type <span className="text-error">*</span>
+                  </label>
+                  <select
+                    value={newMedType}
+                    onChange={(e) => setNewMedType(e.target.value)}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="COUNTABLE">Pills/Tablets (Count Tracking)</option>
+                    <option value="NON_COUNTABLE">Ointment/Spray/Mouthwash (Always Available)</option>
+                    <option value="RECORD_ONLY">Inhaler/Ventolin (Record Only)</option>
+                  </select>
+                  <p className="text-xs text-font-detail mt-1">
+                    {newMedType === 'COUNTABLE' && '✓ Count decreases with each administration'}
+                    {newMedType === 'NON_COUNTABLE' && '✓ Always shows as available (doesn\'t run out)'}
+                    {newMedType === 'RECORD_ONLY' && '✓ Administrations are logged but count is not tracked'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-font-base mb-2">
+                    Initial Count {newMedType === 'RECORD_ONLY' ? '' : <span className="text-error">*</span>}
                   </label>
                   <input
                     value={newMedInitialCount}
                     onChange={(e) => setNewMedInitialCount(e.target.value)}
                     type="number"
-                    placeholder="30"
-                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder={newMedType === 'NON_COUNTABLE' ? '1' : '30'}
+                    disabled={newMedType === 'RECORD_ONLY'}
+                    className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
+                  {newMedType === 'NON_COUNTABLE' && <p className="text-xs text-font-detail mt-1">Set to 1 (always available)</p>}
+                  {newMedType === 'RECORD_ONLY' && <p className="text-xs text-font-detail mt-1">Count not needed for record-only medications</p>}
                 </div>
 
                 <div>

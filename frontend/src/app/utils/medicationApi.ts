@@ -22,6 +22,7 @@ export const addResidentMedication = async (programId: number, data: {
   medicationName: string;
   dosage: string;
   frequency: string;
+  medicationType?: string;
   initialCount: number;
   prescribingPhysician?: string;
   specialInstructions?: string;

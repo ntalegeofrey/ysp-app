@@ -84,6 +84,7 @@ export default function MedicationPage() {
   const [programId, setProgramId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [residentsWithMeds, setResidentsWithMeds] = useState<any[]>([]);
+  const [administrationData, setAdministrationData] = useState<Map<number, any>>(new Map());
 
   // Load user info and program ID
   useEffect(() => {
@@ -185,6 +186,7 @@ export default function MedicationPage() {
   const fetchResidentsWithMedications = async () => {
     if (!programId) return;
     try {
+      // Fetch all program medications
       const allMeds = await medicationApi.getProgramMedications(programId);
       
       // Group medications by resident
@@ -196,6 +198,38 @@ export default function MedicationPage() {
         }
         residentMedsMap.get(residentId)?.push(med);
       });
+      
+      // Fetch last administration for each resident
+      const adminMap = new Map<number, any>();
+      const residentIds = Array.from(residentMedsMap.keys());
+      
+      for (const residentId of residentIds) {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`/api/programs/${programId}/medications/administrations/resident/${residentId}`, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+          if (res.ok) {
+            const logs = await res.json();
+            // Get the most recent administration for each medication
+            const medAdminMap: Record<string, any> = {};
+            logs.forEach((log: any) => {
+              const key = `${log.medicationName} ${log.dosage || ''}`;
+              if (!medAdminMap[key] || new Date(log.administrationDate) > new Date(medAdminMap[key].administrationDate)) {
+                medAdminMap[key] = log;
+              }
+            });
+            adminMap.set(residentId, medAdminMap);
+          }
+        } catch (err) {
+          console.error(`Failed to fetch administrations for resident ${residentId}:`, err);
+        }
+      }
+      setAdministrationData(adminMap);
       
       // Fetch resident details and combine with medications
       const token = localStorage.getItem('token');
@@ -925,12 +959,29 @@ export default function MedicationPage() {
                       </span>
                     </div>
                     <div className="space-y-2 text-sm mb-4">
-                      {r.medications.slice(0, 3).map((med: any) => (
-                        <div key={med.id} className="flex justify-between items-center">
+                      {r.medications.slice(0, 3).map((med: any) => {
+                        const medKey = `${med.medicationName} ${med.dosage || ''}`;
+                        const lastAdmin = administrationData.get(r.id)?.[medKey];
+                        return (
+                        <div key={med.id} className="flex justify-between items-center gap-2">
                           <span className="text-font-detail truncate mr-2">{med.medicationName} {med.dosage}</span>
-                          <span className="text-xs text-success">Active</span>
+                          {lastAdmin ? (
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                              lastAdmin.action === 'ADMINISTERED' ? 'bg-success/10 text-success' :
+                              lastAdmin.action === 'REFUSED' ? 'bg-error/10 text-error' :
+                              lastAdmin.action === 'HELD' ? 'bg-warning/10 text-warning' :
+                              'bg-gray-100 text-font-detail'
+                            }`}>
+                              {lastAdmin.action === 'ADMINISTERED' ? 'Given' :
+                               lastAdmin.action === 'REFUSED' ? 'Denied' :
+                               lastAdmin.action === 'HELD' ? 'Held' : lastAdmin.action}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">No admin</span>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                       {r.medications.length > 3 && (
                         <div className="text-xs text-font-detail italic">+ {r.medications.length - 3} more...</div>
                       )}
