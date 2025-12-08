@@ -13,7 +13,7 @@ export default function ResidentRegistryPage() {
 
   type ResidentInfo = { pk: number|string; name: string; residentId: string; room: string; status: string; advocate: string; admissionDate: string };
   const [residentEdit, setResidentEdit] = useState<ResidentInfo | null>(null);
-  const [residentAction, setResidentAction] = useState<null | { pk: number|string; action: 'remove' | 'inactive' | 'temp'; tempLocation?: string }>(null);
+  const [residentAction, setResidentAction] = useState<null | { pk: number|string; action: 'discharge'; name: string }>(null);
 
   // Resident form minimal state
   const [resResidentId, setResResidentId] = useState<string>('');
@@ -224,35 +224,20 @@ export default function ResidentRegistryPage() {
                           <td className="px-4 py-3 text-sm">
                             {r.status ? (
                               <span className={`px-2 py-1 text-white text-xs rounded-full ${r.status === 'Restricted' ? 'bg-error' : r.status === 'ALOYO' ? 'bg-warning' : r.status === 'Team Leader' ? 'bg-primary' : 'bg-success'}`}>{r.status}</span>
-                            ) : ''}
+                            ) : (
+                              <span className="px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded-full">N/A</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm">{r.advocate || ''}</td>
                           <td className="px-4 py-3 text-sm">{r.admissionDate ? new Date(r.admissionDate).toLocaleDateString() : ''}</td>
-                          {(canEditResident || canDischargeResident) && (
-                            <td className="px-4 py-3 text-sm">
-                              <button className="text-primary hover:text-primary-light mr-2" title="View Profile" onClick={() => {
-                                router.push(`/dashboard/resident-registry/${r.id}?firstName=${encodeURIComponent(r.firstName || '')}&lastName=${encodeURIComponent(r.lastName || '')}`);
-                              }}>
+                          {canAddResident && (
+                            <td className="px-4 py-3 text-sm space-x-3">
+                              <button className="text-primary hover:text-primary-light" title="View Profile" onClick={() => router.push(`/dashboard/resident-registry/${r.id}`)}>
                                 <i className="fa-solid fa-user"></i>
                               </button>
-                              {canEditResident && (
-                              <button className="text-primary hover:text-primary-light mr-2" title="Edit" onClick={() => {
-                                setResidentEdit({
-                                  pk: r.id,
-                                  name: [r.firstName || '', r.lastName || ''].filter(Boolean).join(' ').trim(),
-                                  residentId: r.residentId || '',
-                                  room: r.room || '',
-                                  status: r.status || 'General Population',
-                                  advocate: r.advocate || '',
-                                  admissionDate: r.admissionDate || ''
-                                });
-                              }}>
-                                <i className="fa-solid fa-edit"></i>
-                              </button>
-                              )}
                               {canDischargeResident && (
-                              <button className="text-warning hover:text-yellow-500" title="Actions" onClick={() => setResidentAction({ pk: r.id, action: 'remove' })}>
-                                <i className="fa-solid fa-archive"></i>
+                              <button className="text-warning hover:text-yellow-500" title="Actions" onClick={() => setResidentAction({ pk: r.id, action: 'discharge', name: [r.firstName || '', r.lastName || ''].filter(Boolean).join(' ').trim() })}>
+                                <i className="fa-solid fa-ellipsis-v"></i>
                               </button>
                               )}
                             </td>
@@ -508,66 +493,88 @@ export default function ResidentRegistryPage() {
         </div>
       )}
 
-      {/* Resident Actions Modal */}
+      {/* Discharge Resident Confirmation Modal */}
       {residentAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg border border-bd w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg border border-error w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-font-base">Resident Actions</h3>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <i className="fa-solid fa-exclamation-triangle text-red-600 text-xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-font-base">Discharge Resident</h3>
+              </div>
               <button className="text-font-detail hover:text-primary" onClick={() => setResidentAction(null)}>
                 <i className="fa-solid fa-times"></i>
               </button>
             </div>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'remove' })} checked={residentAction.action === 'remove'} />
-                Remove from Program
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'inactive' })} checked={residentAction.action === 'inactive'} />
-                Mark as Inactive
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="res-act" onChange={() => setResidentAction({ pk: residentAction.pk, action: 'temp', tempLocation: residentAction.tempLocation })} checked={residentAction.action === 'temp'} />
-                Temporary Location
-              </label>
-              {residentAction.action === 'temp' && (
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-bd-input rounded-lg"
-                  placeholder="Specify temporary location"
-                  value={residentAction.tempLocation || ''}
-                  onChange={(e) => setResidentAction({ ...residentAction, tempLocation: e.target.value })}
-                />
-              )}
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-info-circle text-yellow-600 mt-0.5"></i>
+                <div className="text-sm text-font-base">
+                  <p className="font-semibold mb-2">You are about to discharge:</p>
+                  <p className="text-lg font-bold text-primary">{residentAction.name}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <button className="px-4 py-2 rounded-lg border border-bd text-sm" onClick={() => setResidentAction(null)}>Cancel</button>
-              <button className="px-4 py-2 rounded-lg bg-warning text-white text-sm" onClick={async () => {
-                if (!residentAction || !programId) return;
-                try {
-                  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-                  if (residentAction.action === 'remove') {
-                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'DELETE', credentials:'include', headers: { ...(token? { Authorization: `Bearer ${token}` }: {}) } });
-                    if (!resp.ok) { addToast('Failed to remove resident', 'error'); return; }
-                    addToast('Resident removed from program', 'success');
-                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident removed from program', tone: 'success' })); } catch {}
-                  } else if (residentAction.action === 'inactive') {
-                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'PUT', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ status: 'Inactive' }) });
-                    if (!resp.ok) { addToast('Failed to mark inactive', 'error'); return; }
-                    addToast('Resident marked as inactive', 'success');
-                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Resident marked as inactive', tone: 'success' })); } catch {}
-                  } else if (residentAction.action === 'temp') {
-                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { method:'PUT', credentials:'include', headers: { 'Content-Type':'application/json', ...(token? { Authorization: `Bearer ${token}` }: {}) }, body: JSON.stringify({ temporaryLocation: residentAction.tempLocation || '' }) });
-                    if (!resp.ok) { addToast('Failed to set temporary location', 'error'); return; }
-                    addToast('Temporary location updated', 'success');
-                    try { localStorage.setItem('global-toast', JSON.stringify({ title: 'Temporary location updated', tone: 'success' })); } catch {}
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-shield-exclamation text-red-600 mt-0.5"></i>
+                <div className="text-sm text-font-detail space-y-2">
+                  <p className="font-semibold text-font-base">Warning:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>This resident will be removed from the active registry</li>
+                    <li>All historical data will be preserved</li>
+                    <li>The resident can be re-added later if they return</li>
+                    <li>This action cannot be easily undone</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                className="px-4 py-2 rounded-lg border border-bd text-sm font-medium hover:bg-gray-50" 
+                onClick={() => setResidentAction(null)}
+              >
+                <i className="fa-solid fa-times mr-2"></i>Cancel
+              </button>
+              <button 
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700" 
+                onClick={async () => {
+                  if (!residentAction || !programId) return;
+                  try {
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                    const resp = await fetch(`/api/programs/${programId}/residents/${residentAction.pk}`, { 
+                      method:'PUT', 
+                      credentials:'include', 
+                      headers: { 
+                        'Content-Type':'application/json', 
+                        ...(token? { Authorization: `Bearer ${token}` }: {}) 
+                      }, 
+                      body: JSON.stringify({ status: 'DISCHARGED' }) 
+                    });
+                    if (!resp.ok) { 
+                      addToast('Failed to discharge resident', 'error'); 
+                      return; 
+                    }
+                    addToast('Resident successfully discharged', 'success');
+                    try { 
+                      localStorage.setItem('global-toast', JSON.stringify({ 
+                        title: 'Resident successfully discharged', 
+                        tone: 'success' 
+                      })); 
+                    } catch {}
+                    setResidentAction(null);
+                    await loadResidents();
+                  } catch { 
+                    addToast('Discharge action failed', 'error'); 
                   }
-                  setResidentAction(null);
-                  await loadResidents();
-                } catch { addToast('Action failed', 'error'); }
-              }}>
-                <i className="fa-solid fa-check mr-2"></i>Apply
+                }}
+              >
+                <i className="fa-solid fa-right-from-bracket mr-2"></i>Confirm Discharge
               </button>
             </div>
           </div>
