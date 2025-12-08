@@ -421,7 +421,7 @@ export default function ResidentProfilePage() {
       // Load watches
       if (activeTab === 'watches' || activeTab === 'overview') {
         try {
-          const watchRes = await fetch(`/api/programs/${programId}/watches/resident/${residentId}`, {
+          const watchRes = await fetch(`/api/programs/${programId}/watches/resident/${residentId}/history`, {
             credentials: 'include',
             headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
           });
@@ -601,9 +601,9 @@ export default function ResidentProfilePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xl font-bold text-primary">{stats.sleepLogDays}</p>
-              <p className="text-sm text-font-detail">Sleep Log Days</p>
+              <p className="text-sm text-font-detail">Days on Watch</p>
             </div>
-            <i className="fa-solid fa-bed text-primary text-xl"></i>
+            <i className="fa-solid fa-eye text-primary text-xl"></i>
           </div>
         </div>
         <div className="bg-white rounded-lg border border-bd p-4">
@@ -937,14 +937,14 @@ export default function ResidentProfilePage() {
             ) : (
               <div className="space-y-4">
                 {/* Active Watches */}
-                {watches.filter(w => !w.endDate).length > 0 && (
+                {watches.filter(w => w.status === 'ACTIVE').length > 0 && (
                   <div>
                     <h5 className="text-md font-semibold text-font-base mb-3 flex items-center gap-2">
                       <span className="w-3 h-3 bg-green-500 rounded-full"></span>
                       Active Watches
                     </h5>
                     <div className="space-y-3">
-                      {watches.filter(w => !w.endDate).map((watch) => (
+                      {watches.filter(w => w.status === 'ACTIVE').map((watch) => (
                         <div key={watch.id} className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -960,10 +960,10 @@ export default function ResidentProfilePage() {
                                 </span>
                                 <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">Active</span>
                               </div>
-                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.reason || 'N/A'}</p>
+                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.clinicalReason || 'N/A'}</p>
                               <div className="grid grid-cols-2 gap-2 text-xs text-font-detail">
-                                <p><strong>Started:</strong> {watch.startDate ? new Date(watch.startDate).toLocaleDateString() : 'N/A'}</p>
-                                <p><strong>Duration:</strong> {watch.startDate ? Math.ceil((new Date().getTime() - new Date(watch.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
+                                <p><strong>Started:</strong> {watch.startDateTime ? new Date(watch.startDateTime).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Duration:</strong> {watch.startDateTime ? Math.ceil((new Date().getTime() - new Date(watch.startDateTime).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
                                 <p><strong>Assigned By:</strong> {watch.assignedByStaffName || 'N/A'}</p>
                                 <p><strong>Check Frequency:</strong> {watch.checkFrequencyMinutes || 15} minutes</p>
                               </div>
@@ -979,14 +979,14 @@ export default function ResidentProfilePage() {
                 )}
 
                 {/* Historical Watches */}
-                {watches.filter(w => w.endDate).length > 0 && (
+                {watches.filter(w => w.status !== 'ACTIVE').length > 0 && (
                   <div className="mt-6">
                     <h5 className="text-md font-semibold text-font-base mb-3 flex items-center gap-2">
                       <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
                       Recent Historical Watches
                     </h5>
                     <div className="space-y-3">
-                      {watches.filter(w => w.endDate).slice(0, 3).map((watch) => (
+                      {watches.filter(w => w.status !== 'ACTIVE').slice(0, 3).map((watch) => (
                         <div key={watch.id} className="bg-gray-50 border-l-4 border-gray-400 rounded-lg p-4">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -996,11 +996,11 @@ export default function ResidentProfilePage() {
                                 </span>
                                 <span className="px-2 py-1 bg-gray-400 text-white text-xs rounded-full">Ended</span>
                               </div>
-                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.reason || 'N/A'}</p>
+                              <p className="text-sm text-font-base mb-2"><strong>Reason:</strong> {watch.clinicalReason || 'N/A'}</p>
                               <div className="grid grid-cols-2 gap-2 text-xs text-font-detail">
-                                <p><strong>Started:</strong> {watch.startDate ? new Date(watch.startDate).toLocaleDateString() : 'N/A'}</p>
-                                <p><strong>Ended:</strong> {watch.endDate ? new Date(watch.endDate).toLocaleDateString() : 'N/A'}</p>
-                                <p><strong>Duration:</strong> {watch.startDate && watch.endDate ? Math.ceil((new Date(watch.endDate).getTime() - new Date(watch.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
+                                <p><strong>Started:</strong> {watch.startDateTime ? new Date(watch.startDateTime).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Ended:</strong> {watch.endDateTime ? new Date(watch.endDateTime).toLocaleDateString() : 'N/A'}</p>
+                                <p><strong>Duration:</strong> {watch.startDateTime && watch.endDateTime ? Math.ceil((new Date(watch.endDateTime).getTime() - new Date(watch.startDateTime).getTime()) / (1000 * 60 * 60 * 24)) : 0} days</p>
                                 <p><strong>Ended By:</strong> {watch.endedByStaffName || 'N/A'}</p>
                               </div>
                             </div>

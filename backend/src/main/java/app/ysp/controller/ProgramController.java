@@ -157,10 +157,10 @@ public class ProgramController {
         // Active watch days (days since current active watch started)
         try {
             Object result = entityManager.createNativeQuery(
-                "SELECT CURRENT_DATE - start_date + 1 as days_active " +
+                "SELECT CURRENT_DATE - DATE(start_date_time) + 1 as days_active " +
                 "FROM watch_assignments " +
-                "WHERE resident_id = :residentId AND end_date IS NULL " +
-                "ORDER BY start_date DESC LIMIT 1"
+                "WHERE resident_id = :residentId AND status = 'ACTIVE' " +
+                "ORDER BY start_date_time DESC LIMIT 1"
             ).setParameter("residentId", residentPk).getSingleResult();
             int sleepLogDays = result != null ? ((Number) result).intValue() : 0;
             // Ensure at least 1 if there's an active watch
