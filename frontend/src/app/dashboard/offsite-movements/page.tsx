@@ -1,25 +1,216 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
 
 export default function OffsiteMovementsPage() {
+  const { toasts, addToast, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'archive'>('overview');
   const [showOtherMovementType, setShowOtherMovementType] = useState(false);
+  const [programId, setProgramId] = useState<number | null>(null);
+  const [currentStaff, setCurrentStaff] = useState<{id: number; name: string} | null>(null);
+  const [residents, setResidents] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // Archive filters
   const [archiveSearchFilter, setArchiveSearchFilter] = useState('');
   const [archiveDateFilter, setArchiveDateFilter] = useState('');
   const [archiveTypeFilter, setArchiveTypeFilter] = useState('');
   const [archiveStatusFilter, setArchiveStatusFilter] = useState('');
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    residentId: '',
+    movementType: '',
+    otherMovementType: '',
+    movementDate: '',
+    movementTime: '',
+    destination: '',
+    destinationAddress: '',
+    destinationContact: '',
+    estimatedDuration: '2 Hours',
+    priorityLevel: 'ROUTINE',
+    requiresRestraints: false,
+    wheelchairAccessible: false,
+    medicalEquipmentNeeded: false,
+    behavioralPrecautions: false,
+    movementNotes: '',
+    primaryStaffId: '',
+    secondaryStaffId: ''
+  });
+
+  // Load user and program data
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentStaff({
+        id: user.id,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
+      });
+    }
+    
+    const selectedProgram = localStorage.getItem('selectedProgram');
+    if (selectedProgram) {
+      const program = JSON.parse(selectedProgram);
+      setProgramId(program.id || program.programId);
+    }
+  }, []);
+  
+  // Fetch residents when tab opens
+  useEffect(() => {
+    if (programId && activeTab === 'schedule') {
+      fetchResidents();
+      fetchStaff();
+    }
+  }, [programId, activeTab]);
+  
+  const fetchResidents = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/residents`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResidents(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch residents:', err);
+    }
+  };
+  
+  const fetchStaff = async () => {
+    if (!programId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/staff`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStaff(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff:', err);
+    }
+  };
+  
+  const handleSubmit = async () => {
+    if (!programId) {
+      addToast('Program not selected', 'error');
+      return;
+    }
+    
+    if (!formData.residentId || !formData.movementType || !formData.movementDate || !formData.movementTime || !formData.destination) {
+      addToast('Please fill all required fields', 'error');
+      return;
+    }
+    
+    if (!formData.primaryStaffId || !formData.secondaryStaffId) {
+      addToast('Both primary and secondary staff must be assigned', 'error');
+      return;
+    }
+    
+    if (formData.primaryStaffId === formData.secondaryStaffId) {
+      addToast('Primary and secondary staff must be different', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        residentId: parseInt(formData.residentId),
+        movementType: formData.movementType === 'Other' ? formData.otherMovementType : formData.movementType,
+        movementDate: formData.movementDate,
+        movementTime: formData.movementTime + ':00',
+        destination: formData.destination,
+        destinationAddress: formData.destinationAddress,
+        destinationContact: formData.destinationContact,
+        estimatedDuration: formData.estimatedDuration,
+        priorityLevel: formData.priorityLevel,
+        requiresRestraints: formData.requiresRestraints,
+        wheelchairAccessible: formData.wheelchairAccessible,
+        medicalEquipmentNeeded: formData.medicalEquipmentNeeded,
+        behavioralPrecautions: formData.behavioralPrecautions,
+        movementNotes: formData.movementNotes,
+        staffAssignments: [
+          { staffId: parseInt(formData.primaryStaffId), assignmentRole: 'PRIMARY' },
+          { staffId: parseInt(formData.secondaryStaffId), assignmentRole: 'SECONDARY' }
+        ]
+      };
+      
+      const res = await fetch(`/api/programs/${programId}/movements`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        addToast('Movement scheduled successfully', 'success');
+        // Reset form
+        setFormData({
+          residentId: '',
+          movementType: '',
+          otherMovementType: '',
+          movementDate: '',
+          movementTime: '',
+          destination: '',
+          destinationAddress: '',
+          destinationContact: '',
+          estimatedDuration: '2 Hours',
+          priorityLevel: 'ROUTINE',
+          requiresRestraints: false,
+          wheelchairAccessible: false,
+          medicalEquipmentNeeded: false,
+          behavioralPrecautions: false,
+          movementNotes: '',
+          primaryStaffId: '',
+          secondaryStaffId: ''
+        });
+        setShowOtherMovementType(false);
+        setActiveTab('overview');
+      } else {
+        const error = await res.json();
+        addToast(error.message || 'Failed to schedule movement', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to schedule movement:', err);
+      addToast('Failed to schedule movement', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabBtnBase = 'flex items-center px-1 py-3 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
   const tabBtnActive = 'border-primary text-primary';
 
-  const handleAssign = () => alert('Staff assignment workflow coming soon.');
-  const handleContact = () => alert('Contact team action coming soon.');
-  const handleAutoAssign = () => alert('Auto-assigning available staff...');
-  const handleSchedule = () => alert('Movement scheduled.');
+  const handleAssign = () => addToast('Staff assignment workflow coming soon', 'info');
+  const handleContact = () => addToast('Contact team action coming soon', 'info');
+  const handleAutoAssign = () => {
+    if (staff.length >= 2) {
+      setFormData(prev => ({
+        ...prev,
+        primaryStaffId: staff[0].id.toString(),
+        secondaryStaffId: staff[1].id.toString()
+      }));
+      addToast('Staff auto-assigned', 'success');
+    } else {
+      addToast('Not enough staff available', 'error');
+    }
+  };
 
   const movementTypes = [
     'Medical Appointment',
@@ -118,6 +309,7 @@ export default function OffsiteMovementsPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div>
         <nav className="flex space-x-8 border-b border-bd">
           <button
@@ -275,22 +467,37 @@ export default function OffsiteMovementsPage() {
                     <h4 className="font-semibold text-font-base mb-4">Movement Details</h4>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Resident</label>
-                        <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                          <option>Select Resident</option>
-                          <option>Resident A01</option>
-                          <option>Resident A02</option>
-                          <option>Resident B01</option>
-                          <option>Resident B03</option>
-                          <option>Resident C02</option>
+                        <label className="block text-sm font-medium text-font-base mb-2">Scheduled By <span className="text-font-detail">(Auto-filled)</span></label>
+                        <input 
+                          type="text" 
+                          value={currentStaff?.name || 'Loading...'}
+                          disabled
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Resident <span className="text-error">*</span></label>
+                        <select 
+                          value={formData.residentId}
+                          onChange={(e) => setFormData(prev => ({ ...prev, residentId: e.target.value }))}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                          <option value="">Select Resident</option>
+                          {residents.map((r) => (
+                            <option key={r.id} value={r.id}>{r.firstName} {r.lastName} ({r.residentId})</option>
+                          ))}
                         </select>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-font-base mb-2">Off-Site Movement Type</label>
+                        <label className="block text-sm font-medium text-font-base mb-2">Off-Site Movement Type <span className="text-error">*</span></label>
                         <select 
+                          value={formData.movementType}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, movementType: e.target.value }));
+                            setShowOtherMovementType(e.target.value === 'Other');
+                          }}
                           className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                          onChange={(e) => setShowOtherMovementType(e.target.value === 'Other')}
                         >
                           <option value="">Select Movement Type</option>
                           {movementTypes.map((type) => (
@@ -301,9 +508,11 @@ export default function OffsiteMovementsPage() {
                       
                       {showOtherMovementType && (
                         <div>
-                          <label className="block text-sm font-medium text-font-base mb-2">Specify Movement Type</label>
+                          <label className="block text-sm font-medium text-font-base mb-2">Specify Movement Type <span className="text-error">*</span></label>
                           <input 
                             type="text" 
+                            value={formData.otherMovementType}
+                            onChange={(e) => setFormData(prev => ({ ...prev, otherMovementType: e.target.value }))}
                             placeholder="Describe the type of movement..." 
                             className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
                           />
@@ -312,21 +521,52 @@ export default function OffsiteMovementsPage() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-font-base mb-2">Date</label>
-                          <input type="date" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                          <label className="block text-sm font-medium text-font-base mb-2">Date <span className="text-error">*</span></label>
+                          <input 
+                            type="date" 
+                            value={formData.movementDate}
+                            onChange={(e) => setFormData(prev => ({ ...prev, movementDate: e.target.value }))}
+                            className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                          />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-font-base mb-2">Time</label>
-                          <input type="time" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                          <label className="block text-sm font-medium text-font-base mb-2">Time <span className="text-error">*</span></label>
+                          <input 
+                            type="time" 
+                            value={formData.movementTime}
+                            onChange={(e) => setFormData(prev => ({ ...prev, movementTime: e.target.value }))}
+                            className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                          />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-font-base mb-2">Destination <span className="text-error">*</span></label>
+                        <input 
+                          type="text" 
+                          value={formData.destination}
+                          onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
+                          placeholder="e.g., Taunton District Court" 
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Destination Contact</label>
-                        <input type="text" placeholder="e.g., Dr. Sarah Wilson, Officer Thomas, Judge Morrison" className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <input 
+                          type="text" 
+                          value={formData.destinationContact}
+                          onChange={(e) => setFormData(prev => ({ ...prev, destinationContact: e.target.value }))}
+                          placeholder="e.g., Dr. Sarah Wilson, Officer Thomas, Judge Morrison" 
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary" 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Destination Address</label>
-                        <textarea placeholder="Full address of destination..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20"></textarea>
+                        <textarea 
+                          value={formData.destinationAddress}
+                          onChange={(e) => setFormData(prev => ({ ...prev, destinationAddress: e.target.value }))}
+                          placeholder="Full address of destination..." 
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-20"
+                        />
                       </div>
                     </div>
                   </div>
@@ -338,7 +578,11 @@ export default function OffsiteMovementsPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Estimated Duration</label>
-                        <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                        <select 
+                          value={formData.estimatedDuration}
+                          onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: e.target.value }))}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
                           <option>1 Hour</option>
                           <option>1.5 Hours</option>
                           <option>2 Hours</option>
@@ -349,53 +593,128 @@ export default function OffsiteMovementsPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Priority Level</label>
-                        <select className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                          <option>Routine</option>
-                          <option>Urgent</option>
-                          <option>Emergency</option>
+                        <select 
+                          value={formData.priorityLevel}
+                          onChange={(e) => setFormData(prev => ({ ...prev, priorityLevel: e.target.value }))}
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
+                          <option value="ROUTINE">Routine</option>
+                          <option value="URGENT">Urgent</option>
+                          <option value="EMERGENCY">Emergency</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Security Requirements</label>
                         <div className="space-y-2">
                           <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-bd text-primary focus:ring-primary" />
+                            <input 
+                              type="checkbox" 
+                              checked={formData.requiresRestraints}
+                              onChange={(e) => setFormData(prev => ({ ...prev, requiresRestraints: e.target.checked }))}
+                              className="rounded border-bd text-primary focus:ring-primary" 
+                            />
                             <span className="ml-2 text-sm">Restraints Required</span>
                           </label>
                           <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-bd text-primary focus:ring-primary" />
+                            <input 
+                              type="checkbox" 
+                              checked={formData.wheelchairAccessible}
+                              onChange={(e) => setFormData(prev => ({ ...prev, wheelchairAccessible: e.target.checked }))}
+                              className="rounded border-bd text-primary focus:ring-primary" 
+                            />
                             <span className="ml-2 text-sm">Wheelchair Accessible</span>
                           </label>
                           <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-bd text-primary focus:ring-primary" />
+                            <input 
+                              type="checkbox" 
+                              checked={formData.medicalEquipmentNeeded}
+                              onChange={(e) => setFormData(prev => ({ ...prev, medicalEquipmentNeeded: e.target.checked }))}
+                              className="rounded border-bd text-primary focus:ring-primary" 
+                            />
                             <span className="ml-2 text-sm">Medical Equipment Needed</span>
                           </label>
                           <label className="flex items-center">
-                            <input type="checkbox" className="rounded border-bd text-primary focus:ring-primary" />
+                            <input 
+                              type="checkbox" 
+                              checked={formData.behavioralPrecautions}
+                              onChange={(e) => setFormData(prev => ({ ...prev, behavioralPrecautions: e.target.checked }))}
+                              className="rounded border-bd text-primary focus:ring-primary" 
+                            />
                             <span className="ml-2 text-sm">Behavioral Precautions</span>
                           </label>
                         </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-font-base mb-2">Additional Notes</label>
-                        <textarea placeholder="Special instructions, security concerns, behavioral notes..." className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"></textarea>
+                        <textarea 
+                          value={formData.movementNotes}
+                          onChange={(e) => setFormData(prev => ({ ...prev, movementNotes: e.target.value }))}
+                          placeholder="Special instructions, security concerns, behavioral notes..." 
+                          className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary h-24"
+                        />
                       </div>
                       <div className="bg-primary-lightest p-4 rounded-lg border border-primary/20">
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-3">
                           <i className="fa-solid fa-shield-halved text-primary mr-2"></i>
-                          <span className="font-medium text-primary">Staff Assignment</span>
+                          <span className="font-medium text-primary">Staff Assignment <span className="text-error">*</span></span>
                         </div>
                         <p className="text-xs text-font-detail mb-3">Two staff members required for all off-site movements</p>
-                        <button onClick={handleAutoAssign} className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 text-sm font-medium transition-colors">
+                        <div className="space-y-3 mb-3">
+                          <div>
+                            <label className="block text-xs font-medium text-font-base mb-1">Primary Staff</label>
+                            <select 
+                              value={formData.primaryStaffId}
+                              onChange={(e) => setFormData(prev => ({ ...prev, primaryStaffId: e.target.value }))}
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                            >
+                              <option value="">Select Primary Staff</option>
+                              {staff.map((s) => (
+                                <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-font-base mb-1">Secondary Staff</label>
+                            <select 
+                              value={formData.secondaryStaffId}
+                              onChange={(e) => setFormData(prev => ({ ...prev, secondaryStaffId: e.target.value }))}
+                              className="w-full border border-bd rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                            >
+                              <option value="">Select Secondary Staff</option>
+                              {staff.filter(s => s.id.toString() !== formData.primaryStaffId).map((s) => (
+                                <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={handleAutoAssign} 
+                          className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 text-sm font-medium transition-colors"
+                        >
                           Auto-Assign Available Staff
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <button onClick={handleSchedule} className="w-full bg-success text-white py-3 rounded-lg hover:bg-success/90 font-medium transition-colors">
-                    <i className="fa-solid fa-calendar-check mr-2"></i>
-                    Schedule Movement
+                  <button 
+                    type="button"
+                    onClick={handleSubmit} 
+                    disabled={loading}
+                    className="w-full bg-success text-white py-3 rounded-lg hover:bg-success/90 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                        Scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-calendar-check mr-2"></i>
+                        Schedule Movement
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
