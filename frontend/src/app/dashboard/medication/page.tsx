@@ -752,20 +752,30 @@ export default function MedicationPage() {
       if (res.ok) {
         const response = await res.json();
         const data = response.content || response; // Handle paginated response
-        const formattedData = data.map((record: any) => ({
-          id: record.id,
-          date: new Date(record.administrationDate).toLocaleDateString(),
-          time: record.administrationTime,
-          shift: record.shift,
-          resident: record.residentName,
-          medication: `${record.medicationName} ${record.dosage || ''}`,
-          action: record.action === 'ADMINISTERED' ? 'Given' : 
-                  record.action === 'REFUSED' ? 'Denied' : 
-                  record.action === 'HELD' ? 'Held' : record.action,
-          staff: record.administeredByStaffName || '-',
-          notes: record.notes || '',
-        }));
-        setAdminArchiveData(formattedData);
+        
+        if (Array.isArray(data)) {
+          const formattedData = data.map((record: any) => ({
+            id: record.id,
+            date: new Date(record.administrationDate).toLocaleDateString(),
+            time: record.administrationTime,
+            shift: record.shift || '-',
+            resident: record.residentName || '-',
+            medication: `${record.medicationName || 'Unknown'} ${record.dosage || ''}`.trim(),
+            action: record.action === 'ADMINISTERED' ? 'Given' : 
+                    record.action === 'REFUSED' ? 'Denied' : 
+                    record.action === 'HELD' ? 'Held' : record.action,
+            staff: record.administeredByStaffName || '-',
+            notes: record.notes || '',
+          }));
+          setAdminArchiveData(formattedData);
+        } else {
+          console.error('Data is not an array:', data);
+          addToast('Invalid data format received', 'error');
+        }
+      } else {
+        const errorText = await res.text();
+        console.error('Failed to fetch admin archive:', res.status, errorText);
+        addToast(`Failed to load administration records: ${res.status}`, 'error');
       }
     } catch (err) {
       console.error('Failed to fetch admin archive:', err);
@@ -909,7 +919,14 @@ export default function MedicationPage() {
       record.resident.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
       record.medication.toLowerCase().includes(adminArchiveFilter.toLowerCase()) ||
       record.staff.toLowerCase().includes(adminArchiveFilter.toLowerCase());
-    const matchesDate = !adminArchiveDateFilter || record.date === adminArchiveDateFilter;
+    
+    // Compare dates properly - convert filter date to same format as record date
+    let matchesDate = true;
+    if (adminArchiveDateFilter) {
+      const filterDate = new Date(adminArchiveDateFilter).toLocaleDateString();
+      matchesDate = record.date === filterDate;
+    }
+    
     const matchesShift = !adminArchiveShiftFilter || record.shift === adminArchiveShiftFilter;
     return matchesSearch && matchesDate && matchesShift;
   });
@@ -919,7 +936,14 @@ export default function MedicationPage() {
       record.resident.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
       record.medication.toLowerCase().includes(auditArchiveFilter.toLowerCase()) ||
       record.shift.toLowerCase().includes(auditArchiveFilter.toLowerCase());
-    const matchesDate = !auditArchiveDateFilter || record.date === auditArchiveDateFilter;
+    
+    // Compare dates properly - convert filter date to same format as record date
+    let matchesDate = true;
+    if (auditArchiveDateFilter) {
+      const filterDate = new Date(auditArchiveDateFilter).toLocaleDateString();
+      matchesDate = record.date === filterDate;
+    }
+    
     const matchesShift = !auditArchiveShiftFilter || record.shift === auditArchiveShiftFilter;
     return matchesSearch && matchesDate && matchesShift;
   });
