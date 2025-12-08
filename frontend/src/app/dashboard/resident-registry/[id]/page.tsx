@@ -780,8 +780,8 @@ export default function ResidentProfilePage() {
                   <div key={med.id} className="bg-gray-50 rounded-lg p-4 border border-bd">
                     <h5 className="font-medium text-font-base mb-2">{med.medicationName} {med.dosage}</h5>
                     <p className="text-sm text-font-detail mb-2">{med.frequency || 'As prescribed'}</p>
-                    <p className="text-xs text-font-detail">Prescribed by: {med.prescribedBy || 'N/A'}</p>
-                    <p className="text-xs text-font-detail">Route: {med.routeOfAdministration || 'N/A'}</p>
+                    <p className="text-xs text-font-detail">Prescribed by: {med.prescribingPhysician || 'N/A'}</p>
+                    <p className="text-xs text-font-detail">Special Instructions: {med.specialInstructions || 'None'}</p>
                   </div>
                 ))}
               </div>
