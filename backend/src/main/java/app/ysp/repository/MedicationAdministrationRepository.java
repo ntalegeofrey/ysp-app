@@ -71,8 +71,8 @@ public interface MedicationAdministrationRepository extends JpaRepository<Medica
            "AND (:residentId IS NULL OR ma.resident.id = :residentId) " +
            "AND (:shift IS NULL OR ma.shift = :shift) " +
            "AND (:action IS NULL OR ma.action = :action) " +
-           "AND (:startDate IS NULL OR ma.administrationDate >= :startDate) " +
-           "AND (:endDate IS NULL OR ma.administrationDate <= :endDate) " +
+           "AND (CAST(:startDate AS date) IS NULL OR ma.administrationDate >= :startDate) " +
+           "AND (CAST(:endDate AS date) IS NULL OR ma.administrationDate <= :endDate) " +
            "ORDER BY ma.administrationDate DESC, ma.administrationTime DESC")
     Page<MedicationAdministration> filterAdministrations(
         @Param("programId") Long programId,
