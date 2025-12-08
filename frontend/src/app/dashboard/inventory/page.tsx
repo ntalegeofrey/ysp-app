@@ -1,11 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function InventoryPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'audit'>('overview');
   const router = useRouter();
+  const [currentStaff, setCurrentStaff] = useState('');
+  
+  // Load current user
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const firstName = user.firstName || '';
+        const lastName = user.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        const staffName = user.fullName || fullName || user.name || user.email || 'Unknown User';
+        setCurrentStaff(staffName);
+      }
+    } catch (err) {
+      console.error('Failed to parse user:', err);
+    }
+  }, []);
 
   const tabBtnBase = 'flex items-center px-1 py-4 text-sm font-medium border-b-2 transition-colors';
   const tabBtnInactive = 'border-transparent text-font-detail hover:text-font-base hover:border-bd';
@@ -28,6 +46,13 @@ export default function InventoryPage() {
             >
               <i className={`fa-solid fa-plus mr-2 ${activeTab === 'add' ? 'text-primary' : 'text-font-detail'}`}></i>
               Add Items
+            </button>
+            <button
+              className={`${tabBtnBase} ${activeTab === 'checkout' ? tabBtnActive : tabBtnInactive}`}
+              onClick={() => setActiveTab('checkout')}
+            >
+              <i className={`fa-solid fa-arrow-right-from-bracket mr-2 ${activeTab === 'checkout' ? 'text-primary' : 'text-font-detail'}`}></i>
+              Checkout
             </button>
             <button
               className={`${tabBtnBase} ${activeTab === 'audit' ? tabBtnActive : tabBtnInactive}`}
@@ -295,6 +320,15 @@ export default function InventoryPage() {
               <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
                 <h3 className="text-lg font-semibold text-font-base mb-6">Add New Items</h3>
                 <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Staff Adding Items <span className="text-font-detail">(Auto-filled)</span></label>
+                    <input 
+                      type="text" 
+                      value={currentStaff || 'Loading...'}
+                      disabled
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                    />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Item Name</label>
@@ -381,6 +415,166 @@ export default function InventoryPage() {
                       <p className="text-xs text-font-detail">Added 1 day ago</p>
                     </div>
                     <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'checkout' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Checkout Form */}
+              <div className="lg:col-span-2 bg-white rounded-lg border border-bd p-6">
+                <h3 className="text-lg font-semibold text-font-base mb-6 flex items-center">
+                  <i className="fa-solid fa-arrow-right-from-bracket text-primary mr-3"></i>
+                  Checkout Items
+                </h3>
+                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Staff Checking Out <span className="text-font-detail">(Auto-filled)</span></label>
+                    <input 
+                      type="text" 
+                      value={currentStaff || 'Loading...'}
+                      disabled
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Item Name <span className="text-error">*</span></label>
+                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option>Select Item</option>
+                        <option>Toothpaste - Colgate</option>
+                        <option>Breakfast Cereal</option>
+                        <option>T-Shirt - Medium</option>
+                        <option>First Aid Kit</option>
+                        <option>Pencils - #2</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Category</label>
+                      <input 
+                        type="text" 
+                        value="Toiletries" 
+                        disabled
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Available Quantity</label>
+                      <input 
+                        type="text" 
+                        value="2 units" 
+                        disabled
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Checkout Quantity <span className="text-error">*</span></label>
+                      <input 
+                        type="number" 
+                        placeholder="0" 
+                        min="1"
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Location</label>
+                      <input 
+                        type="text" 
+                        value="Shelf A-2" 
+                        disabled
+                        className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle text-font-detail cursor-not-allowed" 
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Checkout Purpose <span className="text-error">*</span></label>
+                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option>Select Purpose</option>
+                        <option>Resident Use</option>
+                        <option>Facility Maintenance</option>
+                        <option>Program Activity</option>
+                        <option>Emergency Use</option>
+                        <option>Donation</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-font-base mb-2">Recipient/Department</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g., John Doe, Maintenance Dept" 
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-2">Notes/Reason <span className="text-error">*</span></label>
+                    <textarea 
+                      placeholder="Describe why this item is being checked out..." 
+                      rows={3} 
+                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    ></textarea>
+                  </div>
+                  <div className="flex items-center space-x-3 p-4 bg-warning-lightest border border-warning rounded-lg">
+                    <i className="fa-solid fa-exclamation-triangle text-warning text-xl"></i>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-font-base">Important</p>
+                      <p className="text-xs text-font-detail">This action will reduce the inventory count. Make sure the item is actually being removed from storage.</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3 pt-2">
+                    <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1">
+                      <i className="fa-solid fa-check mr-2"></i>
+                      Confirm Checkout
+                    </button>
+                    <button type="button" className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter">
+                      <i className="fa-solid fa-eraser mr-2"></i>
+                      Clear
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Recent Checkouts */}
+              <div className="bg-white rounded-lg border border-bd p-6">
+                <h3 className="text-lg font-semibold text-font-base mb-4">Recent Checkouts</h3>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">Toothpaste - Colgate</p>
+                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 5 | Resident Use</p>
+                    <p className="text-xs text-font-detail">Checked out 15 mins ago</p>
+                  </div>
+                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">First Aid Kit</p>
+                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 1 | Emergency Use</p>
+                    <p className="text-xs text-font-detail">Checked out 1 hour ago</p>
+                  </div>
+                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">T-Shirt - Medium</p>
+                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 3 | Resident Use</p>
+                    <p className="text-xs text-font-detail">Checked out 2 hours ago</p>
+                  </div>
+                  <div className="bg-primary-lightest p-3 rounded-lg border border-primary">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-font-base">Pencils - #2</p>
+                      <span className="bg-error text-white text-xs px-2 py-1 rounded">Out</span>
+                    </div>
+                    <p className="text-xs text-font-detail">Qty: 20 | Program Activity</p>
+                    <p className="text-xs text-font-detail">Checked out 3 hours ago</p>
                   </div>
                 </div>
               </div>
