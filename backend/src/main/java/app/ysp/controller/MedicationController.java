@@ -318,6 +318,19 @@ public class MedicationController {
     }
 
     /**
+     * Get a specific audit by ID
+     * GET /programs/{programId}/medications/audits/{auditId}
+     */
+    @GetMapping("/audits/{auditId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MedicationAuditResponse> getAuditById(
+            @PathVariable Long programId,
+            @PathVariable Long auditId) {
+        MedicationAuditResponse audit = medicationService.getAuditById(auditId);
+        return ResponseEntity.ok(audit);
+    }
+
+    /**
      * Approve or deny an audit
      * PATCH /programs/{programId}/medications/audits/{auditId}/approval
      */

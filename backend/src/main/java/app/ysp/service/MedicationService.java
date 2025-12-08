@@ -367,6 +367,15 @@ public class MedicationService {
     }
 
     /**
+     * Get a specific audit by ID
+     */
+    public MedicationAuditResponse getAuditById(Long auditId) {
+        MedicationAudit audit = auditRepository.findById(auditId)
+                .orElseThrow(() -> new RuntimeException("Audit not found"));
+        return mapToAuditResponse(audit);
+    }
+
+    /**
      * Approve or deny an audit
      */
     @Transactional

@@ -88,6 +88,8 @@ export default function MedicationPage() {
   const [administrationData, setAdministrationData] = useState<Map<number, any>>(new Map());
   const [adminArchiveData, setAdminArchiveData] = useState<any[]>([]);
   const [auditArchiveData, setAuditArchiveData] = useState<any[]>([]);
+  const [viewingAuditId, setViewingAuditId] = useState<number | null>(null);
+  const [viewingAuditDetails, setViewingAuditDetails] = useState<any | null>(null);
 
   // Load user info and program ID
   useEffect(() => {
@@ -706,6 +708,34 @@ export default function MedicationPage() {
     }
   };
 
+  const handleViewAuditDetails = async (auditId: number) => {
+    if (!programId) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/medications/audits/${auditId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (res.ok) {
+        const audit = await res.json();
+        setViewingAuditDetails(audit);
+        setViewingAuditId(auditId);
+      } else {
+        addToast('Failed to load audit details', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit details:', err);
+      addToast('Failed to load audit details', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchAdminArchive = async () => {
     if (!programId) return;
     setLoading(true);
@@ -770,9 +800,11 @@ export default function MedicationPage() {
               const discrepancy = count.currentCount - count.previousCount;
               formattedData.push({
                 id: `${audit.id}-${count.residentMedicationId}`,
+                auditId: audit.id,
                 date: new Date(audit.auditDate).toLocaleDateString(),
                 shift: audit.shift,
-                staff: audit.auditedByStaffName || '-',
+                staff: audit.submittedByStaffName || '-',
+                reviewedBy: audit.approvedByStaffName || '-',
                 resident: count.residentName || '-',
                 medication: count.medicationName || '-',
                 previousCount: count.previousCount,
@@ -1705,7 +1737,8 @@ export default function MedicationPage() {
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-font-base">Date</th>
                   <th className="px-4 py-3 text-left font-medium text-font-base">Shift</th>
-                  <th className="px-4 py-3 text-left font-medium text-font-base">Staff</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Audited By</th>
+                  <th className="px-4 py-3 text-left font-medium text-font-base">Reviewed By</th>
                   <th className="px-4 py-3 text-left font-medium text-font-base">Resident</th>
                   <th className="px-4 py-3 text-left font-medium text-font-base">Medication</th>
                   <th className="px-4 py-3 text-center font-medium text-font-base">Previous Count</th>
@@ -1717,7 +1750,7 @@ export default function MedicationPage() {
               <tbody>
                 {filteredAuditArchive.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-16">
+                    <td colSpan={10} className="px-4 py-16">
                       <div className="text-center">
                         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-lightest mb-4">
                           <i className="fa-solid fa-clipboard-list text-4xl text-primary opacity-50"></i>
@@ -1737,6 +1770,7 @@ export default function MedicationPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-font-detail">{record.staff}</td>
+                      <td className="px-4 py-3 text-font-detail">{record.reviewedBy}</td>
                       <td className="px-4 py-3 text-font-base font-medium">{record.resident}</td>
                       <td className="px-4 py-3 text-font-detail">{record.medication}</td>
                       <td className="px-4 py-3 text-center text-font-base">{record.previousCount}</td>
@@ -1751,8 +1785,13 @@ export default function MedicationPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button className="text-primary hover:text-primary/80 transition-colors" title="Print Audit">
-                          <i className="fa-solid fa-print text-lg"></i>
+                        <button 
+                          onClick={() => handleViewAuditDetails(record.auditId)}
+                          className="text-primary hover:text-primary/80 transition-colors text-sm font-medium" 
+                          title="Review Audit"
+                        >
+                          <i className="fa-solid fa-eye mr-1"></i>
+                          Review
                         </button>
                       </td>
                     </tr>
@@ -1760,6 +1799,128 @@ export default function MedicationPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Audit Details Modal */}
+      {viewingAuditDetails && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-bd sticky top-0 bg-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-font-base">
+                  Audit Details - {viewingAuditDetails.shift} Shift
+                </h3>
+                <button
+                  onClick={() => {
+                    setViewingAuditDetails(null);
+                    setViewingAuditId(null);
+                  }}
+                  className="text-font-detail hover:text-font-base"
+                >
+                  <i className="fa-solid fa-times text-xl"></i>
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-font-detail">Date:</span>
+                  <span className="ml-2 text-font-base font-medium">
+                    {new Date(viewingAuditDetails.auditDate).toLocaleDateString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-font-detail">Time:</span>
+                  <span className="ml-2 text-font-base font-medium">{viewingAuditDetails.auditTime}</span>
+                </div>
+                <div>
+                  <span className="text-font-detail">Audited By:</span>
+                  <span className="ml-2 text-font-base font-medium">{viewingAuditDetails.submittedByStaffName}</span>
+                </div>
+                <div>
+                  <span className="text-font-detail">Reviewed By:</span>
+                  <span className="ml-2 text-font-base font-medium">{viewingAuditDetails.approvedByStaffName || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-font-detail">Status:</span>
+                  <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                    viewingAuditDetails.status === 'APPROVED' ? 'bg-success/10 text-success' :
+                    viewingAuditDetails.status === 'DENIED' ? 'bg-error/10 text-error' :
+                    'bg-warning/10 text-warning'
+                  }`}>
+                    {viewingAuditDetails.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-font-detail">Discrepancies:</span>
+                  <span className="ml-2 text-font-base font-medium">
+                    {viewingAuditDetails.discrepancyCount || 0}
+                  </span>
+                </div>
+              </div>
+              {viewingAuditDetails.auditNotes && (
+                <div className="mt-3">
+                  <span className="text-font-detail text-sm">Audit Notes:</span>
+                  <p className="mt-1 text-font-base text-sm">{viewingAuditDetails.auditNotes}</p>
+                </div>
+              )}
+              {viewingAuditDetails.approvalNotes && (
+                <div className="mt-3">
+                  <span className="text-font-detail text-sm">Review Notes:</span>
+                  <p className="mt-1 text-font-base text-sm">{viewingAuditDetails.approvalNotes}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6">
+              <h4 className="text-lg font-semibold text-font-base mb-4">Medication Counts</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-bg-subtle border-b border-bd">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-font-base">Resident</th>
+                      <th className="px-4 py-2 text-left font-medium text-font-base">Medication</th>
+                      <th className="px-4 py-2 text-center font-medium text-font-base">Previous</th>
+                      <th className="px-4 py-2 text-center font-medium text-font-base">Counted</th>
+                      <th className="px-4 py-2 text-center font-medium text-font-base">Variance</th>
+                      <th className="px-4 py-2 text-left font-medium text-font-base">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewingAuditDetails.counts?.map((count: any, idx: number) => (
+                      <tr key={idx} className="border-b border-bd">
+                        <td className="px-4 py-3 font-medium text-font-base">{count.residentName}</td>
+                        <td className="px-4 py-3 text-font-detail">{count.medicationName} {count.dosage}</td>
+                        <td className="px-4 py-3 text-center text-font-base">{count.previousCount}</td>
+                        <td className="px-4 py-3 text-center text-font-base font-medium">{count.currentCount}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            count.variance === 0 ? 'bg-success/10 text-success' :
+                            count.variance < 0 ? 'bg-error/10 text-error' :
+                            'bg-warning/10 text-warning'
+                          }`}>
+                            {count.variance === 0 ? 'Match' : count.variance > 0 ? `+${count.variance}` : count.variance}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-font-detail text-xs">{count.notes || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-bd bg-bg-subtle">
+              <button
+                onClick={() => {
+                  setViewingAuditDetails(null);
+                  setViewingAuditId(null);
+                }}
+                className="bg-font-base text-white px-6 py-2 rounded-lg hover:bg-font-base/90 font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
