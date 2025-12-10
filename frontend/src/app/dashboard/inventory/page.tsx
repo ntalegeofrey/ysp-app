@@ -738,7 +738,17 @@ export default function InventoryPage() {
             </div>
           )}
 
-          {activeTab === 'checkout' && (
+          {activeTab === 'checkout' && (() => {
+            // Extract unique categories and locations from inventory items
+            const uniqueCategories = Array.from(new Set(
+              inventoryItems.map(item => item.category).filter(Boolean)
+            )).sort();
+            
+            const uniqueLocations = Array.from(new Set(
+              inventoryItems.map(item => item.location).filter(Boolean)
+            )).sort();
+            
+            return (
             <div className="space-y-6">
               {/* Search and Filter Bar */}
               <div className="bg-white rounded-lg border border-bd p-4">
@@ -758,11 +768,9 @@ export default function InventoryPage() {
                     className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
                   >
                     <option value="">All Categories</option>
-                    <option value="Food">Food</option>
-                    <option value="Clothing">Clothing</option>
-                    <option value="Toiletries">Toiletries</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Stationery">Stationery</option>
+                    {uniqueCategories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
                   </select>
                   <select 
                     value={checkoutFilters.location}
@@ -770,11 +778,9 @@ export default function InventoryPage() {
                     className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
                   >
                     <option value="">All Locations</option>
-                    <option value="Shelf A">Shelf A</option>
-                    <option value="Shelf B">Shelf B</option>
-                    <option value="Pantry">Pantry</option>
-                    <option value="Storage">Storage</option>
-                    <option value="Office">Office</option>
+                    {uniqueLocations.map(location => (
+                      <option key={location} value={location}>{location}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -888,7 +894,8 @@ export default function InventoryPage() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {activeTab === 'requisition' && (
             <div className="bg-white rounded-lg border border-bd p-6">
