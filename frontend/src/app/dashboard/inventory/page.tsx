@@ -42,6 +42,19 @@ export default function InventoryPage() {
     location: ''
   });
   
+  // Requisition form state
+  const [requisitionForm, setRequisitionForm] = useState({
+    itemName: '',
+    category: '',
+    quantityNeeded: '',
+    unitOfMeasurement: 'Units',
+    priority: 'Standard',
+    estimatedCost: '',
+    preferredVendor: '',
+    justification: ''
+  });
+  const [ccEmails, setCcEmails] = useState<string[]>(['']);
+  
   // Load current user
   useEffect(() => {
     try {
@@ -214,6 +227,59 @@ export default function InventoryPage() {
       ...prev,
       [itemId]: { quantity: numValue }
     }));
+  };
+  
+  // Handle requisition submission
+  const handleRequisitionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Filter out empty CC emails
+      const validCcEmails = ccEmails.filter(email => email.trim() !== '');
+      
+      const response = await fetch(`/api/programs/${programId}/inventory/requisitions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...requisitionForm,
+          ccEmails: validCcEmails
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit requisition');
+      }
+      
+      addToast('Requisition submitted successfully! Supervisors will be notified.', 'success');
+      
+      // Clear form
+      setRequisitionForm({
+        itemName: '',
+        category: '',
+        quantityNeeded: '',
+        unitOfMeasurement: 'Units',
+        priority: 'Standard',
+        estimatedCost: '',
+        preferredVendor: '',
+        justification: ''
+      });
+      setCcEmails(['']);
+    } catch (error: any) {
+      console.error('Error submitting requisition:', error);
+      addToast('Failed to submit requisition', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Format date for display
@@ -903,7 +969,7 @@ export default function InventoryPage() {
                   <i className="fa-solid fa-file-invoice text-primary mr-3"></i>
                   Create New Requisition
                 </h3>
-                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                <form className="space-y-6" onSubmit={handleRequisitionSubmit}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Requested By <span className="text-font-detail">(Auto-filled)</span></label>
@@ -929,21 +995,91 @@ export default function InventoryPage() {
                       <input 
                         type="text" 
                         placeholder="Enter item name"
+                        value={requisitionForm.itemName}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, itemName: e.target.value})}
+                        required
                         className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Category <span className="text-error">*</span></label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
-                        <option>Select Category</option>
-                        <option>Food</option>
-                        <option>Clothing</option>
-                        <option>Toiletries</option>
-                        <option>Medical</option>
-                        <option>Stationery</option>
-                        <option>Cleaning Supplies</option>
-                        <option>Equipment</option>
-                        <option>Other</option>
+                      <select 
+                        value={requisitionForm.category}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, category: e.target.value})}
+                        required
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Select Category</option>
+                        <optgroup label="Food & Nutrition">
+                          <option value="Food - Groceries">Food - Groceries</option>
+                          <option value="Food - Snacks">Food - Snacks</option>
+                          <option value="Food - Beverages">Food - Beverages</option>
+                          <option value="Food - Baby Food">Food - Baby Food</option>
+                          <option value="Food - Dietary/Special Needs">Food - Dietary/Special Needs</option>
+                        </optgroup>
+                        <optgroup label="Clothing & Apparel">
+                          <option value="Clothing - Tops">Clothing - Tops</option>
+                          <option value="Clothing - Bottoms">Clothing - Bottoms</option>
+                          <option value="Clothing - Outerwear">Clothing - Outerwear</option>
+                          <option value="Clothing - Underwear/Socks">Clothing - Underwear/Socks</option>
+                          <option value="Clothing - Footwear">Clothing - Footwear</option>
+                          <option value="Clothing - Sleepwear">Clothing - Sleepwear</option>
+                          <option value="Clothing - Accessories">Clothing - Accessories</option>
+                          <option value="Clothing - Seasonal">Clothing - Seasonal</option>
+                        </optgroup>
+                        <optgroup label="Personal Care & Hygiene">
+                          <option value="Toiletries - Bath">Toiletries - Bath</option>
+                          <option value="Toiletries - Oral Care">Toiletries - Oral Care</option>
+                          <option value="Toiletries - Hair Care">Toiletries - Hair Care</option>
+                          <option value="Toiletries - Skin Care">Toiletries - Skin Care</option>
+                          <option value="Toiletries - Feminine Hygiene">Toiletries - Feminine Hygiene</option>
+                          <option value="Toiletries - Diapers">Toiletries - Diapers</option>
+                          <option value="Toiletries - First Aid">Toiletries - First Aid</option>
+                        </optgroup>
+                        <optgroup label="Medical & Health">
+                          <option value="Medical - Medications">Medical - Medications</option>
+                          <option value="Medical - Vitamins/Supplements">Medical - Vitamins/Supplements</option>
+                          <option value="Medical - First Aid Supplies">Medical - First Aid Supplies</option>
+                          <option value="Medical - PPE">Medical - PPE</option>
+                          <option value="Medical - Medical Devices">Medical - Medical Devices</option>
+                        </optgroup>
+                        <optgroup label="Education & Stationery">
+                          <option value="Stationery - Writing Supplies">Stationery - Writing Supplies</option>
+                          <option value="Stationery - Paper Products">Stationery - Paper Products</option>
+                          <option value="Stationery - Art Supplies">Stationery - Art Supplies</option>
+                          <option value="Stationery - School Supplies">Stationery - School Supplies</option>
+                          <option value="Books & Reading Materials">Books & Reading Materials</option>
+                        </optgroup>
+                        <optgroup label="Household & Cleaning">
+                          <option value="Cleaning Supplies">Cleaning Supplies</option>
+                          <option value="Laundry Supplies">Laundry Supplies</option>
+                          <option value="Kitchen Supplies">Kitchen Supplies</option>
+                          <option value="Bedding & Linens">Bedding & Linens</option>
+                          <option value="Household Items">Household Items</option>
+                        </optgroup>
+                        <optgroup label="Recreation & Activities">
+                          <option value="Sports Equipment">Sports Equipment</option>
+                          <option value="Toys & Games">Toys & Games</option>
+                          <option value="Recreational Supplies">Recreational Supplies</option>
+                          <option value="Entertainment">Entertainment</option>
+                        </optgroup>
+                        <optgroup label="Electronics & Technology">
+                          <option value="Electronics">Electronics</option>
+                          <option value="Technology Supplies">Technology Supplies</option>
+                          <option value="Batteries">Batteries</option>
+                        </optgroup>
+                        <optgroup label="Facilities & Maintenance">
+                          <option value="Tools & Equipment">Tools & Equipment</option>
+                          <option value="Safety Equipment">Safety Equipment</option>
+                          <option value="Maintenance Supplies">Maintenance Supplies</option>
+                          <option value="Office Supplies">Office Supplies</option>
+                        </optgroup>
+                        <optgroup label="Baby & Infant Care">
+                          <option value="Baby Care Products">Baby Care Products</option>
+                          <option value="Baby Clothing">Baby Clothing</option>
+                          <option value="Baby Equipment">Baby Equipment</option>
+                        </optgroup>
+                        <option value="Other">Other (Specify in Justification)</option>
                       </select>
                     </div>
                   </div>
@@ -954,12 +1090,19 @@ export default function InventoryPage() {
                         type="number" 
                         placeholder="0" 
                         min="1"
+                        value={requisitionForm.quantityNeeded}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, quantityNeeded: e.target.value})}
+                        required
                         className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Unit of Measurement</label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                      <select 
+                        value={requisitionForm.unitOfMeasurement}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, unitOfMeasurement: e.target.value})}
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
                         <option>Units</option>
                         <option>Boxes</option>
                         <option>Packs</option>
@@ -972,7 +1115,12 @@ export default function InventoryPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Priority <span className="text-error">*</span></label>
-                      <select className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">
+                      <select 
+                        value={requisitionForm.priority}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, priority: e.target.value})}
+                        required
+                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
                         <option>Standard</option>
                         <option>Urgent</option>
                         <option>Emergency</option>
@@ -987,16 +1135,20 @@ export default function InventoryPage() {
                         <input 
                           type="number" 
                           step="0.01"
-                          placeholder="0.00" 
+                          placeholder="0.00"
+                          value={requisitionForm.estimatedCost}
+                          onChange={(e) => setRequisitionForm({...requisitionForm, estimatedCost: e.target.value})}
                           className="w-full border border-bd-input rounded-lg pl-8 pr-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Preferred Vendor/Supplier</label>
+                      <label className="block text-sm font-medium text-font-base mb-2">Preferred Vendor/Supplier (Optional)</label>
                       <input 
                         type="text" 
                         placeholder="e.g., ABC Supplies Co."
+                        value={requisitionForm.preferredVendor}
+                        onChange={(e) => setRequisitionForm({...requisitionForm, preferredVendor: e.target.value})}
                         className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                       />
                     </div>
@@ -1005,17 +1157,48 @@ export default function InventoryPage() {
                     <label className="block text-sm font-medium text-font-base mb-2">Justification/Purpose <span className="text-error">*</span></label>
                     <textarea 
                       placeholder="Explain why this item is needed and how it will be used..." 
-                      rows={4} 
+                      rows={4}
+                      value={requisitionForm.justification}
+                      onChange={(e) => setRequisitionForm({...requisitionForm, justification: e.target.value})}
+                      required
                       className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                     ></textarea>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-font-base mb-2">Additional Notes</label>
-                    <textarea 
-                      placeholder="Any specifications, brand preferences, or special requirements..." 
-                      rows={3} 
-                      className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                    ></textarea>
+                    <label className="block text-sm font-medium text-font-base mb-2">Additional Email Recipients (CC)</label>
+                    <p className="text-xs text-font-detail mb-2">Add email addresses of additional people to notify</p>
+                    {ccEmails.map((email, index) => (
+                      <div key={index} className="flex items-center gap-2 mb-2">
+                        <input 
+                          type="email" 
+                          placeholder="email@example.com"
+                          value={email}
+                          onChange={(e) => {
+                            const newEmails = [...ccEmails];
+                            newEmails[index] = e.target.value;
+                            setCcEmails(newEmails);
+                          }}
+                          className="flex-1 border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                        />
+                        {index === ccEmails.length - 1 ? (
+                          <button 
+                            type="button"
+                            onClick={() => setCcEmails([...ccEmails, ''])}
+                            className="bg-primary-lightest text-primary px-3 py-2 rounded-lg text-sm hover:bg-primary-lighter"
+                          >
+                            <i className="fa-solid fa-plus"></i>
+                          </button>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => setCcEmails(ccEmails.filter((_, i) => i !== index))}
+                            className="bg-error-lightest text-error px-3 py-2 rounded-lg text-sm hover:bg-error-lighter"
+                          >
+                            <i className="fa-solid fa-times"></i>
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                   <div className="flex items-center space-x-3 p-4 bg-info-lightest border border-info rounded-lg">
                     <i className="fa-solid fa-info-circle text-info text-xl"></i>
@@ -1025,11 +1208,27 @@ export default function InventoryPage() {
                     </div>
                   </div>
                   <div className="flex space-x-3 pt-2">
-                    <button type="submit" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1">
-                      <i className="fa-solid fa-paper-plane mr-2"></i>
-                      Submit Requisition
+                    <button type="submit" disabled={loading} className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-light flex-1 disabled:opacity-50">
+                      <i className={`fa-solid ${loading ? 'fa-spinner fa-spin' : 'fa-paper-plane'} mr-2`}></i>
+                      {loading ? 'Submitting...' : 'Submit Requisition'}
                     </button>
-                    <button type="button" className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setRequisitionForm({
+                          itemName: '',
+                          category: '',
+                          quantityNeeded: '',
+                          unitOfMeasurement: 'Units',
+                          priority: 'Standard',
+                          estimatedCost: '',
+                          preferredVendor: '',
+                          justification: ''
+                        });
+                        setCcEmails(['']);
+                      }}
+                      className="bg-primary-lightest text-primary px-6 py-2 rounded-lg font-medium hover:bg-primary-lighter"
+                    >
                       <i className="fa-solid fa-eraser mr-2"></i>
                       Clear Form
                     </button>

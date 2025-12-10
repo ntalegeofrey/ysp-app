@@ -2,6 +2,7 @@ package app.ysp.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public class InventoryRequisitionRequest {
     private String itemName;
@@ -14,6 +15,7 @@ public class InventoryRequisitionRequest {
     private BigDecimal estimatedCost;
     private String preferredVendor;
     private LocalDate requestDate;
+    private List<String> ccEmails;
     
     // Getters and Setters
     public String getItemName() {
@@ -94,5 +96,13 @@ public class InventoryRequisitionRequest {
     
     public void setRequestDate(LocalDate requestDate) {
         this.requestDate = requestDate;
+    }
+    
+    public List<String> getCcEmails() {
+        return ccEmails;
+    }
+    
+    public void setCcEmails(List<String> ccEmails) {
+        this.ccEmails = ccEmails;
     }
 }

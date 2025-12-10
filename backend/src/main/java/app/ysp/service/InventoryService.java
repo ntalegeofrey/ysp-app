@@ -30,6 +30,7 @@ public class InventoryService {
     private final ProgramRepository programRepository;
     private final UserRepository userRepository;
     private final SseHub sseHub;
+    private final MailService mailService;
     
     public InventoryService(
             InventoryItemRepository itemRepository,
@@ -37,13 +38,15 @@ public class InventoryService {
             InventoryRequisitionRepository requisitionRepository,
             ProgramRepository programRepository,
             UserRepository userRepository,
-            SseHub sseHub) {
+            SseHub sseHub,
+            MailService mailService) {
         this.itemRepository = itemRepository;
         this.transactionRepository = transactionRepository;
         this.requisitionRepository = requisitionRepository;
         this.programRepository = programRepository;
         this.userRepository = userRepository;
         this.sseHub = sseHub;
+        this.mailService = mailService;
     }
     
     // ========== INVENTORY ITEMS ==========
@@ -293,6 +296,9 @@ public class InventoryService {
         
         requisition = requisitionRepository.save(requisition);
         
+        // Send email notifications
+        sendRequisitionEmails(program, requisition, request);
+        
         // Broadcast SSE
         try {
             sseHub.broadcast(Map.of(
@@ -342,7 +348,7 @@ public class InventoryService {
     @Transactional
     public InventoryRequisitionResponse reviewRequisition(Long programId, Long requisitionId,
                                                          String action, String notes, Long staffId) {
-        InventoryRequisition requisition = requisitionRepository.findByIdAndProgramId(requisitionId, programId)
+        InventoryRequisition requisition = requisitionRepository.findByIdAndProgram_Id(requisitionId, programId)
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
         
         User staff = userRepository.findById(staffId)
@@ -532,5 +538,135 @@ public class InventoryService {
         response.setUpdatedAt(requisition.getUpdatedAt());
         
         return response;
+    }
+    
+    /**
+     * Send email notifications for new requisition to PD, APD, Regional Director, and CC list
+     */
+    private void sendRequisitionEmails(Program program, InventoryRequisition requisition, InventoryRequisitionRequest request) {
+        try {
+            // Collect all recipient emails
+            java.util.Set<String> recipients = new java.util.HashSet<>();
+            
+            // Add Program Director
+            if (program.getProgramDirectorEmail() != null && !program.getProgramDirectorEmail().isBlank()) {
+                recipients.add(program.getProgramDirectorEmail());
+            }
+            
+            // Add Assistant Program Director
+            if (program.getAssistantDirectorEmail() != null && !program.getAssistantDirectorEmail().isBlank()) {
+                recipients.add(program.getAssistantDirectorEmail());
+            }
+            
+            // Add Regional Director
+            if (program.getRegionalAdminEmail() != null && !program.getRegionalAdminEmail().isBlank()) {
+                recipients.add(program.getRegionalAdminEmail());
+            }
+            
+            // Add CC emails from request
+            if (request.getCcEmails() != null) {
+                for (String email : request.getCcEmails()) {
+                    if (email != null && !email.isBlank()) {
+                        recipients.add(email.trim());
+                    }
+                }
+            }
+            
+            if (recipients.isEmpty()) {
+                System.out.println("[WARN] No email recipients found for requisition notification");
+                return;
+            }
+            
+            // Build email HTML with DYS logo and professional template
+            String subject = "New Inventory Requisition #" + requisition.getRequisitionNumber() + 
+                            " - " + requisition.getPriority() + " Priority";
+            
+            StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html>");
+            html.append("<html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;\">");
+            html.append("<div style=\"max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;\">");
+            
+            // Header with DYS Logo
+            html.append("<div style=\"background:linear-gradient(135deg, #0046AD 0%, #003d96 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;\">");
+            html.append("<img src=\"https://dys.ohio.gov/static/logo/dys-logo-white.png\" alt=\"DYS Logo\" style=\"height:60px;margin-bottom:10px;\"/>");
+            html.append("<h1 style=\"color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;\">New Inventory Requisition</h1>");
+            html.append("<p style=\"color:#e3f2ff;margin:0;font-size:14px;\">").append(program.getName()).append("</p>");
+            html.append("</div>");
+            
+            // Content
+            html.append("<div style=\"padding:30px;\">");
+            
+            // Priority Badge
+            String priorityColor = "URGENT".equalsIgnoreCase(requisition.getPriority()) ? "#ff6b35" :
+                                   "EMERGENCY".equalsIgnoreCase(requisition.getPriority()) ? "#dc2626" : "#10b981";
+            html.append("<div style=\"background:").append(priorityColor).append(";color:#ffffff;padding:8px 16px;border-radius:20px;display:inline-block;font-size:12px;font-weight:600;margin-bottom:20px;\">");
+            html.append(requisition.getPriority()).append(" PRIORITY");
+            html.append("</div>");
+            
+            // Requisition Details
+            html.append("<h2 style=\"color:#1f2937;font-size:20px;margin:0 0 20px 0;padding-bottom:10px;border-bottom:2px solid #e5e7eb;\">Requisition Details</h2>");
+            
+            html.append("<table style=\"width:100%;border-collapse:collapse;margin-bottom:20px;\">");
+            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;width:35%;\"><strong>Requisition #:</strong></td>");
+            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getRequisitionNumber()).append("</td></tr>");
+            
+            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Item Name:</strong></td>");
+            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;font-weight:600;\">").append(requisition.getItemName()).append("</td></tr>");
+            
+            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Category:</strong></td>");
+            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getCategory()).append("</td></tr>");
+            
+            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Quantity:</strong></td>");
+            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getQuantityRequested()).append(" ").append(requisition.getUnitOfMeasurement()).append("</td></tr>");
+            
+            if (requisition.getEstimatedCost() != null) {
+                html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Estimated Cost:</strong></td>");
+                html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">$").append(requisition.getEstimatedCost()).append("</td></tr>");
+            }
+            
+            if (requisition.getPreferredVendor() != null && !requisition.getPreferredVendor().isBlank()) {
+                html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Preferred Vendor:</strong></td>");
+                html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getPreferredVendor()).append("</td></tr>");
+            }
+            
+            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Requested By:</strong></td>");
+            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getRequestedByName()).append("</td></tr>");
+            
+            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Request Date:</strong></td>");
+            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getRequestDate()).append("</td></tr>");
+            html.append("</table>");
+            
+            // Justification
+            html.append("<h3 style=\"color:#1f2937;font-size:16px;margin:25px 0 10px 0;\">Justification/Purpose:</h3>");
+            html.append("<div style=\"background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;\">");
+            html.append(requisition.getJustification().replace("\n", "<br/>"));
+            html.append("</div>");
+            
+            // Call to Action
+            html.append("<div style=\"margin-top:30px;padding:20px;background:#eff6ff;border-left:4px solid #0046AD;border-radius:4px;\">");
+            html.append("<p style=\"margin:0;color:#1e40af;font-size:14px;\"><strong>⚠️ Action Required:</strong> Please review and approve or reject this requisition in the inventory management system.</p>");
+            html.append("</div>");
+            
+            html.append("</div>");
+            
+            // Footer
+            html.append("<div style=\"background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;\">");
+            html.append("<p style=\"margin:0;color:#6b7280;font-size:12px;\">This is an automated notification from the DYS Inventory Management System.</p>");
+            html.append("<p style=\"margin:5px 0 0 0;color:#9ca3af;font-size:11px;\">© ").append(java.time.Year.now().getValue()).append(" Ohio Department of Youth Services</p>");
+            html.append("</div>");
+            
+            html.append("</div>");
+            html.append("</body></html>");
+            
+            // Send to all recipients
+            for (String email : recipients) {
+                mailService.sendRawHtml(email, subject, html.toString());
+                System.out.println("[INFO] Sent requisition notification email to: " + email);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[ERROR] Failed to send requisition emails: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
