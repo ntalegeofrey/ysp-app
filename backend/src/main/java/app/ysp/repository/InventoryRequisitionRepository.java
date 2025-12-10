@@ -42,7 +42,7 @@ public interface InventoryRequisitionRepository extends JpaRepository<InventoryR
     @Query("SELECT COUNT(r) FROM InventoryRequisition r WHERE r.program.id = :programId AND r.status = :status")
     Long countByProgramIdAndStatus(@Param("programId") Long programId, @Param("status") String status);
     
-    @Query("SELECT COALESCE(MAX(CAST(SUBSTRING(r.requisitionNumber, 10) AS INTEGER)), 0) FROM InventoryRequisition r " +
+    @Query("SELECT COALESCE(MAX(CAST(SUBSTRING(r.requisitionNumber, 10, 3) AS INTEGER)), 0) FROM InventoryRequisition r " +
            "WHERE r.requisitionNumber LIKE :pattern")
     Integer findMaxRequisitionNumberForYear(@Param("pattern") String pattern);
 }
