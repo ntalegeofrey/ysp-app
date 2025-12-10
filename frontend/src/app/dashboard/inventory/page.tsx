@@ -15,6 +15,7 @@ export default function InventoryPage() {
   
   // State for inventory items
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [recentlyAddedItems, setRecentlyAddedItems] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -71,6 +72,12 @@ export default function InventoryPage() {
     try {
       const items = await inventoryApi.getInventoryItems(programId);
       setInventoryItems(items);
+      
+      // Get recently added (sort by createdAt, take top 5)
+      const recent = [...items]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      setRecentlyAddedItems(recent);
     } catch (error: any) {
       console.error('Error fetching inventory:', error);
       addToast('Failed to fetch inventory items', 'error');
@@ -92,6 +99,7 @@ export default function InventoryPage() {
   useEffect(() => {
     if (programId && activeTab === 'overview') {
       fetchTransactions();
+      fetchInventoryItems(); // Also fetch for recently added section
     } else if (programId && activeTab === 'checkout') {
       fetchInventoryItems();
     }
@@ -693,41 +701,31 @@ export default function InventoryPage() {
               <div className="bg-white rounded-lg border border-bd p-6">
                 <h3 className="text-lg font-semibold text-font-base mb-4">Recently Added</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  <div className="flex items-center justify-between py-2 border-b border-bd">
-                    <div>
-                      <p className="text-sm font-medium text-font-base">Hand Sanitizer - 8oz</p>
-                      <p className="text-xs text-font-detail">Added 2 hours ago</p>
-                    </div>
-                    <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-bd">
-                    <div>
-                      <p className="text-sm font-medium text-font-base">Socks - White Large</p>
-                      <p className="text-xs text-font-detail">Added 4 hours ago</p>
-                    </div>
-                    <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-bd">
-                    <div>
-                      <p className="text-sm font-medium text-font-base">Notebook - Spiral</p>
-                      <p className="text-xs text-font-detail">Added 6 hours ago</p>
-                    </div>
-                    <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-bd">
-                    <div>
-                      <p className="text-sm font-medium text-font-base">Shampoo - 12oz</p>
-                      <p className="text-xs text-font-detail">Added 1 day ago</p>
-                    </div>
-                    <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-bd">
-                    <div>
-                      <p className="text-sm font-medium text-font-base">Bandages - Adhesive</p>
-                      <p className="text-xs text-font-detail">Added 1 day ago</p>
-                    </div>
-                    <span className="bg-success text-white text-xs px-2 py-1 rounded">Added</span>
-                  </div>
+                  {recentlyAddedItems.length === 0 ? (
+                    <p className="text-sm text-font-detail text-center py-8">No items added yet</p>
+                  ) : (
+                    recentlyAddedItems.map((item) => {
+                      const timeDiff = Date.now() - new Date(item.createdAt).getTime();
+                      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                      const days = Math.floor(hours / 24);
+                      const timeAgo = days > 0 ? `${days} day${days > 1 ? 's' : ''} ago` : 
+                                      hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''} ago` : 
+                                      'Just now';
+                      
+                      return (
+                        <div key={item.id} className="flex items-center justify-between py-2 border-b border-bd">
+                          <div>
+                            <p className="text-sm font-medium text-font-base">{item.itemName}</p>
+                            <p className="text-xs text-font-detail">Added {timeAgo} by {item.createdByName || 'Unknown'}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="bg-success text-white text-xs px-2 py-1 rounded">+{item.currentQuantity}</span>
+                            <p className="text-xs text-font-detail mt-1">{item.location || 'No location'}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
