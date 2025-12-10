@@ -32,8 +32,15 @@ export default function InventoryPage() {
     notes: ''
   });
   
-  // Checkout Form State - for individual items
-  const [checkoutForms, setCheckoutForms] = useState<{[key: number]: {quantity: number}}>({});
+  // Checkout form state (for each item)
+  const [checkoutForms, setCheckoutForms] = useState<{ [key: number]: { quantity: number } }>({});
+  
+  // Filter state for checkout tab
+  const [checkoutFilters, setCheckoutFilters] = useState({
+    search: '',
+    category: '',
+    location: ''
+  });
   
   // Load current user
   useEffect(() => {
@@ -740,24 +747,34 @@ export default function InventoryPage() {
                     <input 
                       type="text" 
                       placeholder="Search items by name, category, or location..."
+                      value={checkoutFilters.search}
+                      onChange={(e) => setCheckoutFilters({...checkoutFilters, search: e.target.value})}
                       className="w-full border border-bd-input rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
                     />
                   </div>
-                  <select className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary">
-                    <option>All Categories</option>
-                    <option>Food</option>
-                    <option>Clothing</option>
-                    <option>Toiletries</option>
-                    <option>Medical</option>
-                    <option>Stationery</option>
+                  <select 
+                    value={checkoutFilters.category}
+                    onChange={(e) => setCheckoutFilters({...checkoutFilters, category: e.target.value})}
+                    className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="Food">Food</option>
+                    <option value="Clothing">Clothing</option>
+                    <option value="Toiletries">Toiletries</option>
+                    <option value="Medical">Medical</option>
+                    <option value="Stationery">Stationery</option>
                   </select>
-                  <select className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary">
-                    <option>All Locations</option>
-                    <option>Shelf A</option>
-                    <option>Shelf B</option>
-                    <option>Pantry</option>
-                    <option>Storage</option>
-                    <option>Office</option>
+                  <select 
+                    value={checkoutFilters.location}
+                    onChange={(e) => setCheckoutFilters({...checkoutFilters, location: e.target.value})}
+                    className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
+                  >
+                    <option value="">All Locations</option>
+                    <option value="Shelf A">Shelf A</option>
+                    <option value="Shelf B">Shelf B</option>
+                    <option value="Pantry">Pantry</option>
+                    <option value="Storage">Storage</option>
+                    <option value="Office">Office</option>
                   </select>
                 </div>
               </div>
@@ -771,13 +788,37 @@ export default function InventoryPage() {
                 
                 {/* Items Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {inventoryItems.length === 0 ? (
-                    <div className="col-span-full text-center py-12">
-                      <i className="fa-solid fa-inbox text-5xl text-font-detail mb-4 block"></i>
-                      <p className="text-font-detail">No inventory items yet. Add items to see them here.</p>
-                    </div>
-                  ) : (
-                    inventoryItems.map((item: any) => {
+                  {(() => {
+                    // Apply filters
+                    const filtered = inventoryItems.filter(item => {
+                      const matchesSearch = !checkoutFilters.search || 
+                        item.itemName.toLowerCase().includes(checkoutFilters.search.toLowerCase()) ||
+                        item.category?.toLowerCase().includes(checkoutFilters.search.toLowerCase()) ||
+                        item.location?.toLowerCase().includes(checkoutFilters.search.toLowerCase());
+                      
+                      const matchesCategory = !checkoutFilters.category || 
+                        item.category?.includes(checkoutFilters.category);
+                      
+                      const matchesLocation = !checkoutFilters.location || 
+                        item.location?.includes(checkoutFilters.location);
+                      
+                      return matchesSearch && matchesCategory && matchesLocation;
+                    });
+                    
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="col-span-full text-center py-12">
+                          <i className="fa-solid fa-inbox text-5xl text-font-detail mb-4 block"></i>
+                          <p className="text-font-detail">
+                            {inventoryItems.length === 0 
+                              ? 'No inventory items yet. Add items to see them here.'
+                              : 'No items match your filters.'}
+                          </p>
+                        </div>
+                      );
+                    }
+                    
+                    return filtered.map((item: any) => {
                       const statusColor = item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK' ? 'error' :
                                         item.status === 'LOW' ? 'warning' : 'success';
                       const statusIcon = item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK' ? 'triangle-exclamation' :
@@ -842,8 +883,8 @@ export default function InventoryPage() {
                           )}
                         </div>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </div>
               </div>
             </div>
