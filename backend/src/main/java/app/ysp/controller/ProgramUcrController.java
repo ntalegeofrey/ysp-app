@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -33,6 +35,7 @@ public class ProgramUcrController {
     private final UserRepository users;
     private final ProgramAssignmentRepository assignments;
     private final MailService mailService;
+    private final TemplateEngine templateEngine;
 
     @Value("${app.brand.logoUrl:}")
     private String brandLogoUrl;
@@ -43,7 +46,8 @@ public class ProgramUcrController {
                                SseHub sseHub,
                                UserRepository users,
                                ProgramAssignmentRepository assignments,
-                               MailService mailService) {
+                               MailService mailService,
+                               TemplateEngine templateEngine) {
         this.programs = programs;
         this.ucrs = ucrs;
         this.notifications = notifications;
@@ -51,6 +55,7 @@ public class ProgramUcrController {
         this.users = users;
         this.assignments = assignments;
         this.mailService = mailService;
+        this.templateEngine = templateEngine;
     }
 
     @GetMapping("/reports")
@@ -564,7 +569,7 @@ public class ProgramUcrController {
             return ResponseEntity.status(400).body(java.util.Map.of("error", "No program director or assistant director email configured for this program."));
         }
 
-        // Build HTML body with simple DYS-themed card layout
+        // Build email using template
         String effectivePriority = !priorityLevel.isBlank() ? priorityLevel : legacyPriority;
         String effectiveCategory = !issueCategory.isBlank() ? issueCategory : legacyCategory;
 
@@ -576,106 +581,56 @@ public class ProgramUcrController {
             else if (p.contains("medium")) priorityBadgeColor = "#3b82f6"; // blue
         }
 
-        StringBuilder html = new StringBuilder();
-        html.append("<div style='background:#f3f4f6;padding:24px;font-family:system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;color:#111827;'>");
-        html.append("  <div style='max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;box-shadow:0 10px 25px rgba(15,23,42,0.12);'>");
-        // Header with logo + title
-        html.append("    <div style='display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid #e5e7eb;background:linear-gradient(to right,#0f172a,#1d4ed8);color:#e5e7eb;'>");
-        if (brandLogoUrl != null && !brandLogoUrl.isBlank()) {
-            html.append("      <div style='width:40px;height:40px;border-radius:9999px;background:#0f172a;display:flex;align-items:center;justify-content:center;margin-right:12px;overflow:hidden;'>");
-            html.append("        <img src='")
-                .append(brandLogoUrl)
-                .append("' alt='DYS Logo' style='width:100%;height:100%;object-fit:contain;border-radius:9999px;' />");
-            html.append("      </div>");
-        }
-        html.append("      <div style='flex:1;'>");
-        html.append("        <div style='font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;'>Commonwealth of Massachusetts</div>");
-        html.append("        <div style='font-size:16px;font-weight:700;color:#f9fafb;'>Department of Youth Services • Unit Condition Report</div>");
-        html.append("        <div style='font-size:12px;color:#9ca3af;margin-top:2px;'>Program: ")
-            .append(escape(program.getName()))
-            .append("</div>");
-        html.append("      </div>");
-        html.append("    </div>");
-
-        // Body
-        html.append("    <div style='padding:20px 24px 18px;'>");
-        // Priority chip
-        if (effectivePriority != null && !effectivePriority.isBlank()) {
-            html.append("      <div style='margin-bottom:10px;'>");
-            html.append("        <span style='display:inline-block;padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#ffffff;background:")
-                .append(priorityBadgeColor)
-                .append(";'>")
-                .append(escape(effectivePriority))
-                .append("</span>");
-            if (effectiveCategory != null && !effectiveCategory.isBlank()) {
-                html.append("        <span style='margin-left:8px;font-size:11px;color:#4b5563;text-transform:uppercase;letter-spacing:0.08em;'>")
-                    .append(escape(effectiveCategory))
-                    .append("</span>");
-            }
-            html.append("      </div>");
-        }
-
-        // Report meta
-        html.append("      <div style='font-size:13px;color:#4b5563;margin-bottom:12px;'>");
-        if (report != null && report.getReportDate() != null) {
-            html.append("        <div><strong>Date:</strong> ")
-                .append(escape(String.valueOf(report.getReportDate())))
-                .append("</div>");
-        }
-        if (report != null && report.getShiftTime() != null) {
-            html.append("        <div><strong>Shift:</strong> ")
-                .append(escape(report.getShiftTime()))
-                .append("</div>");
-        }
-        html.append("      </div>");
-
+        // Build narrative combining all parts
+        StringBuilder narrative = new StringBuilder();
         String summaryBlock = !issueSummary.isBlank() ? issueSummary : legacyMessage;
         if (!summaryBlock.isBlank()) {
-            html.append("      <div style='margin-top:6px;margin-bottom:12px;'>");
-            html.append("        <div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Issue Summary</div>");
-            html.append("        <div style='font-size:13px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;'>")
-                .append(escape(summaryBlock).replace("\n", "<br/>")).append("</div>");
-            html.append("      </div>");
+            narrative.append("<div style='margin-bottom:12px;'>");
+            narrative.append("<div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Issue Summary</div>");
+            narrative.append("<div style='font-size:13px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;'>");
+            narrative.append(escape(summaryBlock).replace("\n", "<br/>")).append("</div></div>");
         }
         if (!additionalComments.isBlank()) {
-            html.append("      <div style='margin-top:8px;margin-bottom:12px;'>");
-            html.append("        <div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Additional Comments</div>");
-            html.append("        <div style='font-size:13px;color:#4b5563;line-height:1.6;background:#fefce8;border-radius:8px;padding:10px 12px;border:1px solid #eab308;'>")
-                .append(escape(additionalComments).replace("\n", "<br/>")).append("</div>");
-            html.append("      </div>");
+            narrative.append("<div style='margin-bottom:12px;'>");
+            narrative.append("<div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Additional Comments</div>");
+            narrative.append("<div style='font-size:13px;color:#4b5563;line-height:1.6;background:#fefce8;border-radius:8px;padding:10px 12px;border:1px solid #eab308;'>");
+            narrative.append(escape(additionalComments).replace("\n", "<br/>")).append("</div></div>");
         }
         if (!legacyCategoryOther.isBlank()) {
-            html.append("      <div style='margin-top:6px;margin-bottom:12px;'>");
-            html.append("        <div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Other Details</div>");
-            html.append("        <div style='font-size:13px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;'>")
-                .append(escape(legacyCategoryOther).replace("\n", "<br/>")).append("</div>");
-            html.append("      </div>");
+            narrative.append("<div style='margin-bottom:12px;'>");
+            narrative.append("<div style='font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;'>Other Details</div>");
+            narrative.append("<div style='font-size:13px;color:#4b5563;line-height:1.6;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;'>");
+            narrative.append(escape(legacyCategoryOther).replace("\n", "<br/>")).append("</div></div>");
         }
-
         if (!senderName.isBlank() || !senderTitle.isBlank()) {
-            html.append("      <div style='margin-top:12px;padding-top:10px;border-top:1px dashed #e5e7eb;font-size:12px;color:#6b7280;'>");
-            html.append("        <div style='font-weight:600;color:#111827;margin-bottom:2px;'>Reported by</div>");
-            html.append("        <div>").append(escape(senderName)).append("</div>");
+            narrative.append("<div style='margin-top:12px;padding-top:10px;border-top:1px dashed #e5e7eb;font-size:12px;color:#6b7280;'>");
+            narrative.append("<div style='font-weight:600;color:#111827;margin-bottom:2px;'>Reported by</div>");
+            narrative.append("<div>").append(escape(senderName)).append("</div>");
             if (!senderTitle.isBlank()) {
-                html.append("        <div style='color:#6b7280;'>").append(escape(senderTitle)).append("</div>");
+                narrative.append("<div style='color:#6b7280;'>").append(escape(senderTitle)).append("</div>");
             }
-            html.append("      </div>");
+            narrative.append("</div>");
         }
 
-        html.append("    </div>");
+        // Prepare template context
+        Context context = new Context();
+        context.setVariable("programName", program.getName());
+        context.setVariable("priority", effectivePriority);
+        context.setVariable("priorityColor", priorityBadgeColor);
+        context.setVariable("category", effectiveCategory);
+        context.setVariable("reportDate", report != null && report.getReportDate() != null ? report.getReportDate().toString() : null);
+        context.setVariable("shiftTime", report != null ? report.getShiftTime() : null);
+        context.setVariable("reportedBy", !senderName.isBlank() ? senderName + (!senderTitle.isBlank() ? " - " + senderTitle : "") : null);
+        context.setVariable("narrative", narrative.toString());
+        context.setVariable("currentYear", java.time.Year.now().getValue());
 
-        // Footer
-        html.append("    <div style='padding:10px 20px 14px;border-top:1px solid #e5e7eb;background:#f9fafb;font-size:11px;color:#9ca3af;text-align:center;'>");
-        html.append("      Youth Supervision Platform • Internal DYS communication");
-        html.append("    </div>");
-
-        html.append("  </div>");
-        html.append("</div>");
+        // Render template
+        String html = templateEngine.process("ucr-notification", context);
 
         // Send email via MailService (Mailpit-backed)
         for (String to : emails) {
             try {
-                mailService.sendRawHtml(to, finalSubject, html.toString());
+                mailService.sendRawHtml(to, finalSubject, html);
             } catch (Exception ignored) {}
         }
 

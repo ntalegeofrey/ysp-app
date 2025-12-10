@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Inventory Requisition</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;">
+    <div style="max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #14558f 0%, #4377A5 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmhQFtMkVqvEE5tqK1_lEg9I6A2xwc80ZCuQ&s" alt="DYS Logo" style="height:60px;width:60px;border-radius:50%;margin-bottom:10px;"/>
+            <h1 style="color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;">New Inventory Requisition</h1>
+            <p style="color:#e3f2ff;margin:0;font-size:14px;">[[${programName}]]</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding:30px;">
+            
+            <!-- Priority Badge -->
+            <div th:style="'background:' + ${priorityColor} + ';color:#ffffff;padding:8px 16px;border-radius:20px;display:inline-block;font-size:12px;font-weight:600;margin-bottom:20px;'">
+                <span th:text="${priority}"></span> PRIORITY
+            </div>
+            
+            <h2 style="color:#1f2937;font-size:20px;margin:0 0 20px 0;padding-bottom:10px;border-bottom:2px solid #e5e7eb;">Requisition #[[${requisitionNumber}]]</h2>
+            
+            <!-- Items Table -->
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <thead>
+                    <tr style="background:#f9fafb;">
+                        <th style="padding:10px;text-align:left;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;">Item</th>
+                        <th style="padding:10px;text-align:left;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;">Category</th>
+                        <th style="padding:10px;text-align:right;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;">Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    [[${itemsRows}]]
+                </tbody>
+            </table>
+            
+            <!-- Additional Details -->
+            <table style="width:100%;border-collapse:collapse;margin-top:20px;">
+                [[${detailsRows}]]
+            </table>
+            
+            <!-- Justification -->
+            <div th:if="${justification != null and !#strings.isEmpty(justification)}">
+                <h3 style="color:#1f2937;font-size:16px;margin:25px 0 10px 0;">Justification/Purpose:</h3>
+                <div style="background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;">
+                    [[${justification}]]
+                </div>
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="margin-top:30px;padding:20px;background:#eff6ff;border-left:4px solid #14558f;border-radius:4px;">
+                <p style="margin:0;color:#1e40af;font-size:14px;"><strong>⚠️ Action Required:</strong> Please review and approve or reject this requisition in the inventory management system.</p>
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div style="background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#6b7280;font-size:12px;">This is an automated notification from the DYS Inventory Management System.</p>
+            <p style="margin:5px 0 0 0;color:#9ca3af;font-size:11px;">© [[${currentYear}]] Massachusetts Department of Youth Services</p>
+        </div>
+        
+    </div>
+</body>
+</html>

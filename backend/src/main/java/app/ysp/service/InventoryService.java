@@ -4,6 +4,7 @@ import app.ysp.domain.User;
 import app.ysp.dto.*;
 import app.ysp.entity.*;
 import app.ysp.repo.ProgramRepository;
+import app.ysp.repo.ProgramAssignmentRepository;
 import app.ysp.repo.UserRepository;
 import app.ysp.repository.InventoryItemRepository;
 import app.ysp.repository.InventoryRequisitionRepository;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,25 +31,31 @@ public class InventoryService {
     private final InventoryTransactionRepository transactionRepository;
     private final InventoryRequisitionRepository requisitionRepository;
     private final ProgramRepository programRepository;
+    private final ProgramAssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
     private final SseHub sseHub;
     private final MailService mailService;
+    private final TemplateEngine templateEngine;
     
     public InventoryService(
             InventoryItemRepository itemRepository,
             InventoryTransactionRepository transactionRepository,
             InventoryRequisitionRepository requisitionRepository,
             ProgramRepository programRepository,
+            ProgramAssignmentRepository assignmentRepository,
             UserRepository userRepository,
             SseHub sseHub,
-            MailService mailService) {
+            MailService mailService,
+            TemplateEngine templateEngine) {
         this.itemRepository = itemRepository;
         this.transactionRepository = transactionRepository;
         this.requisitionRepository = requisitionRepository;
         this.programRepository = programRepository;
+        this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.sseHub = sseHub;
         this.mailService = mailService;
+        this.templateEngine = templateEngine;
     }
     
     // ========== INVENTORY ITEMS ==========
@@ -568,20 +577,26 @@ public class InventoryService {
      */
     private void sendRequisitionEmails(Program program, InventoryRequisition requisition, InventoryRequisitionRequest request) {
         try {
-            // Collect all recipient emails
+            // Collect all recipient emails using ProgramAssignment (same as UCR notifications)
             java.util.Set<String> recipients = new java.util.HashSet<>();
             
-            // Add Program Director
+            // Find PD and Assistant Director assignments for this program
+            java.util.List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
+            for (ProgramAssignment pa : assignments) {
+                if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
+                String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+                if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
+                    recipients.add(pa.getUserEmail());
+                }
+            }
+            
+            // Also check program entity fields as fallback
             if (program.getProgramDirectorEmail() != null && !program.getProgramDirectorEmail().isBlank()) {
                 recipients.add(program.getProgramDirectorEmail());
             }
-            
-            // Add Assistant Program Director
             if (program.getAssistantDirectorEmail() != null && !program.getAssistantDirectorEmail().isBlank()) {
                 recipients.add(program.getAssistantDirectorEmail());
             }
-            
-            // Add Regional Director
             if (program.getRegionalAdminEmail() != null && !program.getRegionalAdminEmail().isBlank()) {
                 recipients.add(program.getRegionalAdminEmail());
             }
@@ -600,92 +615,53 @@ public class InventoryService {
                 return;
             }
             
-            // Build email HTML with DYS logo and professional template
+            // Build email using template
             String subject = "New Inventory Requisition #" + requisition.getRequisitionNumber() + 
                             " - " + requisition.getPriority() + " Priority";
             
-            StringBuilder html = new StringBuilder();
-            html.append("<!DOCTYPE html>");
-            html.append("<html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;\">");
-            html.append("<div style=\"max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;\">");
-            
-            // Header with DYS Logo (embedded as base64)
-            String logoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAADgCAMAAAAt85rTAAABWVBMVEX///8vO2v279rElC/5uCkrOWwnN2z/vyL/vST48+AhNW38uicAK28dM23+998oNmljaIMYMW4RL27/wSD69eT2tirIlywILW/ysyypg07nrDI2PmmNcVa0ikkAKHD/wx3DlEOaeEfMmj/aoznJmEC8j0ZFRmd3Y1xqW1/dv42jf0/hqDXGjwDVoDsAJnBXUGODa1l7ZltQTGWbelJAQ2eTdVRuXl5dU2Pr28Lr27qQc1W6jTXAkkSwh0q4jUhTTmSIakW2hR/iy6Wpfi/WtHnv49D59O3QnCbjyZcAH2CjezeAZk2Yczu8iBO1hSLUrWPIxL0AHXGhdy3VrF2Maz+eeDqHiJavra51eIzl0LDf2csAGlpUW4Dev4S7uLWlpKjUy6/VqU7IpV6umXqxkmK7s6T25sGwqZ0AF2FraHGak4i5vMjp6exKU3pkaoqipbbKzNUAEnSldh2HOU0EAAAgAElEQVR4nO19+1vjyLH2GlstuaWGtIQlWzI2vgtf5asAYxswDIyNYWcYbzJJ2ITvnGzOV9uZ///H77uluSrbJjdmd3N92zneTYewJJedXXVW9XVVV399dev4dfw6fh2/jl/Hr+PX8ePGmzfXxx8vL2+PnHF5+fH4+s2bn/upPsd4c/3x6CFdLk/uh9O7D+djNs4/3E3f30/K5eDD0cfrf1ucb46PHsrl+7txodZCGCFIByCDfUAIY6PWGd99Xy4/Hh3/u6F88/FKLQ/PO3lMcAEusGFwBCzCrc75sHxz9fHfBuT1kVoejQdkzpagcbP/rMNEuGGNJurT8c/97C+P46vy/bmN0CI2QP+TrxkYGHkuYLSQpEmI/h4gMEeJcO38vvzwi8Z4fVUejlsYeuAAkmUMjTiBgXJJnueVZDGhJ3lBFJK6HACddNzQ8AwlB7FhDctXv1CMb27VC4JuYepk+0zX0/GmKJF/4IYQCkURDOCaGAqJNUgANTI8r2d7FkEIgfdOjPH9zdEvbz1eP5TvavO5o0M7UJR0rJIU+Dz9sVQSxTNMf54RxYzEpkzmQ6IQTaMAbJqSjJxvA9xIlR9/WdP4MXgx5tCyBkFFno9LSLJ4IQ7pFFZEsY/oh6woVrAjlARgNIHpL5ORyqHNebIK6hfqx58b1Wxc3gxNDALLg2vxYilBBbWtnDFcaVE88ABmGUDO5kNCk6IPVLMinzXnrwhge1i+/LmRsXFZHtaw+2TGwgT2BCFG8QSkbFRbAkg+HDKAMC6E+BbnzLdSlDhnFTpah8ON0S8A4seb4cCDh9O6Nl+B0ZBgOdMKkq0lgERWcww6yomi+xV0wCPne53egSU7RhP97BCP1Xsbz+QK5fhDaS6hIaHjArQDLq6ezHGcNgMol7xPBH5Fpl/jMrwiJqMNhNxZHKo/n7p58zjp4AXNgmIC38buGuoIIaHgLkzOA5i1a42aXXKnMgDJS4gDd8KLTBPpgtipGrrQOXOAc9i8eN7/efAdlcdwSbXAJllStjtrdQKQaU9vEIAhIUmHGBJ7yH0JjgkhI2kC9oqEJg6APK9k3TdF1M24/PQzwLtWRwZ7/jkIQHRGKOTMFwXowPCGTGew0+kUCrro/AYWhVDEkWlQSDITGQrxDY6aSp6tX+DeYXrzk8vplSudHIjJM4AFkUxOiT0yMImJq8iLADOiUJSJuyRlXIBU7aSdiUK9EvlbrsY7co16CoUG2q5mxfbk4SeFd30z5dgb1gwzGffmibP1HhHMA0cv8oSQrQGEzgcHoBQJuZaEqBvKAUCBTDshqQRgRmZvSSm12B8AmCr/hJN4VDbZi8cFPamIgreMuLzwriSGlDpkWkMM8R1vjcpMZTpGnepOCpDL8zNLghX6gU57SCTYQNvRPYkMWZMS+4jsydVPBO9Neuh4QOg0ma...";
-            
-            html.append("<div style=\"background:linear-gradient(135deg, #0046AD 0%, #003d96 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;\">");
-            html.append("<img src=\"").append(logoDataUri).append("\" alt=\"DYS Logo\" style=\"height:60px;width:auto;margin-bottom:10px;\"/>");
-            html.append("<h1 style=\"color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;\">New Inventory Requisition</h1>");
-            html.append("<p style=\"color:#e3f2ff;margin:0;font-size:14px;\">").append(program.getName()).append("</p>");
-            html.append("</div>");
-            
-            // Content
-            html.append("<div style=\"padding:30px;\">");
-            
-            // Priority Badge
+            // Determine priority color
             String priorityColor = "URGENT".equalsIgnoreCase(requisition.getPriority()) ? "#ff6b35" :
                                    "EMERGENCY".equalsIgnoreCase(requisition.getPriority()) ? "#dc2626" : "#10b981";
-            html.append("<div style=\"background:").append(priorityColor).append(";color:#ffffff;padding:8px 16px;border-radius:20px;display:inline-block;font-size:12px;font-weight:600;margin-bottom:20px;\">");
-            html.append(requisition.getPriority()).append(" PRIORITY");
-            html.append("</div>");
             
-            // Requisition Details
-            html.append("<h2 style=\"color:#1f2937;font-size:20px;margin:0 0 20px 0;padding-bottom:10px;border-bottom:2px solid #e5e7eb;\">Requisition Details</h2>");
+            // Build items rows HTML (single item)
+            String itemsRows = "<tr style=\"background:#ffffff;\">" +
+                    "<td style=\"padding:10px;color:#1f2937;font-size:14px;font-weight:600;\">" + requisition.getItemName() + "</td>" +
+                    "<td style=\"padding:10px;color:#6b7280;font-size:14px;\">" + requisition.getCategory() + "</td>" +
+                    "<td style=\"padding:10px;text-align:right;color:#1f2937;font-size:14px;\">" + requisition.getQuantityRequested() + " " + requisition.getUnitOfMeasurement() + "</td>" +
+                    "</tr>";
             
-            html.append("<table style=\"width:100%;border-collapse:collapse;margin-bottom:20px;\">");
-            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;width:35%;\"><strong>Requisition #:</strong></td>");
-            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getRequisitionNumber()).append("</td></tr>");
-            
-            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Item Name:</strong></td>");
-            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;font-weight:600;\">").append(requisition.getItemName()).append("</td></tr>");
-            
-            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Category:</strong></td>");
-            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getCategory()).append("</td></tr>");
-            
-            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Quantity:</strong></td>");
-            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getQuantityRequested()).append(" ").append(requisition.getUnitOfMeasurement()).append("</td></tr>");
-            
+            // Build details rows HTML
+            StringBuilder detailsRows = new StringBuilder();
             if (requisition.getEstimatedCost() != null) {
-                html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Estimated Cost:</strong></td>");
-                html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">$").append(requisition.getEstimatedCost()).append("</td></tr>");
+                detailsRows.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;width:35%;\"><strong>Estimated Cost:</strong></td>");
+                detailsRows.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">$").append(requisition.getEstimatedCost()).append("</td></tr>");
             }
-            
             if (requisition.getPreferredVendor() != null && !requisition.getPreferredVendor().isBlank()) {
-                html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Preferred Vendor:</strong></td>");
-                html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getPreferredVendor()).append("</td></tr>");
+                detailsRows.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Preferred Vendor:</strong></td>");
+                detailsRows.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getPreferredVendor()).append("</td></tr>");
             }
+            detailsRows.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Requested By:</strong></td>");
+            detailsRows.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getRequestedByName()).append("</td></tr>");
+            detailsRows.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Request Date:</strong></td>");
+            detailsRows.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getRequestDate()).append("</td></tr>");
             
-            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Requested By:</strong></td>");
-            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(requisition.getRequestedByName()).append("</td></tr>");
+            // Prepare template context
+            Context context = new Context();
+            context.setVariable("programName", program.getName());
+            context.setVariable("priority", requisition.getPriority());
+            context.setVariable("priorityColor", priorityColor);
+            context.setVariable("requisitionNumber", requisition.getRequisitionNumber());
+            context.setVariable("itemsRows", itemsRows);
+            context.setVariable("detailsRows", detailsRows.toString());
+            context.setVariable("justification", requisition.getJustification() != null ? requisition.getJustification().replace("\n", "<br/>") : "");
+            context.setVariable("currentYear", java.time.Year.now().getValue());
             
-            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Request Date:</strong></td>");
-            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(requisition.getRequestDate()).append("</td></tr>");
-            html.append("</table>");
-            
-            // Justification
-            html.append("<h3 style=\"color:#1f2937;font-size:16px;margin:25px 0 10px 0;\">Justification/Purpose:</h3>");
-            html.append("<div style=\"background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;\">");
-            html.append(requisition.getJustification().replace("\n", "<br/>"));
-            html.append("</div>");
-            
-            // Call to Action
-            html.append("<div style=\"margin-top:30px;padding:20px;background:#eff6ff;border-left:4px solid #0046AD;border-radius:4px;\">");
-            html.append("<p style=\"margin:0;color:#1e40af;font-size:14px;\"><strong>⚠️ Action Required:</strong> Please review and approve or reject this requisition in the inventory management system.</p>");
-            html.append("</div>");
-            
-            html.append("</div>");
-            
-            // Footer
-            html.append("<div style=\"background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;\">");
-            html.append("<p style=\"margin:0;color:#6b7280;font-size:12px;\">This is an automated notification from the DYS Inventory Management System.</p>");
-            html.append("<p style=\"margin:5px 0 0 0;color:#9ca3af;font-size:11px;\">© ").append(java.time.Year.now().getValue()).append(" Massachusetts Department of Youth Services</p>");
-            html.append("</div>");
-            
-            html.append("</div>");
-            html.append("</body></html>");
+            // Render template
+            String html = templateEngine.process("requisition-notification", context);
             
             // Send to all recipients
             for (String email : recipients) {
-                mailService.sendRawHtml(email, subject, html.toString());
+                mailService.sendRawHtml(email, subject, html);
                 System.out.println("[INFO] Sent requisition notification email to: " + email);
             }
             
@@ -700,20 +676,26 @@ public class InventoryService {
      */
     private void sendRequisitionEmailsMultiple(Program program, List<InventoryRequisition> requisitions, InventoryRequisitionRequest request) {
         try {
-            // Collect all recipient emails
+            // Collect all recipient emails using ProgramAssignment (same as UCR notifications)
             java.util.Set<String> recipients = new java.util.HashSet<>();
             
-            // Add Program Director
+            // Find PD and Assistant Director assignments for this program
+            java.util.List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
+            for (ProgramAssignment pa : assignments) {
+                if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
+                String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+                if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
+                    recipients.add(pa.getUserEmail());
+                }
+            }
+            
+            // Also check program entity fields as fallback
             if (program.getProgramDirectorEmail() != null && !program.getProgramDirectorEmail().isBlank()) {
                 recipients.add(program.getProgramDirectorEmail());
             }
-            
-            // Add Assistant Program Director
             if (program.getAssistantDirectorEmail() != null && !program.getAssistantDirectorEmail().isBlank()) {
                 recipients.add(program.getAssistantDirectorEmail());
             }
-            
-            // Add Regional Director
             if (program.getRegionalAdminEmail() != null && !program.getRegionalAdminEmail().isBlank()) {
                 recipients.add(program.getRegionalAdminEmail());
             }
@@ -735,104 +717,59 @@ public class InventoryService {
             InventoryRequisition firstReq = requisitions.get(0);
             String baseNumber = firstReq.getRequisitionNumber().replaceAll("-\\d+$", "");
             
-            // Build email HTML
+            // Build email subject
             String subject = "New Inventory Requisition #" + baseNumber + 
                             " (" + requisitions.size() + " item" + (requisitions.size() > 1 ? "s" : "") + ") - " + 
                             firstReq.getPriority() + " Priority";
             
-            StringBuilder html = new StringBuilder();
-            String logoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAADgCAMAAAAt85rTAAABWVBMVEX///8vO2v279rElC/5uCkrOWwnN2z/vyL/vST48+AhNW38uicAK28dM23+998oNmljaIMYMW4RL27/wSD69eT2tirIlywILW/ysyypg07nrDI2PmmNcVa0ikkAKHD/wx3DlEOaeEfMmj/aoznJmEC8j0ZFRmd3Y1xqW1/dv42jf0/hqDXGjwDVoDsAJnBXUGODa1l7ZltQTGWbelJAQ2eTdVRuXl5dU2Pr28Lr27qQc1W6jTXAkkSwh0q4jUhTTmSIakW2hR/iy6Wpfi/WtHnv49D59O3QnCbjyZcAH2CjezeAZk2Yczu8iBO1hSLUrWPIxL0AHXGhdy3VrF2Maz+eeDqHiJavra51eIzl0LDf2csAGlpUW4Dev4S7uLWlpKjUy6/VqU7IpV6umXqxkmK7s6T25sGwqZ0AF2FraHGak4i5vMjp6exKU3pkaoqipbbKzNUAEnSldh2HOU0EAAAgAElEQVR4nO19+1vjyLH2GlstuaWGtIQlWzI2vgtf5asAYxswDIyNYWcYbzJJ2ITvnGzOV9uZ///H77uluSrbJjdmd3N92zneTYewJJedXXVW9XVVV399dev4dfw6fh2/jl/Hr+PX8ePGmzfXxx8vL2+PnHF5+fH4+s2bn/upPsd4c/3x6CFdLk/uh9O7D+djNs4/3E3f30/K5eDD0cfrf1ucb46PHsrl+7txodZCGCFIByCDfUAIY6PWGd99Xy4/Hh3/u6F88/FKLQ/PO3lMcAEusGFwBCzCrc75sHxz9fHfBuT1kVoejQdkzpagcbP/rMNEuGGNJurT8c/97C+P46vy/bmN0CI2QP+TrxkYGHkuYLSQpEmI/h4gMEeJcO38vvzwi8Z4fVUejlsYeuAAkmUMjTiBgXJJnueVZDGhJ3lBFJK6HACddNzQ8AwlB7FhDctXv1CMb27VC4JuYepk+0zX0/GmKJF/4IYQCkURDOCaGAqJNUgANTI8r2d7FkEIgfdOjPH9zdEvbz1eP5TvavO5o0M7UJR0rJIU+Dz9sVQSxTNMf54RxYzEpkzmQ6IQTaMAbJqSjJxvA9xIlR9/WdP4MXgx5tCyBkFFno9LSLJ4IQ7pFFZEsY/oh6woVrAjlARgNIHpL5ORyqHNebIK6hfqx58b1Wxc3gxNDALLg2vxYilBBbWtnDFcaVE88ABmGUDO5kNCk6IPVLMinzXnrwhge1i+/LmRsXFZHtaw+2TGwgT2BCFG8QSkbFRbAkg+HDKAMC6E+BbnzLdSlDhnFTpah8ON0S8A4seb4cCDh9O6Nl+B0ZBgOdMKkq0lgERWcww6yomi+xV0wCPne53egSU7RhP97BCP1Xsbz+QK5fhDaS6hIaHjArQDLq6ezHGcNgMol7xPBH5Fpl/jMrwiJqMNhNxZHKo/n7p58zjp4AXNgmIC38buGuoIIaHgLkzOA5i1a42aXXKnMgDJS4gDd8KLTBPpgtipGrrQOXOAc9i8eN7/efAdlcdwSbXAJllStjtrdQKQaU9vEIAhIUmHGBJ7yH0JjgkhI2kC9oqEJg6APK9k3TdF1M24/PQzwLtWRwZ7/jkIQHRGKOTMFwXowPCGTGew0+kUCrro/AYWhVDEkWlQSDITGQrxDY6aSp6tX+DeYXrzk8vplSudHIjJM4AFkUxOiT0yMImJq8iLADOiUJSJuyRlXIBU7aSdiUK9EvlbrsY7co16CoUG2q5mxfbk4SeFd30z5dgb1gwzGffmibP1HhHMA0cv8oSQrQGEzgcHoBQJuZaEqBvKAUCBTDshqQRgRmZvSSm12B8AmCr/hJN4VDbZi8cFPamIgreMuLzwriSGlDpkWkMM8R1vjcpMZTpGnepOCpDL8zNLghX6gU57SCTYQNvRPYkMWZMS+4jsydVPBO9Neuh4QOg0ma...";
-            
-            html.append("<!DOCTYPE html>");
-            html.append("<html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;\">");
-            html.append("<div style=\"max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;\">");
-            
-            // Header
-            html.append("<div style=\"background:linear-gradient(135deg, #0046AD 0%, #003d96 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;\">");
-            html.append("<img src=\"").append(logoDataUri).append("\" alt=\"DYS Logo\" style=\"height:60px;width:auto;margin-bottom:10px;\"/>");
-            html.append("<h1 style=\"color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;\">New Inventory Requisition</h1>");
-            html.append("<p style=\"color:#e3f2ff;margin:0;font-size:14px;\">").append(program.getName()).append("</p>");
-            html.append("</div>");
-            
-            // Content
-            html.append("<div style=\"padding:30px;\">");
-            
-            // Priority Badge
+            // Determine priority color
             String priorityColor = "URGENT".equalsIgnoreCase(firstReq.getPriority()) ? "#ff6b35" :
                                    "EMERGENCY".equalsIgnoreCase(firstReq.getPriority()) ? "#dc2626" : "#10b981";
-            html.append("<div style=\"background:").append(priorityColor).append(";color:#ffffff;padding:8px 16px;border-radius:20px;display:inline-block;font-size:12px;font-weight:600;margin-bottom:20px;\">");
-            html.append(firstReq.getPriority()).append(" PRIORITY");
-            html.append("</div>");
             
-            html.append("<h2 style=\"color:#1f2937;font-size:20px;margin:0 0 20px 0;padding-bottom:10px;border-bottom:2px solid #e5e7eb;\">Requisition #").append(baseNumber).append("</h2>");
-            
-            // Items Table
-            html.append("<table style=\"width:100%;border-collapse:collapse;margin-bottom:20px;\">");
-            html.append("<thead><tr style=\"background:#f9fafb;\">");
-            html.append("<th style=\"padding:10px;text-align:left;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;\">Item</th>");
-            html.append("<th style=\"padding:10px;text-align:left;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;\">Category</th>");
-            html.append("<th style=\"padding:10px;text-align:right;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;\">Quantity</th>");
-            html.append("</tr></thead><tbody>");
-            
+            // Build items rows HTML
+            StringBuilder itemsRows = new StringBuilder();
             for (int i = 0; i < requisitions.size(); i++) {
                 InventoryRequisition req = requisitions.get(i);
                 String bgColor = i % 2 == 0 ? "#ffffff" : "#f9fafb";
-                html.append("<tr style=\"background:").append(bgColor).append(";\">");
-                html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;font-weight:600;\">").append(req.getItemName()).append("</td>");
-                html.append("<td style=\"padding:10px;color:#6b7280;font-size:14px;\">").append(req.getCategory()).append("</td>");
-                html.append("<td style=\"padding:10px;text-align:right;color:#1f2937;font-size:14px;\">").append(req.getQuantityRequested()).append(" ").append(req.getUnitOfMeasurement()).append("</td>");
-                html.append("</tr>");
+                itemsRows.append("<tr style=\"background:").append(bgColor).append(";\">");
+                itemsRows.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;font-weight:600;\">").append(req.getItemName()).append("</td>");
+                itemsRows.append("<td style=\"padding:10px;color:#6b7280;font-size:14px;\">").append(req.getCategory()).append("</td>");
+                itemsRows.append("<td style=\"padding:10px;text-align:right;color:#1f2937;font-size:14px;\">").append(req.getQuantityRequested()).append(" ").append(req.getUnitOfMeasurement()).append("</td>");
+                itemsRows.append("</tr>");
             }
             
-            html.append("</tbody></table>");
-            
-            // Additional Details
-            html.append("<table style=\"width:100%;border-collapse:collapse;margin-top:20px;\">");
-            
+            // Build details rows HTML
+            StringBuilder detailsRows = new StringBuilder();
             if (firstReq.getEstimatedCost() != null) {
-                html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;width:35%;\"><strong>Estimated Cost:</strong></td>");
-                html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">$").append(firstReq.getEstimatedCost()).append("</td></tr>");
+                detailsRows.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;width:35%;\"><strong>Estimated Cost:</strong></td>");
+                detailsRows.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">$").append(firstReq.getEstimatedCost()).append("</td></tr>");
             }
-            
             if (firstReq.getPreferredVendor() != null && !firstReq.getPreferredVendor().isBlank()) {
-                html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Preferred Vendor:</strong></td>");
-                html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(firstReq.getPreferredVendor()).append("</td></tr>");
+                detailsRows.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Preferred Vendor:</strong></td>");
+                detailsRows.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(firstReq.getPreferredVendor()).append("</td></tr>");
             }
+            detailsRows.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Requested By:</strong></td>");
+            detailsRows.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(firstReq.getRequestedByName()).append("</td></tr>");
+            detailsRows.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Request Date:</strong></td>");
+            detailsRows.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(firstReq.getRequestDate()).append("</td></tr>");
             
-            html.append("<tr><td style=\"padding:10px 0;color:#6b7280;font-size:13px;\"><strong>Requested By:</strong></td>");
-            html.append("<td style=\"padding:10px 0;color:#1f2937;font-size:14px;\">").append(firstReq.getRequestedByName()).append("</td></tr>");
+            // Prepare template context
+            Context context = new Context();
+            context.setVariable("programName", program.getName());
+            context.setVariable("priority", firstReq.getPriority());
+            context.setVariable("priorityColor", priorityColor);
+            context.setVariable("requisitionNumber", baseNumber);
+            context.setVariable("itemsRows", itemsRows.toString());
+            context.setVariable("detailsRows", detailsRows.toString());
+            context.setVariable("justification", firstReq.getJustification() != null ? firstReq.getJustification().replace("\n", "<br/>") : "");
+            context.setVariable("currentYear", java.time.Year.now().getValue());
             
-            html.append("<tr style=\"background:#f9fafb;\"><td style=\"padding:10px;color:#6b7280;font-size:13px;\"><strong>Request Date:</strong></td>");
-            html.append("<td style=\"padding:10px;color:#1f2937;font-size:14px;\">").append(firstReq.getRequestDate()).append("</td></tr>");
-            html.append("</table>");
-            
-            // Justification
-            if (firstReq.getJustification() != null && !firstReq.getJustification().isBlank()) {
-                html.append("<h3 style=\"color:#1f2937;font-size:16px;margin:25px 0 10px 0;\">Justification/Purpose:</h3>");
-                html.append("<div style=\"background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;\">");
-                html.append(firstReq.getJustification().replace("\n", "<br/>"));
-                html.append("</div>");
-            }
-            
-            // Call to Action
-            html.append("<div style=\"margin-top:30px;padding:20px;background:#eff6ff;border-left:4px solid #0046AD;border-radius:4px;\">");
-            html.append("<p style=\"margin:0;color:#1e40af;font-size:14px;\"><strong>⚠️ Action Required:</strong> Please review and approve or reject this requisition in the inventory management system.</p>");
-            html.append("</div>");
-            
-            html.append("</div>");
-            
-            // Footer
-            html.append("<div style=\"background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;\">");
-            html.append("<p style=\"margin:0;color:#6b7280;font-size:12px;\">This is an automated notification from the DYS Inventory Management System.</p>");
-            html.append("<p style=\"margin:5px 0 0 0;color:#9ca3af;font-size:11px;\">© ").append(java.time.Year.now().getValue()).append(" Massachusetts Department of Youth Services</p>");
-            html.append("</div>");
-            
-            html.append("</div>");
-            html.append("</body></html>");
+            // Render template
+            String html = templateEngine.process("requisition-notification", context);
             
             // Send to all recipients
             for (String email : recipients) {
-                mailService.sendRawHtml(email, subject, html.toString());
+                mailService.sendRawHtml(email, subject, html);
                 System.out.println("[INFO] Sent multi-item requisition notification email to: " + email);
             }
             
