@@ -34,21 +34,18 @@
                         <th style="padding:10px;text-align:right;color:#6b7280;font-size:13px;border-bottom:2px solid #e5e7eb;">Quantity</th>
                     </tr>
                 </thead>
-                <tbody>
-                    [[${itemsRows}]]
+                <tbody th:utext="${itemsRows}">
                 </tbody>
             </table>
             
             <!-- Additional Details -->
-            <table style="width:100%;border-collapse:collapse;margin-top:20px;">
-                [[${detailsRows}]]
+            <table style="width:100%;border-collapse:collapse;margin-top:20px;" th:utext="${detailsRows}">
             </table>
             
             <!-- Justification -->
             <div th:if="${justification != null and !#strings.isEmpty(justification)}">
                 <h3 style="color:#1f2937;font-size:16px;margin:25px 0 10px 0;">Justification/Purpose:</h3>
-                <div style="background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;">
-                    [[${justification}]]
+                <div style="background:#f3f4f6;padding:15px;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;" th:utext="${justification}">
                 </div>
             </div>
             
