@@ -1146,14 +1146,28 @@ export default function InventoryPage() {
                               }}
                               className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                             >
-                              <option>Units</option>
-                              <option>Boxes</option>
-                              <option>Packs</option>
-                              <option>Bottles</option>
-                              <option>Pairs</option>
-                              <option>Sets</option>
-                              <option>Kg</option>
-                              <option>Liters</option>
+                              <option value="Units">Units</option>
+                              <option value="Pieces">Pieces</option>
+                              <option value="Boxes">Boxes</option>
+                              <option value="Packs">Packs</option>
+                              <option value="Bottles">Bottles</option>
+                              <option value="Cans">Cans</option>
+                              <option value="Bags">Bags</option>
+                              <option value="Rolls">Rolls</option>
+                              <option value="Pairs">Pairs</option>
+                              <option value="Sets">Sets</option>
+                              <option value="Kits">Kits</option>
+                              <option value="Liters">Liters (L)</option>
+                              <option value="Milliliters">Milliliters (mL)</option>
+                              <option value="Gallons">Gallons</option>
+                              <option value="Kilograms">Kilograms (kg)</option>
+                              <option value="Grams">Grams (g)</option>
+                              <option value="Pounds">Pounds (lb)</option>
+                              <option value="Ounces">Ounces (oz)</option>
+                              <option value="Meters">Meters (m)</option>
+                              <option value="Feet">Feet (ft)</option>
+                              <option value="Inches">Inches (in)</option>
+                              <option value="Other">Other (Specify)</option>
                             </select>
                           </div>
                           <div className="col-span-12 sm:col-span-1 flex items-end">
