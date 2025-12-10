@@ -6,6 +6,21 @@ import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
 import * as inventoryApi from '@/app/utils/inventoryApi';
 
+// Type definitions for requisition form
+interface RequisitionItem {
+  itemName: string;
+  category: string;
+  quantityNeeded: string;
+  unitOfMeasurement: string;
+}
+
+interface RequisitionFormData {
+  priority: string;
+  estimatedCost: string;
+  preferredVendor: string;
+  justification: string;
+}
+
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'requisition' | 'requisition-archive' | 'audit'>('overview');
   const router = useRouter();
@@ -42,12 +57,12 @@ export default function InventoryPage() {
     location: ''
   });
   
-  // Requisition form state
-  const [requisitionForm, setRequisitionForm] = useState({
-    itemName: '',
-    category: '',
-    quantityNeeded: '',
-    unitOfMeasurement: 'Units',
+  // Requisition form state - updated to support multiple items
+  const [requisitionItems, setRequisitionItems] = useState<RequisitionItem[]>([
+    { itemName: '', category: '', quantityNeeded: '', unitOfMeasurement: 'Units' }
+  ]);
+  
+  const [requisitionForm, setRequisitionForm] = useState<RequisitionFormData>({
     priority: 'Standard',
     estimatedCost: '',
     preferredVendor: '',
@@ -238,6 +253,16 @@ export default function InventoryPage() {
       return;
     }
     
+    // Validate that at least one item is filled
+    const validItems = requisitionItems.filter(item => 
+      item.itemName.trim() && item.category && item.quantityNeeded
+    );
+    
+    if (validItems.length === 0) {
+      addToast('Please add at least one item with name, category, and quantity', 'error');
+      return;
+    }
+    
     setLoading(true);
     try {
       // Filter out empty CC emails
@@ -251,6 +276,7 @@ export default function InventoryPage() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
+          items: validItems,
           ...requisitionForm,
           ccEmails: validCcEmails
         })
@@ -263,11 +289,10 @@ export default function InventoryPage() {
       addToast('Requisition submitted successfully! Supervisors will be notified.', 'success');
       
       // Clear form
+      setRequisitionItems([
+        { itemName: '', category: '', quantityNeeded: '', unitOfMeasurement: 'Units' }
+      ]);
       setRequisitionForm({
-        itemName: '',
-        category: '',
-        quantityNeeded: '',
-        unitOfMeasurement: 'Units',
         priority: 'Standard',
         estimatedCost: '',
         preferredVendor: '',
@@ -989,26 +1014,39 @@ export default function InventoryPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Item Name <span className="text-error">*</span></label>
-                      <input 
-                        type="text" 
-                        placeholder="Enter item name"
-                        value={requisitionForm.itemName}
-                        onChange={(e) => setRequisitionForm({...requisitionForm, itemName: e.target.value})}
-                        required
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Category <span className="text-error">*</span></label>
-                      <select 
-                        value={requisitionForm.category}
-                        onChange={(e) => setRequisitionForm({...requisitionForm, category: e.target.value})}
-                        required
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                      >
+                  {/* Items Section */}
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-3">
+                      Items Requested <span className="text-error">*</span>
+                    </label>
+                    <div className="space-y-3">
+                      {requisitionItems.map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-3 items-end p-4 bg-bg-subtle rounded-lg border border-bd">
+                          <div className="col-span-12 sm:col-span-4">
+                            <label className="block text-xs font-medium text-font-detail mb-1">Item Name</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g., Hand Soap"
+                              value={item.itemName}
+                              onChange={(e) => {
+                                const newItems = [...requisitionItems];
+                                newItems[index].itemName = e.target.value;
+                                setRequisitionItems(newItems);
+                              }}
+                              className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                            />
+                          </div>
+                          <div className="col-span-12 sm:col-span-3">
+                            <label className="block text-xs font-medium text-font-detail mb-1">Category</label>
+                            <select 
+                              value={item.category}
+                              onChange={(e) => {
+                                const newItems = [...requisitionItems];
+                                newItems[index].category = e.target.value;
+                                setRequisitionItems(newItems);
+                              }}
+                              className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                            >
                         <option value="">Select Category</option>
                         <optgroup label="Food & Nutrition">
                           <option value="Food - Groceries">Food - Groceries</option>
@@ -1080,39 +1118,69 @@ export default function InventoryPage() {
                           <option value="Baby Equipment">Baby Equipment</option>
                         </optgroup>
                         <option value="Other">Other (Specify in Justification)</option>
-                      </select>
+                            </select>
+                          </div>
+                          <div className="col-span-6 sm:col-span-2">
+                            <label className="block text-xs font-medium text-font-detail mb-1">Quantity</label>
+                            <input 
+                              type="number" 
+                              placeholder="0"
+                              min="1"
+                              value={item.quantityNeeded}
+                              onChange={(e) => {
+                                const newItems = [...requisitionItems];
+                                newItems[index].quantityNeeded = e.target.value;
+                                setRequisitionItems(newItems);
+                              }}
+                              className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
+                            />
+                          </div>
+                          <div className="col-span-6 sm:col-span-2">
+                            <label className="block text-xs font-medium text-font-detail mb-1">Unit</label>
+                            <select 
+                              value={item.unitOfMeasurement}
+                              onChange={(e) => {
+                                const newItems = [...requisitionItems];
+                                newItems[index].unitOfMeasurement = e.target.value;
+                                setRequisitionItems(newItems);
+                              }}
+                              className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                            >
+                              <option>Units</option>
+                              <option>Boxes</option>
+                              <option>Packs</option>
+                              <option>Bottles</option>
+                              <option>Pairs</option>
+                              <option>Sets</option>
+                              <option>Kg</option>
+                              <option>Liters</option>
+                            </select>
+                          </div>
+                          <div className="col-span-12 sm:col-span-1 flex items-end">
+                            {requisitionItems.length > 1 && (
+                              <button 
+                                type="button"
+                                onClick={() => setRequisitionItems(requisitionItems.filter((_, i) => i !== index))}
+                                className="w-full bg-error-lightest text-error px-3 py-2 rounded-lg text-sm hover:bg-error-lighter"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <button 
+                        type="button"
+                        onClick={() => setRequisitionItems([...requisitionItems, { itemName: '', category: '', quantityNeeded: '', unitOfMeasurement: 'Units' }])}
+                        className="w-full bg-primary-lightest text-primary px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-lighter border border-primary/20"
+                      >
+                        <i className="fa-solid fa-plus mr-2"></i>
+                        Add Another Item
+                      </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Quantity Needed <span className="text-error">*</span></label>
-                      <input 
-                        type="number" 
-                        placeholder="0" 
-                        min="1"
-                        value={requisitionForm.quantityNeeded}
-                        onChange={(e) => setRequisitionForm({...requisitionForm, quantityNeeded: e.target.value})}
-                        required
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-font-base mb-2">Unit of Measurement</label>
-                      <select 
-                        value={requisitionForm.unitOfMeasurement}
-                        onChange={(e) => setRequisitionForm({...requisitionForm, unitOfMeasurement: e.target.value})}
-                        className="w-full border border-bd-input rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                      >
-                        <option>Units</option>
-                        <option>Boxes</option>
-                        <option>Packs</option>
-                        <option>Bottles</option>
-                        <option>Pairs</option>
-                        <option>Sets</option>
-                        <option>Kg</option>
-                        <option>Liters</option>
-                      </select>
-                    </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-font-base mb-2">Priority <span className="text-error">*</span></label>
                       <select 
@@ -1215,11 +1283,10 @@ export default function InventoryPage() {
                     <button 
                       type="button" 
                       onClick={() => {
+                        setRequisitionItems([
+                          { itemName: '', category: '', quantityNeeded: '', unitOfMeasurement: 'Units' }
+                        ]);
                         setRequisitionForm({
-                          itemName: '',
-                          category: '',
-                          quantityNeeded: '',
-                          unitOfMeasurement: 'Units',
                           priority: 'Standard',
                           estimatedCost: '',
                           preferredVendor: '',

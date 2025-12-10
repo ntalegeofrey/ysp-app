@@ -5,10 +5,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class InventoryRequisitionRequest {
-    private String itemName;
-    private String category;
-    private Integer quantityRequested;
-    private String unitOfMeasurement;
+    // Support for multiple items
+    private List<RequisitionItem> items;
+    
     private String priority;
     private String justification;
     private String additionalNotes;
@@ -17,37 +16,33 @@ public class InventoryRequisitionRequest {
     private LocalDate requestDate;
     private List<String> ccEmails;
     
+    // Inner class for individual items
+    public static class RequisitionItem {
+        private String itemName;
+        private String category;
+        private String quantityNeeded;
+        private String unitOfMeasurement;
+        
+        public String getItemName() { return itemName; }
+        public void setItemName(String itemName) { this.itemName = itemName; }
+        
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+        
+        public String getQuantityNeeded() { return quantityNeeded; }
+        public void setQuantityNeeded(String quantityNeeded) { this.quantityNeeded = quantityNeeded; }
+        
+        public String getUnitOfMeasurement() { return unitOfMeasurement; }
+        public void setUnitOfMeasurement(String unitOfMeasurement) { this.unitOfMeasurement = unitOfMeasurement; }
+    }
+    
     // Getters and Setters
-    public String getItemName() {
-        return itemName;
+    public List<RequisitionItem> getItems() {
+        return items;
     }
     
-    public void setItemName(String itemName) {
-        this.itemName = itemName;
-    }
-    
-    public String getCategory() {
-        return category;
-    }
-    
-    public void setCategory(String category) {
-        this.category = category;
-    }
-    
-    public Integer getQuantityRequested() {
-        return quantityRequested;
-    }
-    
-    public void setQuantityRequested(Integer quantityRequested) {
-        this.quantityRequested = quantityRequested;
-    }
-    
-    public String getUnitOfMeasurement() {
-        return unitOfMeasurement;
-    }
-    
-    public void setUnitOfMeasurement(String unitOfMeasurement) {
-        this.unitOfMeasurement = unitOfMeasurement;
+    public void setItems(List<RequisitionItem> items) {
+        this.items = items;
     }
     
     public String getPriority() {
