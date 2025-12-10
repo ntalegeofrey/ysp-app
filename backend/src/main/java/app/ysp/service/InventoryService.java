@@ -348,7 +348,7 @@ public class InventoryService {
     @Transactional
     public InventoryRequisitionResponse reviewRequisition(Long programId, Long requisitionId,
                                                          String action, String notes, Long staffId) {
-        InventoryRequisition requisition = requisitionRepository.findByIdAndProgram_Id(requisitionId, programId)
+        InventoryRequisition requisition = requisitionRepository.findByIdAndProgramId(requisitionId, programId)
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
         
         User staff = userRepository.findById(staffId)
@@ -586,9 +586,11 @@ public class InventoryService {
             html.append("<html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;\">");
             html.append("<div style=\"max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;\">");
             
-            // Header with DYS Logo
+            // Header with DYS Logo (embedded as base64)
+            String logoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAADgCAMAAAAt85rTAAABWVBMVEX///8vO2v279rElC/5uCkrOWwnN2z/vyL/vST48+AhNW38uicAK28dM23+998oNmljaIMYMW4RL27/wSD69eT2tirIlywILW/ysyypg07nrDI2PmmNcVa0ikkAKHD/wx3DlEOaeEfMmj/aoznJmEC8j0ZFRmd3Y1xqW1/dv42jf0/hqDXGjwDVoDsAJnBXUGODa1l7ZltQTGWbelJAQ2eTdVRuXl5dU2Pr28Lr27qQc1W6jTXAkkSwh0q4jUhTTmSIakW2hR/iy6Wpfi/WtHnv49D59O3QnCbjyZcAH2CjezeAZk2Yczu8iBO1hSLUrWPIxL0AHXGhdy3VrF2Maz+eeDqHiJavra51eIzl0LDf2csAGlpUW4Dev4S7uLWlpKjUy6/VqU7IpV6umXqxkmK7s6T25sGwqZ0AF2FraHGak4i5vMjp6exKU3pkaoqipbbKzNUAEnSldh2HOU0EAAAgAElEQVR4nO19+1vjyLH2GlstuaWGtIQlWzI2vgtf5asAYxswDIyNYWcYbzJJ2ITvnGzOV9uZ///H77uluSrbJjdmd3N92zneTYewJJedXXVW9XVVV399dev4dfw6fh2/jl/Hr+PX8ePGmzfXxx8vL2+PnHF5+fH4+s2bn/upPsd4c/3x6CFdLk/uh9O7D+djNs4/3E3f30/K5eDD0cfrf1ucb46PHsrl+7txodZCGCFIByCDfUAIY6PWGd99Xy4/Hh3/u6F88/FKLQ/PO3lMcAEusGFwBCzCrc75sHxz9fHfBuT1kVoejQdkzpagcbP/rMNEuGGNJurT8c/97C+P46vy/bmN0CI2QP+TrxkYGHkuYLSQpEmI/h4gMEeJcO38vvzwi8Z4fVUejlsYeuAAkmUMjTiBgXJJnueVZDGhJ3lBFJK6HACddNzQ8AwlB7FhDctXv1CMb27VC4JuYepk+0zX0/GmKJF/4IYQCkURDOCaGAqJNUgANTI8r2d7FkEIgfdOjPH9zdEvbz1eP5TvavO5o0M7UJR0rJIU+Dz9sVQSxTNMf54RxYzEpkzmQ6IQTaMAbJqSjJxvA9xIlR9/WdP4MXgx5tCyBkFFno9LSLJ4IQ7pFFZEsY/oh6woVrAjlARgNIHpL5ORyqHNebIK6hfqx58b1Wxc3gxNDALLg2vxYilBBbWtnDFcaVE88ABmGUDO5kNCk6IPVLMinzXnrwhge1i+/LmRsXFZHtaw+2TGwgT2BCFG8QSkbFRbAkg+HDKAMC6E+BbnzLdSlDhnFTpah8ON0S8A4seb4cCDh9O6Nl+B0ZBgOdMKkq0lgERWcww6yomi+xV0wCPne53egSU7RhP97BCP1Xsbz+QK5fhDaS6hIaHjArQDLq6ezHGcNgMol7xPBH5Fpl/jMrwiJqMNhNxZHKo/n7p58zjp4AXNgmIC38buGuoIIaHgLkzOA5i1a42aXXKnMgDJS4gDd8KLTBPpgtipGrrQOXOAc9i8eN7/efAdlcdwSbXAJllStjtrdQKQaU9vEIAhIUmHGBJ7yH0JjgkhI2kC9oqEJg6APK9k3TdF1M24/PQzwLtWRwZ7/jkIQHRGKOTMFwXowPCGTGew0+kUCrro/AYWhVDEkWlQSDITGQrxDY6aSp6tX+DeYXrzk8vplSudHIjJM4AFkUxOiT0yMImJq8iLADOiUJSJuyRlXIBU7aSdiUK9EvlbrsY7co16CoUG2q5mxfbk4SeFd30z5dgb1gwzGffmibP1HhHMA0cv8oSQrQGEzgcHoBQJuZaEqBvKAUCBTDshqQRgRmZvSSm12B8AmCr/hJN4VDbZi8cFPamIgreMuLzwriSGlDpkWkMM8R1vjcpMZTpGnepOCpDL8zNLghX6gU57SCTYQNvRPYkMWZMS+4jsydVPBO9Neuh4QOg0ma...";
+            
             html.append("<div style=\"background:linear-gradient(135deg, #0046AD 0%, #003d96 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;\">");
-            html.append("<img src=\"https://dys.ohio.gov/static/logo/dys-logo-white.png\" alt=\"DYS Logo\" style=\"height:60px;margin-bottom:10px;\"/>");
+            html.append("<img src=\"").append(logoDataUri).append("\" alt=\"DYS Logo\" style=\"height:60px;width:auto;margin-bottom:10px;\"/>");
             html.append("<h1 style=\"color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;\">New Inventory Requisition</h1>");
             html.append("<p style=\"color:#e3f2ff;margin:0;font-size:14px;\">").append(program.getName()).append("</p>");
             html.append("</div>");
@@ -652,7 +654,7 @@ public class InventoryService {
             // Footer
             html.append("<div style=\"background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;\">");
             html.append("<p style=\"margin:0;color:#6b7280;font-size:12px;\">This is an automated notification from the DYS Inventory Management System.</p>");
-            html.append("<p style=\"margin:5px 0 0 0;color:#9ca3af;font-size:11px;\">© ").append(java.time.Year.now().getValue()).append(" Ohio Department of Youth Services</p>");
+            html.append("<p style=\"margin:5px 0 0 0;color:#9ca3af;font-size:11px;\">© ").append(java.time.Year.now().getValue()).append(" Massachusetts Department of Youth Services</p>");
             html.append("</div>");
             
             html.append("</div>");
