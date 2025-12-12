@@ -98,6 +98,43 @@ export default function InventoryPage() {
     criticalItems: []
   });
   
+  // Log filters
+  const [logActionFilter, setLogActionFilter] = useState('ALL');
+  const [logCategoryFilter, setLogCategoryFilter] = useState('ALL');
+  const [logSearchTerm, setLogSearchTerm] = useState('');
+  
+  // Extract unique categories from inventory items
+  const uniqueCategories = Array.from(new Set(
+    inventoryItems.map((item: any) => item.category).filter(Boolean)
+  )).sort();
+  
+  // Filtered transactions
+  const filteredTransactions = transactions.filter((transaction: any) => {
+    // Filter by action type
+    if (logActionFilter !== 'ALL') {
+      if (logActionFilter === 'ADDITION' && transaction.transactionType !== 'ADDITION') return false;
+      if (logActionFilter === 'CHECKOUT' && transaction.transactionType !== 'CHECKOUT') return false;
+    }
+    
+    // Filter by category
+    if (logCategoryFilter !== 'ALL' && transaction.category !== logCategoryFilter) {
+      return false;
+    }
+    
+    // Filter by search term
+    if (logSearchTerm) {
+      const searchLower = logSearchTerm.toLowerCase();
+      return (
+        transaction.itemName?.toLowerCase().includes(searchLower) ||
+        transaction.staffName?.toLowerCase().includes(searchLower) ||
+        transaction.purpose?.toLowerCase().includes(searchLower) ||
+        transaction.notes?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return true;
+  });
+  
   // Load current user
   useEffect(() => {
     try {
@@ -228,12 +265,12 @@ export default function InventoryPage() {
         notes: ''
       });
       
-      // Refresh data if on overview tab
+      // Refresh data
+      fetchInventoryItems();
+      fetchTransactions(); // Always refresh transactions
       if (activeTab === 'overview') {
-        fetchTransactions();
         fetchStats();
       }
-      fetchInventoryItems();
     } catch (error: any) {
       console.error('Error adding item:', error);
       addToast('Failed to send. Please try again.', 'error');
@@ -278,8 +315,9 @@ export default function InventoryPage() {
         [item.id]: { quantity: 1 }
       }));
       
-      // Refresh items and stats
+      // Refresh items, transactions, and stats
       fetchInventoryItems();
+      fetchTransactions();
       fetchStats();
       
     } catch (error: any) {
@@ -809,20 +847,32 @@ export default function InventoryPage() {
                       Inventory Log
                     </h3>
                     <div className="flex items-center space-x-4">
-                      <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                        <option>All Actions</option>
-                        <option>Items Added</option>
-                        <option>Items Checked Out</option>
+                      <select 
+                        value={logActionFilter}
+                        onChange={(e) => setLogActionFilter(e.target.value)}
+                        className="border border-bd rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="ALL">All Actions</option>
+                        <option value="ADDITION">Items Added</option>
+                        <option value="CHECKOUT">Items Checked Out</option>
                       </select>
-                      <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                        <option>All Categories</option>
-                        <option>Food</option>
-                        <option>Clothing</option>
-                        <option>Toiletries</option>
-                        <option>Medical</option>
-                        <option>Stationery</option>
+                      <select 
+                        value={logCategoryFilter}
+                        onChange={(e) => setLogCategoryFilter(e.target.value)}
+                        className="border border-bd rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="ALL">All Categories</option>
+                        {uniqueCategories.map((cat: string) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
                       </select>
-                      <input type="text" placeholder="Search log..." className="border border-bd rounded-lg px-3 py-2 text-sm w-48" />
+                      <input 
+                        type="text" 
+                        placeholder="Search log..." 
+                        value={logSearchTerm}
+                        onChange={(e) => setLogSearchTerm(e.target.value)}
+                        className="border border-bd rounded-lg px-3 py-2 text-sm w-48" 
+                      />
                     </div>
                   </div>
                 </div>
@@ -840,28 +890,32 @@ export default function InventoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.length === 0 ? (
+                      {filteredTransactions.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="p-12">
                             <div className="text-center">
                               <i className="fa-solid fa-inbox text-5xl text-font-detail mb-4 block"></i>
-                              <p className="text-font-detail text-sm">No transactions yet.</p>
-                              <p className="text-font-detail text-xs mt-1">Add items or checkout to see activity here.</p>
+                              <p className="text-font-detail text-sm">
+                                {transactions.length === 0 ? 'No transactions yet.' : 'No transactions match your filters.'}
+                              </p>
+                              <p className="text-font-detail text-xs mt-1">
+                                {transactions.length === 0 ? 'Add items or checkout to see activity here.' : 'Try adjusting your filters.'}
+                              </p>
                             </div>
                           </td>
                         </tr>
                       ) : (
-                        transactions.map((transaction: any) => (
+                        filteredTransactions.map((transaction: any) => (
                           <tr key={transaction.id} className="border-b border-bd hover:bg-bg-subtle">
                             <td className="p-3 text-sm text-font-detail">{formatDate(transaction.transactionDate)}</td>
                             <td className="p-3">
-                              <span className={`${transaction.transactionType === 'ADDITION' ? 'bg-success' : 'bg-error'} text-white px-2 py-1 rounded text-xs`}>
+                              <span className={`${transaction.transactionType === 'ADDITION' ? 'bg-green-600' : 'bg-red-600'} text-white px-2 py-1 rounded text-xs`}>
                                 {transaction.transactionType === 'ADDITION' ? 'Added' : 'Checkout'}
                               </span>
                             </td>
                             <td className="p-3 text-sm font-medium">{transaction.itemName}</td>
                             <td className="p-3 text-sm text-font-detail">{transaction.category}</td>
-                            <td className={`p-3 text-sm font-medium ${transaction.quantity > 0 ? 'text-success' : 'text-error'}`}>
+                            <td className={`p-3 text-sm font-medium ${transaction.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
                               {transaction.quantity > 0 ? '+' : ''}{transaction.quantity}
                             </td>
                             <td className="p-3 text-sm text-font-detail">{transaction.staffName}</td>
@@ -873,7 +927,21 @@ export default function InventoryPage() {
                   </table>
                 </div>
                 <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-                  <p className="text-sm text-font-detail">Showing {transactions.length} recent transactions</p>
+                  <p className="text-sm text-font-detail">
+                    Showing {filteredTransactions.length} of {transactions.length} transactions
+                    {(logActionFilter !== 'ALL' || logCategoryFilter !== 'ALL' || logSearchTerm) && (
+                      <button 
+                        onClick={() => {
+                          setLogActionFilter('ALL');
+                          setLogCategoryFilter('ALL');
+                          setLogSearchTerm('');
+                        }}
+                        className="ml-3 text-primary underline text-xs"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </p>
                   <button onClick={fetchTransactions} className="bg-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary-light">
                     <i className="fa-solid fa-refresh mr-2"></i>
                     Refresh
@@ -1160,11 +1228,11 @@ export default function InventoryPage() {
           {activeTab === 'checkout' && (() => {
             // Extract unique categories and locations from inventory items
             const uniqueCategories = Array.from(new Set(
-              inventoryItems.map(item => item.category).filter(Boolean)
+              inventoryItems.map((item: any) => item.category).filter(Boolean)
             )).sort();
             
             const uniqueLocations = Array.from(new Set(
-              inventoryItems.map(item => item.location).filter(Boolean)
+              inventoryItems.map((item: any) => item.location).filter(Boolean)
             )).sort();
             
             return (
@@ -1187,7 +1255,7 @@ export default function InventoryPage() {
                     className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
                   >
                     <option value="">All Categories</option>
-                    {uniqueCategories.map(category => (
+                    {uniqueCategories.map((category: string) => (
                       <option key={category} value={category}>{category}</option>
                     ))}
                   </select>
@@ -1197,7 +1265,7 @@ export default function InventoryPage() {
                     className="border border-bd-input rounded-lg px-3 py-2.5 text-sm focus:border-primary"
                   >
                     <option value="">All Locations</option>
-                    {uniqueLocations.map(location => (
+                    {uniqueLocations.map((location: string) => (
                       <option key={location} value={location}>{location}</option>
                     ))}
                   </select>
