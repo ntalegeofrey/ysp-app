@@ -935,18 +935,30 @@ public class InventoryService {
      * Get all audits for a program
      */
     public List<Map<String, Object>> getAudits(Long programId) {
-        List<InventoryAudit> audits = auditRepository.findByProgramIdOrderByAuditDateDesc(programId);
-        
-        return audits.stream().map(audit -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", audit.getId());
-            map.put("date", audit.getAuditDate().toString());
-            map.put("staff", audit.getAuditorName());
-            map.put("totalItems", audit.getTotalItemsAudited());
-            map.put("discrepancies", audit.getDiscrepanciesFound());
-            map.put("savedAt", audit.getCreatedAt().toString());
-            return map;
-        }).collect(Collectors.toList());
+        try {
+            List<InventoryAudit> audits = auditRepository.findByProgramIdOrderByAuditDateDesc(programId);
+            
+            return audits.stream().map(audit -> {
+                try {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", audit.getId());
+                    map.put("date", audit.getAuditDate() != null ? audit.getAuditDate().toString() : "");
+                    map.put("staff", audit.getAuditorName() != null ? audit.getAuditorName() : "");
+                    map.put("totalItems", audit.getTotalItemsAudited() != null ? audit.getTotalItemsAudited() : 0);
+                    map.put("discrepancies", audit.getDiscrepanciesFound() != null ? audit.getDiscrepanciesFound() : 0);
+                    map.put("savedAt", audit.getCreatedAt() != null ? audit.getCreatedAt().toString() : "");
+                    return map;
+                } catch (Exception e) {
+                    System.err.println("[ERROR] Failed to map audit " + audit.getId() + ": " + e.getMessage());
+                    e.printStackTrace();
+                    throw new RuntimeException("Failed to map audit: " + e.getMessage(), e);
+                }
+            }).collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("[ERROR] Failed to fetch audits for program " + programId + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to fetch audits: " + e.getMessage(), e);
+        }
     }
     
     /**
