@@ -89,7 +89,7 @@ export default function StaffManagementPage() {
                   <div className="flex items-center space-x-3 flex-wrap">
                     <div className="flex items-center space-x-2">
                       <button
-                        className="p-2 text-font-detail hover:text-primary border border-bd rounded-lg"
+                        className="p-2 text-font-detail hover:text-primary rounded-lg"
                         onClick={goPrevWeek}
                         aria-label="Previous week"
                       >
@@ -99,7 +99,7 @@ export default function StaffManagementPage() {
                         {formatLabel(weekStart, weekEnd)}
                       </div>
                       <button
-                        className="p-2 text-font-detail hover:text-primary border border-bd rounded-lg"
+                        className="p-2 text-font-detail hover:text-primary rounded-lg"
                         onClick={goNextWeek}
                         aria-label="Next week"
                       >
@@ -114,8 +114,8 @@ export default function StaffManagementPage() {
                       Create New Schedule
                     </button>
                     <button className="bg-success text-white px-4 py-2 rounded-lg hover:bg-primary-alt text-sm">
-                      <i className="fa-solid fa-download mr-2"></i>
-                      Export Schedule
+                      <i className="fa-solid fa-print mr-2"></i>
+                      Print Schedule
                     </button>
                   </div>
                 </div>
@@ -132,7 +132,7 @@ export default function StaffManagementPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-warning-lightest p-4 rounded-lg">
+                  <div className="p-4 rounded-lg" style={{backgroundColor: '#FEF3C7'}}>
                     <div className="flex items-center">
                       <i className="fa-solid fa-clock text-warning text-xl mr-3"></i>
                       <div>
