@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Residential Census Submitted</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;">
+    <div style="max-width:650px;margin:20px auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px;">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #0046AD 0%, #3b82f6 100%);padding:30px;text-align:center;border-radius:8px 8px 0 0;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmhQFtMkVqvEE5tqK1_lEg9I6A2xwc80ZCuQ&s" alt="DYS Logo" style="height:60px;width:60px;border-radius:50%;margin-bottom:10px;"/>
+            <h1 style="color:#ffffff;margin:10px 0 5px 0;font-size:24px;font-weight:600;">Residential Census Submitted</h1>
+            <p style="color:#dbeafe;margin:0;font-size:14px;">[[${programName}]]</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding:30px;">
+            
+            <h2 style="color:#1f2937;font-size:20px;margin:0 0 20px 0;padding-bottom:10px;border-bottom:2px solid #e5e7eb;">Census Summary</h2>
+            
+            <!-- Census Details Table -->
+            <table style="width:100%;border-collapse:collapse;margin-bottom:25px;">
+                <tr>
+                    <td style="padding:12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:600;width:35%;">Census Date</td>
+                    <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#1f2937;font-size:14px;">[[${censusDate}]]</td>
+                </tr>
+                <tr>
+                    <td style="padding:12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:600;">Shift</td>
+                    <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#1f2937;font-size:14px;">[[${shift}]]</td>
+                </tr>
+                <tr>
+                    <td style="padding:12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:600;">Conducted By</td>
+                    <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#1f2937;font-size:14px;">[[${conductorName}]]</td>
+                </tr>
+                <tr>
+                    <td style="padding:12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:600;">Total Residents</td>
+                    <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#1f2937;font-size:14px;font-weight:600;">[[${totalResidents}]]</td>
+                </tr>
+            </table>
+            
+            <!-- Status Breakdown -->
+            <h3 style="color:#1f2937;font-size:16px;margin:25px 0 15px 0;">Resident Status Breakdown</h3>
+            
+            <div style="display:flex;gap:15px;margin-bottom:25px;">
+                <div style="flex:1;padding:15px;background:#ecfdf5;border-left:4px solid #059669;border-radius:4px;">
+                    <p style="margin:0 0 5px 0;color:#059669;font-size:12px;font-weight:600;">DYS RESIDENTS</p>
+                    <p style="margin:0;color:#1f2937;font-size:24px;font-weight:700;">[[${dysCount}]]</p>
+                </div>
+                
+                <div style="flex:1;padding:15px;background:#fef3c7;border-left:4px solid #f59e0b;border-radius:4px;">
+                    <p style="margin:0 0 5px 0;color:#f59e0b;font-size:12px;font-weight:600;">NON-DYS RESIDENTS</p>
+                    <p style="margin:0;color:#1f2937;font-size:24px;font-weight:700;">[[${nonDysCount}]]</p>
+                </div>
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="margin-top:30px;padding:20px;background:#eff6ff;border-left:4px solid:#0046AD;border-radius:4px;">
+                <p style="margin:0 0 10px 0;color:#1e40af;font-size:14px;"><strong>📋 Next Steps:</strong></p>
+                <p style="margin:0 0 8px 0;color:#374151;font-size:14px;">Please <strong>log into the Youth Supervision Platform</strong> to review the complete census report.</p>
+                <p style="margin:0;color:#374151;font-size:14px;">Navigate to <strong>Dashboard → Residential Census → Historical Census</strong> to view the detailed census records.</p>
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div style="background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#6b7280;font-size:12px;">This is an automated notification from the DYS Residential Census System.</p>
+            <p style="margin:5px 0 0 0;color:#9ca3af;font-size:11px;">© 2024 Massachusetts Department of Youth Services</p>
+        </div>
+        
+    </div>
+</body>
+</html>

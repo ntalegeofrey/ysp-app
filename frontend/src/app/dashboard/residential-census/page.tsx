@@ -196,11 +196,11 @@ export default function ResidentialCensusPage() {
   
   const getShiftBadge = (shift: string) => {
     const colors = {
-      MORNING: 'bg-warning-light text-warning',
-      AFTERNOON: 'bg-info-light text-info',
-      EVENING: 'bg-primary-lightest text-primary'
+      MORNING: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+      AFTERNOON: 'bg-blue-100 text-blue-800 border border-blue-300',
+      EVENING: 'bg-purple-100 text-purple-800 border border-purple-300'
     };
-    return colors[shift as keyof typeof colors] || 'bg-bg-subtle text-font-detail';
+    return colors[shift as keyof typeof colors] || 'bg-gray-100 text-gray-800 border border-gray-300';
   };
 
   return (
@@ -292,20 +292,20 @@ export default function ResidentialCensusPage() {
                 />
               </div>
               
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-3">
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-4 py-2 rounded-lg font-medium bg-success text-white hover:bg-opacity-90"
+                  className="px-6 py-2.5 rounded-lg font-medium bg-success text-white hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <i className="fa-solid fa-save mr-2"></i>
-                  Save to Archive
+                  <i className="fa-solid fa-save"></i>
+                  <span>Save to Archive</span>
                 </button>
                 <button
                   onClick={handleSendEmail}
-                  className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-opacity-90"
+                  className="px-6 py-2.5 rounded-lg font-medium bg-primary text-white hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <i className="fa-solid fa-paper-plane mr-2"></i>
-                  Save & Send Email
+                  <i className="fa-solid fa-paper-plane"></i>
+                  <span>Save & Send Email</span>
                 </button>
               </div>
             </div>
@@ -417,8 +417,8 @@ export default function ResidentialCensusPage() {
                         {new Date(census.date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getShiftBadge(census.shift)}`}>
-                          {census.shift}
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getShiftBadge(census.shift)}`}>
+                          {census.shift.charAt(0) + census.shift.slice(1).toLowerCase()}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-font-base">{census.conductedBy}</td>
@@ -449,56 +449,81 @@ export default function ResidentialCensusPage() {
       
       {/* Census Details Modal */}
       {showModal && selectedCensus && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-bd flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-bd flex items-center justify-between bg-gradient-to-r from-primary to-primary-light">
               <div>
-                <h2 className="text-2xl font-bold text-font-heading">Census Details</h2>
-                <p className="text-sm text-font-detail mt-1">
-                  {new Date(selectedCensus.date).toLocaleDateString()} - {selectedCensus.shift}
+                <h2 className="text-2xl font-bold text-white">Census Details</h2>
+                <p className="text-sm text-white opacity-90 mt-1">
+                  {new Date(selectedCensus.date).toLocaleDateString()} - {selectedCensus.shift.charAt(0) + selectedCensus.shift.slice(1).toLowerCase()}
                 </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-font-detail hover:text-font-base"
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
               >
-                <i className="fa-solid fa-times text-2xl"></i>
+                <i className="fa-solid fa-times text-xl"></i>
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-primary-lightest rounded-lg">
-                  <p className="text-sm text-primary font-medium">Conducted By</p>
-                  <p className="text-lg font-bold text-font-heading mt-1">{selectedCensus.conductedBy}</p>
+                <div className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <i className="fa-solid fa-user-tie text-blue-600 text-lg"></i>
+                    <p className="text-xs text-blue-700 font-semibold uppercase tracking-wide">Conducted By</p>
+                  </div>
+                  <p className="text-lg font-bold text-gray-900">{selectedCensus.conductedBy}</p>
                 </div>
-                <div className="p-4 bg-success-light rounded-lg">
-                  <p className="text-sm text-success font-medium">DYS Residents</p>
-                  <p className="text-lg font-bold text-font-heading mt-1">{selectedCensus.dysCount}</p>
+                <div className="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <i className="fa-solid fa-check-circle text-green-600 text-lg"></i>
+                    <p className="text-xs text-green-700 font-semibold uppercase tracking-wide">DYS Residents</p>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900">{selectedCensus.dysCount}</p>
                 </div>
-                <div className="p-4 bg-warning-light rounded-lg">
-                  <p className="text-sm text-warning font-medium">Non-DYS Residents</p>
-                  <p className="text-lg font-bold text-font-heading mt-1">{selectedCensus.nonDysCount}</p>
+                <div className="p-5 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <i className="fa-solid fa-info-circle text-orange-600 text-lg"></i>
+                    <p className="text-xs text-orange-700 font-semibold uppercase tracking-wide">Non-DYS Residents</p>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900">{selectedCensus.nonDysCount}</p>
                 </div>
               </div>
               
               {/* Entries */}
-              <h3 className="text-lg font-semibold text-font-heading mb-4">Resident Details</h3>
-              <div className="space-y-3">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-font-heading flex items-center gap-2">
+                  <i className="fa-solid fa-list text-primary"></i>
+                  Resident Details
+                </h3>
+                <p className="text-sm text-font-detail mt-1">Total: {selectedCensus.entries.length} residents</p>
+              </div>
+              <div className="space-y-2">
                 {selectedCensus.entries.map((entry, index) => (
-                  <div key={index} className="p-4 border border-bd rounded-lg">
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-font-heading">{entry.residentName}</p>
-                        {entry.comments && (
-                          <p className="text-sm text-font-detail mt-1">{entry.comments}</p>
-                        )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                            <i className="fa-solid fa-user text-gray-600 text-sm"></i>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">{entry.residentName}</p>
+                            {entry.comments && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                <i className="fa-solid fa-comment text-gray-400 mr-1"></i>
+                                {entry.comments}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 ${
                         entry.status === 'DYS'
-                          ? 'bg-success-light text-success'
-                          : 'bg-warning-light text-warning'
+                          ? 'bg-green-50 text-green-700 border-green-300'
+                          : 'bg-orange-50 text-orange-700 border-orange-300'
                       }`}>
                         {entry.status === 'DYS' ? 'DYS' : 'Non-DYS'}
                       </span>
@@ -508,11 +533,12 @@ export default function ResidentialCensusPage() {
               </div>
             </div>
             
-            <div className="p-6 border-t border-bd flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-6 py-2 bg-bg-subtle text-font-base rounded-lg hover:bg-opacity-80 font-medium"
+                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-all shadow-sm"
               >
+                <i className="fa-solid fa-times mr-2"></i>
                 Close
               </button>
             </div>
