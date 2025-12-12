@@ -617,8 +617,12 @@ public class InventoryService {
         response.setAdditionalNotes(requisition.getAdditionalNotes());
         response.setEstimatedCost(requisition.getEstimatedCost());
         response.setPreferredVendor(requisition.getPreferredVendor());
-        response.setRequestedBy(requisition.getRequestedBy().getId());
-        response.setRequestedByName(requisition.getRequestedByName());
+        
+        if (requisition.getRequestedBy() != null) {
+            response.setRequestedBy(requisition.getRequestedBy().getId());
+            response.setRequestedByName(requisition.getRequestedByName());
+        }
+        
         response.setRequestDate(requisition.getRequestDate());
         response.setStatus(requisition.getStatus());
         
