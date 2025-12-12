@@ -457,13 +457,25 @@ export default function InventoryPage() {
     }
     
     try {
+      console.log('Fetching items for audit...');
       const response = await fetch(`/api/programs/${programId}/inventory/items?page=0&size=10000`, {
         credentials: 'include'
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        const items = data.items || data.content || [];
+        console.log('Fetched data:', data);
+        // Backend returns array directly, not wrapped
+        const items = Array.isArray(data) ? data : (data.items || data.content || []);
+        console.log('Items count:', items.length);
+        
+        if (items.length === 0) {
+          addToast('No inventory items found', 'warning');
+          return;
+        }
+        
         // Initialize with physical count same as system count
         const auditItems = items.map((item: any) => ({
           ...item,
@@ -472,6 +484,11 @@ export default function InventoryPage() {
         }));
         setAuditItems(auditItems);
         setAuditInProgress(true);
+        addToast(`Loaded ${items.length} items for audit`, 'success');
+      } else {
+        const error = await response.text();
+        console.error('API error:', error);
+        addToast('Failed to load items: ' + response.status, 'error');
       }
     } catch (error) {
       console.error('Error loading items:', error);
