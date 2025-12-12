@@ -1007,22 +1007,34 @@ public class InventoryService {
         audit.setAuditorName(staff.getFirstName() + " " + staff.getLastName());
         audit.setTotalItemsAudited(items.size());
         
+        // Calculate discrepancies first
         int discrepancies = 0;
+        for (Map<String, Object> itemData : items) {
+            Integer physicalCount = Integer.valueOf(itemData.get("physicalCount").toString());
+            Integer systemCount = Integer.valueOf(itemData.get("currentQuantity").toString());
+            
+            if (!physicalCount.equals(systemCount)) {
+                discrepancies++;
+            }
+        }
+        
+        audit.setDiscrepanciesFound(discrepancies);
+        
+        // Save audit first to get the ID
+        InventoryAudit savedAudit = auditRepository.save(audit);
+        
+        // Now save audit items with reference to saved audit
         for (Map<String, Object> itemData : items) {
             Long itemId = Long.valueOf(itemData.get("id").toString());
             Integer physicalCount = Integer.valueOf(itemData.get("physicalCount").toString());
             Integer systemCount = Integer.valueOf(itemData.get("currentQuantity").toString());
             String notes = itemData.get("notes") != null ? itemData.get("notes").toString() : "";
             
-            if (!physicalCount.equals(systemCount)) {
-                discrepancies++;
-            }
-            
             InventoryItem inventoryItem = itemRepository.findById(itemId)
                     .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
             
             InventoryAuditItem auditItem = new InventoryAuditItem();
-            auditItem.setAudit(audit);
+            auditItem.setAudit(savedAudit);
             auditItem.setInventoryItem(inventoryItem);
             auditItem.setExpectedQuantity(systemCount);
             auditItem.setActualQuantity(physicalCount);
@@ -1031,9 +1043,6 @@ public class InventoryService {
             
             auditItemRepository.save(auditItem);
         }
-        
-        audit.setDiscrepanciesFound(discrepancies);
-        InventoryAudit savedAudit = auditRepository.save(audit);
         
         Map<String, Object> result = new HashMap<>();
         result.put("id", savedAudit.getId());
