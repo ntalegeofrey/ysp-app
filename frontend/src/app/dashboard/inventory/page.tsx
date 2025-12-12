@@ -92,7 +92,7 @@ export default function InventoryPage() {
         const fullName = `${firstName} ${lastName}`.trim();
         const staffName = user.fullName || fullName || user.name || user.email || 'Unknown User';
         setCurrentStaff(staffName);
-        setCurrentUserRole(user.role || '');
+        setCurrentUserRole((user.role || '').toUpperCase());
       }
     } catch (err) {
       console.error('Failed to parse user:', err);
@@ -376,7 +376,7 @@ export default function InventoryPage() {
     if (!programId) return;
     
     // Check if user has admin permissions
-    const isAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATOR';
+    const isAdmin = currentUserRole.toUpperCase() === 'ADMIN' || currentUserRole.toUpperCase() === 'ADMINISTRATOR';
     if (!isAdmin) {
       addToast('Only administrators can update requisition status', 'error');
       return;
@@ -1495,7 +1495,7 @@ export default function InventoryPage() {
                       </tr>
                     ) : (
                       requisitions.map((req) => {
-                        const isAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATOR';
+                        const isAdmin = currentUserRole.toUpperCase() === 'ADMIN' || currentUserRole.toUpperCase() === 'ADMINISTRATOR';
                         const statusColors: Record<string, string> = {
                           PENDING: 'bg-warning text-white',
                           UNDER_REVIEW: 'bg-info text-white',
