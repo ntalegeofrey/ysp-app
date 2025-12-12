@@ -17,8 +17,14 @@ public class InventoryAudit {
     @JoinColumn(name = "program_id", nullable = false)
     private Program program;
     
+    @Column(name = "audit_type", nullable = false, length = 50)
+    private String auditType = "PHYSICAL_COUNT";
+    
     @Column(name = "audit_date", nullable = false)
     private LocalDate auditDate;
+    
+    @Column(name = "audit_status", length = 50)
+    private String auditStatus = "IN_PROGRESS";
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conducted_by", nullable = false)
@@ -33,8 +39,14 @@ public class InventoryAudit {
     @Column(name = "discrepancies_found")
     private Integer discrepanciesFound = 0;
     
+    @Column(name = "notes")
+    private String notes;
+    
     @Column(name = "created_at")
     private Instant createdAt;
+    
+    @Column(name = "completed_at")
+    private Instant completedAt;
     
     @PrePersist
     protected void onCreate() {
@@ -104,5 +116,37 @@ public class InventoryAudit {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public String getAuditType() {
+        return auditType;
+    }
+    
+    public void setAuditType(String auditType) {
+        this.auditType = auditType;
+    }
+    
+    public String getAuditStatus() {
+        return auditStatus;
+    }
+    
+    public void setAuditStatus(String auditStatus) {
+        this.auditStatus = auditStatus;
+    }
+    
+    public String getNotes() {
+        return notes;
+    }
+    
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+    
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+    
+    public void setCompletedAt(Instant completedAt) {
+        this.completedAt = completedAt;
     }
 }
