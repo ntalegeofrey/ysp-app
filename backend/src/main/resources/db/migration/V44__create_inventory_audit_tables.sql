@@ -1,5 +1,5 @@
--- Create inventory_audits table
-CREATE TABLE inventory_audits (
+-- Create inventory_audits table (if not exists)
+CREATE TABLE IF NOT EXISTS inventory_audits (
     id BIGSERIAL PRIMARY KEY,
     program_id BIGINT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     audit_date DATE NOT NULL,
@@ -11,8 +11,8 @@ CREATE TABLE inventory_audits (
     UNIQUE(program_id, audit_date)
 );
 
--- Create inventory_audit_items table
-CREATE TABLE inventory_audit_items (
+-- Create inventory_audit_items table (if not exists)
+CREATE TABLE IF NOT EXISTS inventory_audit_items (
     id BIGSERIAL PRIMARY KEY,
     audit_id BIGINT NOT NULL REFERENCES inventory_audits(id) ON DELETE CASCADE,
     inventory_item_id BIGINT NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
@@ -22,6 +22,6 @@ CREATE TABLE inventory_audit_items (
     discrepancy_reason TEXT
 );
 
--- Create indexes for better query performance
-CREATE INDEX idx_inventory_audits_program_date ON inventory_audits(program_id, audit_date DESC);
-CREATE INDEX idx_inventory_audit_items_audit ON inventory_audit_items(audit_id);
+-- Create indexes for better query performance (if not exists)
+CREATE INDEX IF NOT EXISTS idx_inventory_audits_program_date ON inventory_audits(program_id, audit_date DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_audit_items_audit ON inventory_audit_items(audit_id);
