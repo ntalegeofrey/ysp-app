@@ -25,7 +25,8 @@ export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'checkout' | 'requisition' | 'requisition-archive' | 'audit'>('overview');
   const router = useRouter();
   const [currentStaff, setCurrentStaff] = useState('');
-  const { toasts, addToast, removeToast } = useToast();
+  const [currentUserRole, setCurrentUserRole] = useState('');
+  const { toasts, addToast, removeToast} = useToast();
   const [programId, setProgramId] = useState<number | null>(null);
   
   // State for inventory items
@@ -70,6 +71,15 @@ export default function InventoryPage() {
   });
   const [ccEmails, setCcEmails] = useState<string[]>(['']);
   
+  // State for requisition archive
+  const [requisitions, setRequisitions] = useState<any[]>([]);
+  const [requisitionFilters, setRequisitionFilters] = useState({
+    status: '',
+    category: '',
+    searchTerm: ''
+  });
+  const [openActionMenu, setOpenActionMenu] = useState<number | null>(null);
+  
   // Load current user
   useEffect(() => {
     try {
@@ -81,6 +91,7 @@ export default function InventoryPage() {
         const fullName = `${firstName} ${lastName}`.trim();
         const staffName = user.fullName || fullName || user.name || user.email || 'Unknown User';
         setCurrentStaff(staffName);
+        setCurrentUserRole(user.role || '');
       }
     } catch (err) {
       console.error('Failed to parse user:', err);
@@ -304,6 +315,88 @@ export default function InventoryPage() {
       addToast('Failed to submit requisition', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Fetch requisitions
+  const fetchRequisitions = async () => {
+    if (!programId) return;
+    
+    try {
+      const params = new URLSearchParams();
+      if (requisitionFilters.status) params.append('status', requisitionFilters.status);
+      if (requisitionFilters.category) params.append('category', requisitionFilters.category);
+      if (requisitionFilters.searchTerm) params.append('searchTerm', requisitionFilters.searchTerm);
+      
+      const response = await fetch(`/api/programs/${programId}/inventory/requisitions?${params}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRequisitions(data.requisitions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching requisitions:', error);
+    }
+  };
+  
+  // Load requisitions when archive tab is active
+  useEffect(() => {
+    if (activeTab === 'requisition-archive' && programId) {
+      fetchRequisitions();
+    }
+  }, [activeTab, programId, requisitionFilters]);
+  
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.action-menu-container')) {
+        setOpenActionMenu(null);
+      }
+    };
+    
+    if (openActionMenu !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openActionMenu]);
+  
+  // Update requisition status
+  const updateRequisitionStatus = async (requisitionId: number, newStatus: string, remarks?: string) => {
+    if (!programId) return;
+    
+    // Check if user has admin permissions
+    const isAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATOR';
+    if (!isAdmin) {
+      addToast('Only administrators can update requisition status', 'error');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/programs/${programId}/inventory/requisitions/${requisitionId}/status`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          remarks: remarks || ''
+        })
+      });
+      
+      if (response.ok) {
+        addToast(`Requisition ${newStatus.toLowerCase().replace('_', ' ')} successfully`, 'success');
+        fetchRequisitions(); // Refresh list
+        setOpenActionMenu(null); // Close menu
+      } else {
+        throw new Error('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating requisition status:', error);
+      addToast('Failed to update requisition status', 'error');
     }
   };
   
@@ -1321,69 +1414,44 @@ export default function InventoryPage() {
           {activeTab === 'requisition-archive' && (
             <div className="bg-white rounded-lg border border-bd">
               <div className="p-6 border-b border-bd">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-font-base">Requisition Archive</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-font-base flex items-center">
+                    <i className="fa-solid fa-folder-open text-primary mr-3"></i>
+                    Requisition Archive
+                  </h3>
                   <div className="flex items-center space-x-3">
-                    <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                      <option>All Statuses</option>
-                      <option>Pending</option>
-                      <option>Under Review</option>
-                      <option>Approved</option>
-                      <option>Rejected</option>
-                      <option>Fulfilled</option>
-                      <option>Cancelled</option>
+                    <select 
+                      value={requisitionFilters.status}
+                      onChange={(e) => setRequisitionFilters({...requisitionFilters, status: e.target.value})}
+                      className="border border-bd rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="UNDER_REVIEW">Under Review</option>
+                      <option value="APPROVED">Approved</option>
+                      <option value="DECLINED">Declined</option>
+                      <option value="REJECTED">Rejected</option>
+                      <option value="FULFILLED">Fulfilled</option>
                     </select>
-                    <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                      <option>All Categories</option>
-                      <option>Food</option>
-                      <option>Clothing</option>
-                      <option>Toiletries</option>
-                      <option>Medical</option>
-                      <option>Stationery</option>
+                    <select 
+                      value={requisitionFilters.category}
+                      onChange={(e) => setRequisitionFilters({...requisitionFilters, category: e.target.value})}
+                      className="border border-bd rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">All Categories</option>
+                      <option value="Food">Food</option>
+                      <option value="Clothing">Clothing</option>
+                      <option value="Toiletries">Toiletries</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Stationery">Stationery</option>
                     </select>
                     <input 
                       type="text" 
                       placeholder="Search requisitions..." 
+                      value={requisitionFilters.searchTerm}
+                      onChange={(e) => setRequisitionFilters({...requisitionFilters, searchTerm: e.target.value})}
                       className="border border-bd rounded-lg px-3 py-2 text-sm w-56" 
                     />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-warning-lightest p-4 rounded-lg border border-warning">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-font-detail font-medium">Pending</p>
-                        <p className="text-2xl font-bold text-warning mt-1">12</p>
-                      </div>
-                      <i className="fa-solid fa-clock text-warning text-2xl"></i>
-                    </div>
-                  </div>
-                  <div className="bg-info-lightest p-4 rounded-lg border border-info">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-font-detail font-medium">Under Review</p>
-                        <p className="text-2xl font-bold text-info mt-1">8</p>
-                      </div>
-                      <i className="fa-solid fa-search text-info text-2xl"></i>
-                    </div>
-                  </div>
-                  <div className="bg-success-lightest p-4 rounded-lg border border-success">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-font-detail font-medium">Approved</p>
-                        <p className="text-2xl font-bold text-success mt-1">45</p>
-                      </div>
-                      <i className="fa-solid fa-check-circle text-success text-2xl"></i>
-                    </div>
-                  </div>
-                  <div className="bg-error-lightest p-4 rounded-lg border border-error">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-font-detail font-medium">Rejected</p>
-                        <p className="text-2xl font-bold text-error mt-1">3</p>
-                      </div>
-                      <i className="fa-solid fa-times-circle text-error text-2xl"></i>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1399,107 +1467,102 @@ export default function InventoryPage() {
                       <th className="text-left p-3 font-medium text-font-base">Priority</th>
                       <th className="text-left p-3 font-medium text-font-base">Requested By</th>
                       <th className="text-left p-3 font-medium text-font-base">Status</th>
-                      <th className="text-left p-3 font-medium text-font-base">Reviewed By</th>
                       <th className="text-left p-3 font-medium text-font-base">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-3 text-font-base font-medium">#REQ-2024-001</td>
-                      <td className="p-3 text-font-detail">Dec 5, 2024</td>
-                      <td className="p-3 text-font-base">First Aid Kit</td>
-                      <td className="p-3 text-font-detail">Medical</td>
-                      <td className="p-3 text-font-detail">20 units</td>
-                      <td className="p-3"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Urgent</span></td>
-                      <td className="p-3 text-font-detail">J. Smith</td>
-                      <td className="p-3"><span className="bg-warning text-white px-2 py-1 rounded text-xs">Pending</span></td>
-                      <td className="p-3 text-font-detail">-</td>
-                      <td className="p-3">
-                        <button className="text-primary hover:text-primary-dark" title="View Details">
-                          <i className="fa-solid fa-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-3 text-font-base font-medium">#REQ-2024-002</td>
-                      <td className="p-3 text-font-detail">Dec 3, 2024</td>
-                      <td className="p-3 text-font-base">Office Supplies</td>
-                      <td className="p-3 text-font-detail">Stationery</td>
-                      <td className="p-3 text-font-detail">50 units</td>
-                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
-                      <td className="p-3 text-font-detail">M. Johnson</td>
-                      <td className="p-3"><span className="bg-info text-white px-2 py-1 rounded text-xs">Under Review</span></td>
-                      <td className="p-3 text-font-detail">A. Davis</td>
-                      <td className="p-3">
-                        <button className="text-primary hover:text-primary-dark" title="View Details">
-                          <i className="fa-solid fa-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-3 text-font-base font-medium">#REQ-2024-003</td>
-                      <td className="p-3 text-font-detail">Dec 1, 2024</td>
-                      <td className="p-3 text-font-base">Cleaning Products</td>
-                      <td className="p-3 text-font-detail">Cleaning</td>
-                      <td className="p-3 text-font-detail">10 units</td>
-                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
-                      <td className="p-3 text-font-detail">J. Smith</td>
-                      <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Approved</span></td>
-                      <td className="p-3 text-font-detail">S. Williams</td>
-                      <td className="p-3">
-                        <button className="text-primary hover:text-primary-dark" title="View Details">
-                          <i className="fa-solid fa-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-3 text-font-base font-medium">#REQ-2024-004</td>
-                      <td className="p-3 text-font-detail">Nov 28, 2024</td>
-                      <td className="p-3 text-font-base">T-Shirts - Large</td>
-                      <td className="p-3 text-font-detail">Clothing</td>
-                      <td className="p-3 text-font-detail">30 units</td>
-                      <td className="p-3"><span className="bg-primary text-white px-2 py-1 rounded text-xs">Standard</span></td>
-                      <td className="p-3 text-font-detail">L. Brown</td>
-                      <td className="p-3"><span className="bg-success text-white px-2 py-1 rounded text-xs">Fulfilled</span></td>
-                      <td className="p-3 text-font-detail">S. Williams</td>
-                      <td className="p-3">
-                        <button className="text-primary hover:text-primary-dark" title="View Details">
-                          <i className="fa-solid fa-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-bd hover:bg-bg-subtle">
-                      <td className="p-3 text-font-base font-medium">#REQ-2024-005</td>
-                      <td className="p-3 text-font-detail">Nov 25, 2024</td>
-                      <td className="p-3 text-font-base">Tablets - iPad</td>
-                      <td className="p-3 text-font-detail">Equipment</td>
-                      <td className="p-3 text-font-detail">5 units</td>
-                      <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Emergency</span></td>
-                      <td className="p-3 text-font-detail">M. Johnson</td>
-                      <td className="p-3"><span className="bg-error text-white px-2 py-1 rounded text-xs">Rejected</span></td>
-                      <td className="p-3 text-font-detail">A. Davis</td>
-                      <td className="p-3">
-                        <button className="text-primary hover:text-primary-dark" title="View Details">
-                          <i className="fa-solid fa-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
+                    {requisitions.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-font-detail">
+                          <i className="fa-solid fa-inbox text-4xl text-font-detail mb-3"></i>
+                          <p>No requisitions found</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      requisitions.map((req) => {
+                        const isAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'ADMINISTRATOR';
+                        const statusColors: Record<string, string> = {
+                          PENDING: 'bg-warning text-white',
+                          UNDER_REVIEW: 'bg-info text-white',
+                          APPROVED: 'bg-success text-white',
+                          DECLINED: 'bg-error text-white',
+                          REJECTED: 'bg-error text-white',
+                          FULFILLED: 'bg-success text-white'
+                        };
+                        const priorityColors: Record<string, string> = {
+                          URGENT: 'bg-warning text-white',
+                          EMERGENCY: 'bg-error text-white',
+                          STANDARD: 'bg-primary text-white'
+                        };
+                        
+                        return (
+                          <tr key={req.id} className="border-b border-bd hover:bg-bg-subtle">
+                            <td className="p-3 text-font-base font-medium">{req.requisitionNumber}</td>
+                            <td className="p-3 text-font-detail">{new Date(req.requestDate).toLocaleDateString()}</td>
+                            <td className="p-3 text-font-base">{req.itemName}</td>
+                            <td className="p-3 text-font-detail">{req.category}</td>
+                            <td className="p-3 text-font-detail">{req.quantityRequested} {req.unitOfMeasurement}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded text-xs ${priorityColors[req.priority] || 'bg-primary text-white'}`}>
+                                {req.priority}
+                              </span>
+                            </td>
+                            <td className="p-3 text-font-detail">{req.requestedByName}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded text-xs ${statusColors[req.status] || 'bg-gray-500 text-white'}`}>
+                                {req.status.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="p-3 relative">
+                              {isAdmin ? (
+                                <div className="relative action-menu-container">
+                                  <button
+                                    onClick={() => setOpenActionMenu(openActionMenu === req.id ? null : req.id)}
+                                    className="text-font-base hover:text-primary px-3 py-1 rounded hover:bg-bg-subtle"
+                                  >
+                                    <i className="fa-solid fa-ellipsis-vertical"></i>
+                                  </button>
+                                  {openActionMenu === req.id && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow-lg z-10 action-menu-container">
+                                      <button
+                                        onClick={() => updateRequisitionStatus(req.id, 'UNDER_REVIEW')}
+                                        className="w-full text-left px-4 py-2 hover:bg-info-lightest text-info text-sm flex items-center"
+                                      >
+                                        <i className="fa-solid fa-search mr-2"></i>
+                                        Mark Under Review
+                                      </button>
+                                      <button
+                                        onClick={() => updateRequisitionStatus(req.id, 'APPROVED')}
+                                        className="w-full text-left px-4 py-2 hover:bg-success-lightest text-success text-sm flex items-center"
+                                      >
+                                        <i className="fa-solid fa-check mr-2"></i>
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() => updateRequisitionStatus(req.id, 'DECLINED')}
+                                        className="w-full text-left px-4 py-2 hover:bg-error-lightest text-error text-sm flex items-center"
+                                      >
+                                        <i className="fa-solid fa-times mr-2"></i>
+                                        Decline
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-font-detail text-xs">No actions</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
               <div className="p-4 border-t border-bd bg-bg-subtle flex justify-between items-center">
-                <p className="text-sm text-font-detail">Showing 5 of 68 requisitions</p>
-                <div className="flex items-center space-x-2">
-                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">
-                    <i className="fa-solid fa-chevron-left"></i>
-                  </button>
-                  <button className="px-3 py-1 bg-primary text-white rounded text-sm">1</button>
-                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">2</button>
-                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">3</button>
-                  <button className="px-3 py-1 border border-bd rounded hover:bg-white text-sm">
-                    <i className="fa-solid fa-chevron-right"></i>
-                  </button>
-                </div>
+                <p className="text-sm text-font-detail">
+                  {requisitions.length > 0 ? `Showing ${requisitions.length} requisition${requisitions.length !== 1 ? 's' : ''}` : 'No requisitions'}
+                </p>
               </div>
             </div>
           )}

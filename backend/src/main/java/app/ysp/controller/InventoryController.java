@@ -170,6 +170,25 @@ public class InventoryController {
         return ResponseEntity.ok(requisition);
     }
     
+    /**
+     * Update requisition status (UNDER_REVIEW, APPROVED, DECLINED)
+     * Only accessible by ADMIN or ADMINISTRATOR roles
+     */
+    @PatchMapping("/requisitions/{requisitionId}/status")
+    public ResponseEntity<InventoryRequisitionResponse> updateRequisitionStatus(
+            @PathVariable Long programId,
+            @PathVariable Long requisitionId,
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        Long staffId = getStaffIdFromAuth(authentication);
+        String newStatus = body.get("status"); // UNDER_REVIEW, APPROVED, DECLINED
+        String remarks = body.get("remarks");
+        
+        InventoryRequisitionResponse requisition = inventoryService.updateRequisitionStatus(
+            programId, requisitionId, newStatus, remarks, staffId);
+        return ResponseEntity.ok(requisition);
+    }
+    
     // ========== STATS & DASHBOARD ==========
     
     /**

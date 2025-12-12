@@ -415,6 +415,54 @@ public class InventoryService {
         return mapRequisitionToResponse(requisition);
     }
     
+    /**
+     * Update requisition status (UNDER_REVIEW, APPROVED, DECLINED)
+     * Send email notification to PD and AsstPD
+     */
+    @Transactional
+    public InventoryRequisitionResponse updateRequisitionStatus(Long programId, Long requisitionId,
+                                                                 String newStatus, String remarks, Long staffId) {
+        InventoryRequisition requisition = requisitionRepository.findByIdAndProgramId(requisitionId, programId)
+                .orElseThrow(() -> new RuntimeException("Requisition not found"));
+        
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        
+        Program program = programRepository.findById(programId)
+                .orElseThrow(() -> new RuntimeException("Program not found"));
+        
+        // Validate status
+        if (!newStatus.matches("UNDER_REVIEW|APPROVED|DECLINED")) {
+            throw new RuntimeException("Invalid status. Must be UNDER_REVIEW, APPROVED, or DECLINED");
+        }
+        
+        String oldStatus = requisition.getStatus();
+        requisition.setStatus(newStatus);
+        requisition.setReviewedBy(staff);
+        requisition.setReviewedByName(staff.getFirstName() + " " + staff.getLastName());
+        requisition.setReviewDate(Instant.now());
+        if (remarks != null && !remarks.isBlank()) {
+            requisition.setReviewNotes(remarks);
+        }
+        
+        requisition = requisitionRepository.save(requisition);
+        
+        // Send email notifications to PD and AsstPD
+        sendStatusChangeEmails(program, requisition, oldStatus, newStatus, staff, remarks);
+        
+        // Broadcast SSE
+        try {
+            sseHub.broadcast(Map.of(
+                "type", "inventory.requisition_status_updated",
+                "programId", programId,
+                "requisitionId", requisition.getId(),
+                "status", requisition.getStatus()
+            ));
+        } catch (Exception ignored) {}
+        
+        return mapRequisitionToResponse(requisition);
+    }
+    
     // ========== STATS & DASHBOARD ==========
     
     /**
@@ -775,6 +823,76 @@ public class InventoryService {
             
         } catch (Exception e) {
             System.err.println("[ERROR] Failed to send requisition emails: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Send status change notification emails to PD and AsstPD
+     */
+    private void sendStatusChangeEmails(Program program, InventoryRequisition requisition,
+                                        String oldStatus, String newStatus, User actionBy, String remarks) {
+        try {
+            // Collect PD and AsstPD emails using ProgramAssignment
+            java.util.Set<String> recipients = new java.util.HashSet<>();
+            
+            java.util.List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
+            for (ProgramAssignment pa : assignments) {
+                if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
+                String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+                if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
+                    recipients.add(pa.getUserEmail());
+                }
+            }
+            
+            // Fallback to program entity fields
+            if (program.getProgramDirectorEmail() != null && !program.getProgramDirectorEmail().isBlank()) {
+                recipients.add(program.getProgramDirectorEmail());
+            }
+            if (program.getAssistantDirectorEmail() != null && !program.getAssistantDirectorEmail().isBlank()) {
+                recipients.add(program.getAssistantDirectorEmail());
+            }
+            
+            if (recipients.isEmpty()) {
+                System.out.println("[WARN] No PD/AsstPD email recipients for status change notification");
+                return;
+            }
+            
+            // Determine status color
+            String statusColor = switch (newStatus) {
+                case "APPROVED" -> "#10b981";
+                case "DECLINED" -> "#dc2626";
+                case "UNDER_REVIEW" -> "#f59e0b";
+                default -> "#6b7280";
+            };
+            
+            // Build email subject
+            String subject = "Requisition Status Update: " + requisition.getRequisitionNumber() + " - " + newStatus;
+            
+            // Prepare template context
+            Context context = new Context();
+            context.setVariable("programName", program.getName());
+            context.setVariable("requisitionNumber", requisition.getRequisitionNumber());
+            context.setVariable("itemName", requisition.getItemName());
+            context.setVariable("oldStatus", oldStatus);
+            context.setVariable("newStatus", newStatus);
+            context.setVariable("statusColor", statusColor);
+            context.setVariable("actionBy", actionBy.getFirstName() + " " + actionBy.getLastName());
+            context.setVariable("actionDate", LocalDate.now().toString());
+            context.setVariable("remarks", remarks);
+            context.setVariable("currentYear", java.time.Year.now().getValue());
+            
+            // Render template
+            String html = templateEngine.process("requisition-status-notification", context);
+            
+            // Send emails
+            for (String email : recipients) {
+                mailService.sendRawHtml(email, subject, html);
+                System.out.println("[INFO] Sent status change notification to: " + email);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[ERROR] Failed to send status change emails: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisition Status Update</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #14558f 0%, #1e40af 100%);padding:30px 20px;text-align:center;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmhQFtMkVqvEE5tqK1_lEg9I6A2xwc80ZCuQ&s" alt="DYS Logo" style="width:60px;height:60px;margin-bottom:15px;border-radius:50%;background:#ffffff;padding:8px;">
+            <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;">Requisition Status Update</h1>
+            <p style="margin:8px 0 0 0;color:#e0e7ff;font-size:14px;">Commonwealth of Massachusetts - Department of Youth Services</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding:30px 25px;">
+            
+            <!-- Status Badge -->
+            <div style="text-align:center;margin-bottom:25px;">
+                <span th:style="'display:inline-block;padding:8px 20px;border-radius:20px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#ffffff;background:' + ${statusColor}" th:text="${newStatus}">
+                    APPROVED
+                </span>
+            </div>
+            
+            <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 20px 0;">
+                The status of requisition <strong th:text="${requisitionNumber}">#REQ-2025-001</strong> has been updated.
+            </p>
+            
+            <!-- Requisition Details -->
+            <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:20px;">
+                <h3 style="margin:0 0 15px 0;color:#1f2937;font-size:16px;font-weight:600;">Requisition Details</h3>
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;width:40%;"><strong>Requisition #:</strong></td>
+                        <td style="padding:8px 0;color:#1f2937;font-size:14px;" th:text="${requisitionNumber}">#REQ-2025-001</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;"><strong>Item(s):</strong></td>
+                        <td style="padding:8px 0;color:#1f2937;font-size:14px;" th:text="${itemName}">Hand Soap</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;"><strong>Previous Status:</strong></td>
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;" th:text="${oldStatus}">PENDING</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;"><strong>New Status:</strong></td>
+                        <td style="padding:8px 0;font-size:14px;font-weight:600;" th:style="'color:' + ${statusColor}" th:text="${newStatus}">APPROVED</td>
+                    </tr>
+                    <tr th:if="${actionBy != null}">
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;"><strong>Updated By:</strong></td>
+                        <td style="padding:8px 0;color:#1f2937;font-size:14px;" th:text="${actionBy}">Admin User</td>
+                    </tr>
+                    <tr th:if="${actionDate != null}">
+                        <td style="padding:8px 0;color:#6b7280;font-size:14px;"><strong>Update Date:</strong></td>
+                        <td style="padding:8px 0;color:#1f2937;font-size:14px;" th:text="${actionDate}">2025-12-12</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Next Steps -->
+            <div th:if="${remarks != null and !#strings.isEmpty(remarks)}" style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px;border-radius:4px;margin-bottom:20px;">
+                <p style="margin:0 0 5px 0;color:#92400e;font-size:13px;font-weight:600;">Remarks:</p>
+                <p style="margin:0;color:#78350f;font-size:14px;" th:text="${remarks}">Please proceed with purchase.</p>
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="margin-top:25px;padding:20px;background:#eff6ff;border-left:4px solid #14558f;border-radius:4px;">
+                <p style="margin:0;color:#374151;font-size:14px;">
+                    <strong>View full details:</strong> Log into the Youth Supervision Platform and navigate to 
+                    <strong>Dashboard → Inventory → Requisitions Archive</strong>
+                </p>
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div style="background:#f9fafb;padding:20px;text-align:center;border-radius:0 0 8px 8px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#6b7280;font-size:12px;">This is an automated notification from the DYS Inventory Management System.</p>
+            <p style="margin:5px 0 0 0;color:#9ca3af;font-size:11px;">© [[${currentYear}]] Massachusetts Department of Youth Services</p>
+        </div>
+        
+    </div>
+</body>
+</html>
