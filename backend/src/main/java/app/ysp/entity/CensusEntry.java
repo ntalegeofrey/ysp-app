@@ -23,8 +23,7 @@ public class CensusEntry {
     @Column(name = "status", nullable = false)
     private String status; // DYS or NON_DYS
 
-    @Column(name = "comments")
-    @Lob
+    @Column(name = "comments", columnDefinition = "TEXT")
     private String comments;
 
     // Getters and Setters
