@@ -24,13 +24,13 @@ public interface InventoryRequisitionRepository extends JpaRepository<InventoryR
     Optional<InventoryRequisition> findByIdAndProgramId(Long id, Long programId);
     
     @Query("SELECT r FROM InventoryRequisition r WHERE r.program.id = :programId " +
-           "AND (:status IS NULL OR r.status = :status) " +
-           "AND (:category IS NULL OR r.category = :category) " +
-           "AND (:priority IS NULL OR r.priority = :priority) " +
-           "AND (:searchTerm IS NULL OR " +
-           "LOWER(r.itemName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(r.requisitionNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(r.requestedByName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+           "AND (:status IS NULL OR :status = '' OR r.status = :status) " +
+           "AND (:category IS NULL OR :category = '' OR r.category = :category) " +
+           "AND (:priority IS NULL OR :priority = '' OR r.priority = :priority) " +
+           "AND (:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(CAST(r.itemName AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(CAST(r.requisitionNumber AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(CAST(r.requestedByName AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
            "ORDER BY r.requestDate DESC")
     Page<InventoryRequisition> filterRequisitions(@Param("programId") Long programId,
                                                    @Param("status") String status,

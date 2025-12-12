@@ -19,11 +19,11 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
     List<InventoryTransaction> findByInventoryItemIdOrderByTransactionDateDesc(Long inventoryItemId);
     
     @Query("SELECT t FROM InventoryTransaction t WHERE t.program.id = :programId " +
-           "AND (:transactionType IS NULL OR t.transactionType = :transactionType) " +
-           "AND (:category IS NULL OR t.inventoryItem.category = :category) " +
-           "AND (:searchTerm IS NULL OR " +
-           "LOWER(t.inventoryItem.itemName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(t.staffName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+           "AND (:transactionType IS NULL OR :transactionType = '' OR t.transactionType = :transactionType) " +
+           "AND (:category IS NULL OR :category = '' OR t.inventoryItem.category = :category) " +
+           "AND (:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(CAST(t.inventoryItem.itemName AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(CAST(t.staffName AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
            "ORDER BY t.transactionDate DESC")
     Page<InventoryTransaction> filterTransactions(@Param("programId") Long programId,
                                                    @Param("transactionType") String transactionType,

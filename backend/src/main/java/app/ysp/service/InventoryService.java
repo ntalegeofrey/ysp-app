@@ -255,6 +255,11 @@ public class InventoryService {
                                                      String category, String searchTerm,
                                                      int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
+        // Convert null to empty string to avoid bytea casting issues
+        transactionType = transactionType == null ? "" : transactionType;
+        category = category == null ? "" : category;
+        searchTerm = searchTerm == null ? "" : searchTerm;
+        
         Page<InventoryTransaction> transactionPage = transactionRepository.filterTransactions(
             programId, transactionType, category, searchTerm, pageable);
         
@@ -263,7 +268,7 @@ public class InventoryService {
                 .collect(Collectors.toList());
         
         Map<String, Object> response = new HashMap<>();
-        response.put("content", transactions);
+        response.put("transactions", transactions); // Use "transactions" for consistency
         response.put("totalPages", transactionPage.getTotalPages());
         response.put("totalElements", transactionPage.getTotalElements());
         response.put("currentPage", transactionPage.getNumber());
@@ -350,6 +355,12 @@ public class InventoryService {
                                                String priority, String searchTerm,
                                                int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
+        // Convert null to empty string to avoid bytea casting issues
+        status = status == null ? "" : status;
+        category = category == null ? "" : category;
+        priority = priority == null ? "" : priority;
+        searchTerm = searchTerm == null ? "" : searchTerm;
+        
         Page<InventoryRequisition> requisitionPage = requisitionRepository.filterRequisitions(
             programId, status, category, priority, searchTerm, pageable);
         
@@ -358,19 +369,10 @@ public class InventoryService {
                 .collect(Collectors.toList());
         
         Map<String, Object> response = new HashMap<>();
-        response.put("content", requisitions);
+        response.put("requisitions", requisitions);
         response.put("totalPages", requisitionPage.getTotalPages());
         response.put("totalElements", requisitionPage.getTotalElements());
         response.put("currentPage", requisitionPage.getNumber());
-        
-        // Add status counts
-        Map<String, Long> statusCounts = new HashMap<>();
-        statusCounts.put("PENDING", requisitionRepository.countByProgramIdAndStatus(programId, "PENDING"));
-        statusCounts.put("UNDER_REVIEW", requisitionRepository.countByProgramIdAndStatus(programId, "UNDER_REVIEW"));
-        statusCounts.put("APPROVED", requisitionRepository.countByProgramIdAndStatus(programId, "APPROVED"));
-        statusCounts.put("REJECTED", requisitionRepository.countByProgramIdAndStatus(programId, "REJECTED"));
-        response.put("statusCounts", statusCounts);
-        
         return response;
     }
     

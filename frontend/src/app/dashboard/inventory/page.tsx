@@ -79,6 +79,7 @@ export default function InventoryPage() {
     searchTerm: ''
   });
   const [openActionMenu, setOpenActionMenu] = useState<number | null>(null);
+  const [uniqueRequisitionCategories, setUniqueRequisitionCategories] = useState<string[]>([]);
   
   // Load current user
   useEffect(() => {
@@ -334,7 +335,14 @@ export default function InventoryPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setRequisitions(data.requisitions || []);
+        const reqs = data.requisitions || [];
+        setRequisitions(reqs);
+        
+        // Extract unique categories from all requisitions (ignoring filters for category list)
+        if (!requisitionFilters.category && !requisitionFilters.status && !requisitionFilters.searchTerm) {
+          const categories = Array.from(new Set(reqs.map((r: any) => r.category as string).filter(Boolean))) as string[];
+          setUniqueRequisitionCategories(categories.sort());
+        }
       }
     } catch (error) {
       console.error('Error fetching requisitions:', error);
@@ -1439,11 +1447,9 @@ export default function InventoryPage() {
                       className="border border-bd rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="">All Categories</option>
-                      <option value="Food">Food</option>
-                      <option value="Clothing">Clothing</option>
-                      <option value="Toiletries">Toiletries</option>
-                      <option value="Medical">Medical</option>
-                      <option value="Stationery">Stationery</option>
+                      {uniqueRequisitionCategories.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
                     </select>
                     <input 
                       type="text" 
