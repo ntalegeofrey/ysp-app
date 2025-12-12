@@ -81,6 +81,13 @@ export default function InventoryPage() {
   const [openActionMenu, setOpenActionMenu] = useState<number | null>(null);
   const [uniqueRequisitionCategories, setUniqueRequisitionCategories] = useState<string[]>([]);
   
+  // Audit state
+  const [auditDate, setAuditDate] = useState('');
+  const [auditItems, setAuditItems] = useState<any[]>([]);
+  const [auditInProgress, setAuditInProgress] = useState(false);
+  const [savedAudits, setSavedAudits] = useState<any[]>([]);
+  const [selectedAuditDate, setSelectedAuditDate] = useState('');
+  
   // Load current user
   useEffect(() => {
     try {
@@ -406,6 +413,113 @@ export default function InventoryPage() {
       console.error('Error updating requisition status:', error);
       addToast('Failed to update requisition status', 'error');
     }
+  };
+  
+  // ========== AUDIT FUNCTIONS ==========
+  
+  // Load saved audits from localStorage
+  useEffect(() => {
+    if (activeTab === 'audit' && programId) {
+      const auditsKey = `audits_${programId}`;
+      const saved = localStorage.getItem(auditsKey);
+      if (saved) {
+        setSavedAudits(JSON.parse(saved));
+      }
+    }
+  }, [activeTab, programId]);
+  
+  // Start new audit - load inventory items
+  const startAudit = async () => {
+    if (!auditDate) {
+      addToast('Please select audit date', 'error');
+      return;
+    }
+    
+    // Check if audit already exists for this date
+    const existing = savedAudits.find(a => a.date === auditDate);
+    if (existing) {
+      addToast('Audit already exists for this date', 'error');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/programs/${programId}/inventory/items?page=0&size=10000`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.items || data.content || [];
+        // Initialize with physical count same as system count
+        const auditItems = items.map((item: any) => ({
+          ...item,
+          physicalCount: item.currentQuantity,
+          notes: ''
+        }));
+        setAuditItems(auditItems);
+        setAuditInProgress(true);
+      }
+    } catch (error) {
+      console.error('Error loading items:', error);
+      addToast('Failed to load inventory items', 'error');
+    }
+  };
+  
+  // Update physical count for item
+  const updatePhysicalCount = (itemId: number, count: number) => {
+    setAuditItems(items => items.map(item => 
+      item.id === itemId ? { ...item, physicalCount: count } : item
+    ));
+  };
+  
+  // Update notes for item
+  const updateAuditNotes = (itemId: number, notes: string) => {
+    setAuditItems(items => items.map(item => 
+      item.id === itemId ? { ...item, notes } : item
+    ));
+  };
+  
+  // Save audit
+  const saveAudit = () => {
+    if (!auditDate || auditItems.length === 0) {
+      addToast('Cannot save empty audit', 'error');
+      return;
+    }
+    
+    const audit = {
+      date: auditDate,
+      staff: currentStaff,
+      items: auditItems,
+      savedAt: new Date().toISOString(),
+      discrepancies: auditItems.filter(i => i.physicalCount !== i.currentQuantity).length
+    };
+    
+    const auditsKey = `audits_${programId}`;
+    const updated = [...savedAudits, audit];
+    localStorage.setItem(auditsKey, JSON.stringify(updated));
+    setSavedAudits(updated);
+    
+    // Reset
+    setAuditDate('');
+    setAuditItems([]);
+    setAuditInProgress(false);
+    
+    addToast('Audit saved successfully', 'success');
+  };
+  
+  // Load audit by date
+  const loadAuditByDate = () => {
+    const audit = savedAudits.find(a => a.date === selectedAuditDate);
+    if (audit) {
+      setAuditItems(audit.items);
+      setAuditDate(audit.date);
+      setAuditInProgress(false); // View only mode
+    }
+  };
+  
+  // Print audit
+  const printAudit = () => {
+    window.print();
   };
   
   // Format date for display
@@ -1583,98 +1697,169 @@ export default function InventoryPage() {
           {activeTab === 'audit' && (
             <div className="bg-white rounded-lg border border-bd">
               <div className="p-6 border-b border-bd">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-font-base">Inventory Audit & Validation</h3>
-                  <div className="flex items-center space-x-4">
-                    <select className="border border-bd rounded-lg px-3 py-2 text-sm">
-                      <option>All Categories</option>
-                      <option>Food</option>
-                      <option>Clothing</option>
-                      <option>Toiletries</option>
-                      <option>Medical</option>
-                      <option>Stationery</option>
-                    </select>
-                    <button className="bg-success text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90">
+                <h3 className="text-lg font-semibold text-font-base mb-4">Inventory Audit & Validation</h3>
+                
+                {/* Audit Controls */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-1">Audit Date</label>
+                    <input
+                      type="date"
+                      value={auditDate}
+                      onChange={(e) => setAuditDate(e.target.value)}
+                      disabled={auditInProgress}
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-font-base mb-1">Audited By</label>
+                    <input
+                      type="text"
+                      value={currentStaff}
+                      disabled
+                      className="w-full border border-bd rounded-lg px-3 py-2 text-sm bg-bg-subtle"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  {!auditInProgress ? (
+                    <button
+                      onClick={startAudit}
+                      className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                    >
+                      <i className="fa-solid fa-play mr-2"></i>Start Audit
+                    </button>
+                  ) : (
+                    <button
+                      onClick={saveAudit}
+                      className="bg-success text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                    >
                       <i className="fa-solid fa-save mr-2"></i>Save Audit
                     </button>
+                  )}
+                  
+                  {auditItems.length > 0 && (
+                    <button
+                      onClick={printAudit}
+                      className="bg-info text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                    >
+                      <i className="fa-solid fa-print mr-2"></i>Print
+                    </button>
+                  )}
+                  
+                  {/* Date Filter for Past Audits */}
+                  <div className="ml-auto flex items-center space-x-2">
+                    <select
+                      value={selectedAuditDate}
+                      onChange={(e) => setSelectedAuditDate(e.target.value)}
+                      className="border border-bd rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">View Past Audits</option>
+                      {savedAudits.map((audit, idx) => (
+                        <option key={idx} value={audit.date}>
+                          {audit.date} - {audit.staff}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedAuditDate && (
+                      <button
+                        onClick={loadAuditByDate}
+                        className="bg-secondary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                      >
+                        Load
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
+              
               <div className="p-6 h-full overflow-auto">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-bg-subtle">
-                      <tr>
-                        <th className="text-left p-3 font-medium text-font-base text-sm"><input type="checkbox" className="mr-2" />Item Name</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">Category</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">System Count</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">Physical Count</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">Location</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">Notes</th>
-                        <th className="text-left p-3 font-medium text-font-base text-sm">Verified By</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                        <td className="p-3"><div className="flex items-center"><input type="checkbox" className="mr-3" /><span className="text-sm">Toothpaste - Colgate</span></div></td>
-                        <td className="p-3 text-sm">Toiletries</td>
-                        <td className="p-3 text-sm font-medium">2</td>
-                        <td className="p-3"><input type="number" defaultValue={2} className="w-16 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm">Shelf A-2</td>
-                        <td className="p-3"><input type="text" placeholder="Add notes..." className="w-32 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm text-font-detail">Pending</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                        <td className="p-3"><div className="flex items-center"><input type="checkbox" className="mr-3" /><span className="text-sm">Breakfast Cereal</span></div></td>
-                        <td className="p-3 text-sm">Food</td>
-                        <td className="p-3 text-sm font-medium">8</td>
-                        <td className="p-3"><input type="number" defaultValue={8} className="w-16 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm">Pantry B-1</td>
-                        <td className="p-3"><input type="text" placeholder="Add notes..." className="w-32 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm text-font-detail">Pending</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                        <td className="p-3"><div className="flex items-center"><input type="checkbox" defaultChecked className="mr-3" /><span className="text-sm">T-Shirt - Medium</span></div></td>
-                        <td className="p-3 text-sm">Clothing</td>
-                        <td className="p-3 text-sm font-medium">45</td>
-                        <td className="p-3"><input type="number" defaultValue={43} className="w-16 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm">Storage C-3</td>
-                        <td className="p-3"><input type="text" defaultValue="2 damaged items removed" className="w-32 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm text-success">J. Smith</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                        <td className="p-3"><div className="flex items-center"><input type="checkbox" className="mr-3" /><span className="text-sm">First Aid Kit</span></div></td>
-                        <td className="p-3 text-sm">Medical</td>
-                        <td className="p-3 text-sm font-medium">12</td>
-                        <td className="p-3"><input type="number" defaultValue={12} className="w-16 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm">Med Cabinet</td>
-                        <td className="p-3"><input type="text" placeholder="Add notes..." className="w-32 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm text-font-detail">Pending</td>
-                      </tr>
-                      <tr className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
-                        <td className="p-3"><div className="flex items-center"><input type="checkbox" className="mr-3" /><span className="text-sm">Pencils - #2</span></div></td>
-                        <td className="p-3 text-sm">Stationery</td>
-                        <td className="p-3 text-sm font-medium">120</td>
-                        <td className="p-3"><input type="number" defaultValue={120} className="w-16 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm">Office D-1</td>
-                        <td className="p-3"><input type="text" placeholder="Add notes..." className="w-32 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary" /></td>
-                        <td className="p-3 text-sm text-font-detail">Pending</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-6 p-4 bg-primary-lightest rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-font-base">Audit Summary</h4>
-                      <p className="text-sm text-font-detail">Total items: 2,847 | Verified: 2,847</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-success">All items verified</p>
-                      <p className="text-xs text-font-detail">No discrepancies found</p>
-                    </div>
+                {auditItems.length === 0 ? (
+                  <div className="text-center py-12">
+                    <i className="fa-solid fa-clipboard-list text-6xl text-font-detail mb-4"></i>
+                    <p className="text-font-detail">Select a date and click "Start Audit" to begin</p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-bg-subtle">
+                          <tr>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Item Name</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Category</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Location</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">System Count</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Physical Count</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Difference</th>
+                            <th className="text-left p-3 font-medium text-font-base text-sm">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditItems.map((item) => {
+                            const diff = item.physicalCount - item.currentQuantity;
+                            return (
+                              <tr key={item.id} className="border-b border-bd hover:bg-primary-lightest hover:bg-opacity-30">
+                                <td className="p-3 text-sm">{item.itemName}</td>
+                                <td className="p-3 text-sm">{item.category}</td>
+                                <td className="p-3 text-sm">{item.location || 'N/A'}</td>
+                                <td className="p-3 text-sm font-medium">{item.currentQuantity}</td>
+                                <td className="p-3">
+                                  <input
+                                    type="number"
+                                    value={item.physicalCount}
+                                    onChange={(e) => updatePhysicalCount(item.id, parseInt(e.target.value) || 0)}
+                                    disabled={!auditInProgress}
+                                    className="w-20 border border-bd-input rounded px-2 py-1 text-sm focus:border-primary"
+                                  />
+                                </td>
+                                <td className={`p-3 text-sm font-medium ${diff > 0 ? 'text-success' : diff < 0 ? 'text-error' : 'text-font-detail'}`}>
+                                  {diff > 0 ? '+' : ''}{diff}
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    type="text"
+                                    value={item.notes}
+                                    onChange={(e) => updateAuditNotes(item.id, e.target.value)}
+                                    disabled={!auditInProgress}
+                                    placeholder="Add notes..."
+                                    className="w-full border border-bd-input rounded px-2 py-1 text-sm focus:border-primary"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Audit Summary */}
+                    <div className="mt-6 p-4 bg-primary-lightest rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-font-base">Audit Summary</h4>
+                          <p className="text-sm text-font-detail">
+                            Total Items: {auditItems.length} | 
+                            Discrepancies: {auditItems.filter(i => i.physicalCount !== i.currentQuantity).length}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {auditItems.filter(i => i.physicalCount !== i.currentQuantity).length === 0 ? (
+                            <>
+                              <p className="text-sm text-success">✓ All counts match</p>
+                              <p className="text-xs text-font-detail">No discrepancies found</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-warning">⚠ Discrepancies found</p>
+                              <p className="text-xs text-font-detail">Please review and add notes</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
