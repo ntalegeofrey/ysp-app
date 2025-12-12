@@ -5,9 +5,10 @@ import DayDetailModal from './DayDetailModal';
 
 interface CalendarGridProps {
   isAdmin: boolean;
+  onOpenCreateSchedule?: () => void;
 }
 
-export default function CalendarGrid({ isAdmin }: CalendarGridProps) {
+export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: CalendarGridProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState('November 2024');
 
@@ -57,7 +58,10 @@ export default function CalendarGrid({ isAdmin }: CalendarGridProps) {
               </div>
               {isAdmin && (
                 <>
-                  <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm">
+                  <button 
+                    onClick={onOpenCreateSchedule}
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm"
+                  >
                     <i className="fa-solid fa-plus mr-2"></i>
                     Create Schedule
                   </button>
