@@ -9,6 +9,8 @@ import app.ysp.repo.UserRepository;
 import app.ysp.repository.InventoryItemRepository;
 import app.ysp.repository.InventoryRequisitionRepository;
 import app.ysp.repository.InventoryTransactionRepository;
+import app.ysp.repository.InventoryAuditRepository;
+import app.ysp.repository.InventoryAuditItemRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +32,8 @@ public class InventoryService {
     private final InventoryItemRepository itemRepository;
     private final InventoryTransactionRepository transactionRepository;
     private final InventoryRequisitionRepository requisitionRepository;
+    private final InventoryAuditRepository auditRepository;
+    private final InventoryAuditItemRepository auditItemRepository;
     private final ProgramRepository programRepository;
     private final ProgramAssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
@@ -41,6 +45,8 @@ public class InventoryService {
             InventoryItemRepository itemRepository,
             InventoryTransactionRepository transactionRepository,
             InventoryRequisitionRepository requisitionRepository,
+            InventoryAuditRepository auditRepository,
+            InventoryAuditItemRepository auditItemRepository,
             ProgramRepository programRepository,
             ProgramAssignmentRepository assignmentRepository,
             UserRepository userRepository,
@@ -50,6 +56,8 @@ public class InventoryService {
         this.itemRepository = itemRepository;
         this.transactionRepository = transactionRepository;
         this.requisitionRepository = requisitionRepository;
+        this.auditRepository = auditRepository;
+        this.auditItemRepository = auditItemRepository;
         this.programRepository = programRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
@@ -897,5 +905,119 @@ public class InventoryService {
             System.err.println("[ERROR] Failed to send status change emails: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    // ========== AUDITS ==========
+    
+    /**
+     * Get all audits for a program
+     */
+    public List<Map<String, Object>> getAudits(Long programId) {
+        List<InventoryAudit> audits = auditRepository.findByProgramIdOrderByAuditDateDesc(programId);
+        
+        return audits.stream().map(audit -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", audit.getId());
+            map.put("date", audit.getAuditDate().toString());
+            map.put("staff", audit.getAuditorName());
+            map.put("totalItems", audit.getTotalItemsAudited());
+            map.put("discrepancies", audit.getDiscrepanciesFound());
+            map.put("savedAt", audit.getCreatedAt().toString());
+            return map;
+        }).collect(Collectors.toList());
+    }
+    
+    /**
+     * Get audit details with items
+     */
+    public Map<String, Object> getAuditDetails(Long programId, Long auditId) {
+        InventoryAudit audit = auditRepository.findById(auditId)
+                .orElseThrow(() -> new RuntimeException("Audit not found"));
+        
+        if (!audit.getProgram().getId().equals(programId)) {
+            throw new RuntimeException("Audit does not belong to this program");
+        }
+        
+        List<InventoryAuditItem> auditItems = auditItemRepository.findByAuditId(auditId);
+        
+        List<Map<String, Object>> items = auditItems.stream().map(item -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", item.getInventoryItem().getId());
+            map.put("itemName", item.getInventoryItem().getItemName());
+            map.put("category", item.getInventoryItem().getCategory());
+            map.put("location", item.getInventoryItem().getLocation());
+            map.put("currentQuantity", item.getExpectedQuantity());
+            map.put("physicalCount", item.getActualQuantity());
+            map.put("notes", item.getDiscrepancyReason() != null ? item.getDiscrepancyReason() : "");
+            return map;
+        }).collect(Collectors.toList());
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("date", audit.getAuditDate().toString());
+        result.put("staff", audit.getAuditorName());
+        result.put("items", items);
+        result.put("discrepancies", audit.getDiscrepanciesFound());
+        
+        return result;
+    }
+    
+    /**
+     * Save audit
+     */
+    @Transactional
+    public Map<String, Object> saveAudit(Long programId, Long staffId, LocalDate auditDate, List<Map<String, Object>> items) {
+        // Check for duplicate
+        if (auditRepository.existsByProgramIdAndAuditDate(programId, auditDate)) {
+            throw new RuntimeException("Audit already exists for this date");
+        }
+        
+        Program program = programRepository.findById(programId)
+                .orElseThrow(() -> new RuntimeException("Program not found"));
+        
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        
+        // Create audit
+        InventoryAudit audit = new InventoryAudit();
+        audit.setProgram(program);
+        audit.setAuditDate(auditDate);
+        audit.setConductedBy(staff);
+        audit.setAuditorName(staff.getFirstName() + " " + staff.getLastName());
+        audit.setTotalItemsAudited(items.size());
+        
+        int discrepancies = 0;
+        for (Map<String, Object> itemData : items) {
+            Long itemId = Long.valueOf(itemData.get("id").toString());
+            Integer physicalCount = Integer.valueOf(itemData.get("physicalCount").toString());
+            Integer systemCount = Integer.valueOf(itemData.get("currentQuantity").toString());
+            String notes = itemData.get("notes") != null ? itemData.get("notes").toString() : "";
+            
+            if (!physicalCount.equals(systemCount)) {
+                discrepancies++;
+            }
+            
+            InventoryItem inventoryItem = itemRepository.findById(itemId)
+                    .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
+            
+            InventoryAuditItem auditItem = new InventoryAuditItem();
+            auditItem.setAudit(audit);
+            auditItem.setInventoryItem(inventoryItem);
+            auditItem.setExpectedQuantity(systemCount);
+            auditItem.setActualQuantity(physicalCount);
+            auditItem.setDiscrepancy(physicalCount - systemCount);
+            auditItem.setDiscrepancyReason(notes);
+            
+            auditItemRepository.save(auditItem);
+        }
+        
+        audit.setDiscrepanciesFound(discrepancies);
+        InventoryAudit savedAudit = auditRepository.save(audit);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", savedAudit.getId());
+        result.put("date", savedAudit.getAuditDate().toString());
+        result.put("success", true);
+        
+        return result;
     }
 }

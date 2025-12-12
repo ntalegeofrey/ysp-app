@@ -417,16 +417,30 @@ export default function InventoryPage() {
   
   // ========== AUDIT FUNCTIONS ==========
   
-  // Load saved audits from localStorage
+  // Load saved audits from database
   useEffect(() => {
     if (activeTab === 'audit' && programId) {
-      const auditsKey = `audits_${programId}`;
-      const saved = localStorage.getItem(auditsKey);
-      if (saved) {
-        setSavedAudits(JSON.parse(saved));
-      }
+      fetchAudits();
     }
   }, [activeTab, programId]);
+  
+  // Fetch audits from API
+  const fetchAudits = async () => {
+    if (!programId) return;
+    
+    try {
+      const response = await fetch(`/api/programs/${programId}/inventory/audits`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSavedAudits(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching audits:', error);
+    }
+  };
   
   // Start new audit - load inventory items
   const startAudit = async () => {
@@ -480,40 +494,62 @@ export default function InventoryPage() {
   };
   
   // Save audit
-  const saveAudit = () => {
+  const saveAudit = async () => {
     if (!auditDate || auditItems.length === 0) {
       addToast('Cannot save empty audit', 'error');
       return;
     }
     
-    const audit = {
-      date: auditDate,
-      staff: currentStaff,
-      items: auditItems,
-      savedAt: new Date().toISOString(),
-      discrepancies: auditItems.filter(i => i.physicalCount !== i.currentQuantity).length
-    };
-    
-    const auditsKey = `audits_${programId}`;
-    const updated = [...savedAudits, audit];
-    localStorage.setItem(auditsKey, JSON.stringify(updated));
-    setSavedAudits(updated);
-    
-    // Reset
-    setAuditDate('');
-    setAuditItems([]);
-    setAuditInProgress(false);
-    
-    addToast('Audit saved successfully', 'success');
+    try {
+      const response = await fetch(`/api/programs/${programId}/inventory/audits`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          date: auditDate,
+          items: auditItems
+        })
+      });
+      
+      if (response.ok) {
+        addToast('Audit saved successfully to database', 'success');
+        // Reset
+        setAuditDate('');
+        setAuditItems([]);
+        setAuditInProgress(false);
+        // Refresh audits list
+        fetchAudits();
+      } else {
+        const error = await response.text();
+        throw new Error(error || 'Failed to save audit');
+      }
+    } catch (error: any) {
+      console.error('Error saving audit:', error);
+      addToast(error.message || 'Failed to save audit', 'error');
+    }
   };
   
   // Load audit by date
-  const loadAuditByDate = () => {
+  const loadAuditByDate = async () => {
     const audit = savedAudits.find(a => a.date === selectedAuditDate);
-    if (audit) {
-      setAuditItems(audit.items);
-      setAuditDate(audit.date);
-      setAuditInProgress(false); // View only mode
+    if (!audit) return;
+    
+    try {
+      const response = await fetch(`/api/programs/${programId}/inventory/audits/${audit.id}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAuditItems(data.items);
+        setAuditDate(data.date);
+        setAuditInProgress(false); // View only mode
+      }
+    } catch (error) {
+      console.error('Error loading audit:', error);
+      addToast('Failed to load audit', 'error');
     }
   };
   

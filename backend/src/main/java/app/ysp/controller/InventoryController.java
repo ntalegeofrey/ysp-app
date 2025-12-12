@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -198,6 +199,45 @@ public class InventoryController {
     public ResponseEntity<Map<String, Object>> getInventoryStats(@PathVariable Long programId) {
         Map<String, Object> stats = inventoryService.getInventoryStats(programId);
         return ResponseEntity.ok(stats);
+    }
+    
+    // ========== AUDITS ==========
+    
+    /**
+     * Get all audits for a program
+     */
+    @GetMapping("/audits")
+    public ResponseEntity<List<Map<String, Object>>> getAudits(@PathVariable Long programId) {
+        List<Map<String, Object>> audits = inventoryService.getAudits(programId);
+        return ResponseEntity.ok(audits);
+    }
+    
+    /**
+     * Get audit details
+     */
+    @GetMapping("/audits/{auditId}")
+    public ResponseEntity<Map<String, Object>> getAuditDetails(
+            @PathVariable Long programId,
+            @PathVariable Long auditId) {
+        Map<String, Object> audit = inventoryService.getAuditDetails(programId, auditId);
+        return ResponseEntity.ok(audit);
+    }
+    
+    /**
+     * Save audit
+     */
+    @PostMapping("/audits")
+    public ResponseEntity<Map<String, Object>> saveAudit(
+            @PathVariable Long programId,
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        Long staffId = getStaffIdFromAuth(authentication);
+        LocalDate auditDate = LocalDate.parse(request.get("date").toString());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items = (List<Map<String, Object>>) request.get("items");
+        
+        Map<String, Object> result = inventoryService.saveAudit(programId, staffId, auditDate, items);
+        return ResponseEntity.ok(result);
     }
     
     // ========== HELPER METHODS ==========
