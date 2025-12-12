@@ -189,8 +189,10 @@ export default function InventoryPage() {
   const fetchTransactions = async () => {
     if (!programId) return;
     try {
-      const response = await inventoryApi.getTransactionHistory(programId, { page: 0, size: 10 });
-      setTransactions(response.content || []);
+      const response = await inventoryApi.getTransactionHistory(programId, { page: 0, size: 100 });
+      console.log('Transactions response:', response);
+      // Backend returns "transactions" not "content"
+      setTransactions(response.transactions || response.content || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
     }
