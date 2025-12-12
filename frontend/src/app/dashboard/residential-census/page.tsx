@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/hooks/useToast';
+import ToastContainer from '@/app/components/Toast';
 
 type Resident = {
   id: number;
   firstName: string;
   lastName: string;
-  youthId?: string;
+  residentId?: string;
 };
 
 type CensusEntry = {
@@ -33,6 +35,7 @@ type Census = {
 export default function ResidentialCensusPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'current' | 'historical'>('current');
+  const { toasts, addToast, removeToast } = useToast();
   
   // Current Census State
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -42,11 +45,42 @@ export default function ResidentialCensusPage() {
   const [residents, setResidents] = useState<Resident[]>([]);
   const [entries, setEntries] = useState<CensusEntry[]>([]);
   const [programId, setProgramId] = useState<number | null>(null);
+  const [loadingResidents, setLoadingResidents] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Historical Census State
   const [historicalCensuses, setHistoricalCensuses] = useState<Census[]>([]);
   const [selectedCensus, setSelectedCensus] = useState<Census | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  const loadHistoricalCensuses = async (pid: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${pid}/census`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) return;
+      const arr = await res.json();
+      const mapped: Census[] = (Array.isArray(arr) ? arr : []).map((c: any) => ({
+        id: c.id,
+        date: c.censusDate,
+        shift: c.shift,
+        conductedBy: c.conductedBy,
+        entries: (c.entries || []) as any,
+        totalResidents: c.totalResidents || 0,
+        dysCount: c.dysCount || 0,
+        nonDysCount: c.nonDysCount || 0,
+        saved: true,
+        createdAt: c.createdAt,
+      }));
+      setHistoricalCensuses(mapped);
+    } catch {}
+  };
 
   // Load current user
   useEffect(() => {
@@ -68,66 +102,102 @@ export default function ResidentialCensusPage() {
     }
   }, []);
 
+  // Prefer authoritative staff profile
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const me = await res.json();
+        const name = me?.fullName || me?.email || '';
+        if (name) setConductedBy(name);
+      } catch {}
+    })();
+  }, []);
+
   // Fetch residents for the program
   useEffect(() => {
     if (!programId) return;
-    
-    // TODO: Replace with actual API call
-    // For now, using demo data
-    const demoResidents: Resident[] = [
-      { id: 1, firstName: 'John', lastName: 'Doe', youthId: 'Y001' },
-      { id: 2, firstName: 'Jane', lastName: 'Smith', youthId: 'Y002' },
-      { id: 3, firstName: 'Mike', lastName: 'Johnson', youthId: 'Y003' },
-      { id: 4, firstName: 'Sarah', lastName: 'Williams', youthId: 'Y004' },
-    ];
-    
-    setResidents(demoResidents);
-    
-    // Initialize entries
-    const initialEntries: CensusEntry[] = demoResidents.map(r => ({
-      residentId: r.id,
-      residentName: `${r.firstName} ${r.lastName}`,
-      status: 'DYS',
-      comments: ''
-    }));
-    
-    setEntries(initialEntries);
+    (async () => {
+      setLoadingResidents(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/programs/${programId}/residents`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) {
+          addToast('Failed to load residents', 'error');
+          return;
+        }
+        const arr = await res.json();
+        const mapped: Resident[] = (Array.isArray(arr) ? arr : []).map((r: any) => ({
+          id: Number(r.id),
+          firstName: r.firstName || '',
+          lastName: r.lastName || '',
+          residentId: r.residentId || '',
+        }));
+        setResidents(mapped);
+
+        // Initialize entries (preserve existing comments/status where possible)
+        setEntries((prev) => {
+          const prevByResident = new Map(prev.map((e) => [e.residentId, e]));
+          return mapped.map((r) => {
+            const existing = prevByResident.get(r.id);
+            return {
+              residentId: r.id,
+              residentName: `${r.firstName} ${r.lastName}`.trim(),
+              status: existing?.status || 'DYS',
+              comments: existing?.comments || '',
+            };
+          });
+        });
+      } catch {
+        addToast('Failed to load residents', 'error');
+      } finally {
+        setLoadingResidents(false);
+      }
+    })();
   }, [programId]);
   
   // Fetch historical censuses
   useEffect(() => {
     if (!programId || activeTab !== 'historical') return;
-    
-    // TODO: Replace with actual API call
-    // For now, using demo data
-    const demoCensuses: Census[] = [
-      {
-        id: 1,
-        date: '2024-12-10',
-        shift: 'MORNING',
-        conductedBy: 'Staff Member 1',
-        entries: [],
-        totalResidents: 4,
-        dysCount: 3,
-        nonDysCount: 1,
-        saved: true,
-        createdAt: new Date('2024-12-10T08:00:00').toISOString()
-      },
-      {
-        id: 2,
-        date: '2024-12-10',
-        shift: 'EVENING',
-        conductedBy: 'Staff Member 2',
-        entries: [],
-        totalResidents: 4,
-        dysCount: 4,
-        nonDysCount: 0,
-        saved: true,
-        createdAt: new Date('2024-12-10T20:00:00').toISOString()
-      }
-    ];
-    
-    setHistoricalCensuses(demoCensuses);
+    loadHistoricalCensuses(programId);
+  }, [programId, activeTab]);
+
+  // SSE: refresh archive when census is submitted
+  useEffect(() => {
+    if (!programId) return;
+    let es: EventSource | null = null;
+    try {
+      const token = localStorage.getItem('token');
+      const eventUrl = `/api/events${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      es = new EventSource(eventUrl);
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data || '{}') as { type?: string; programId?: number | string };
+          if (data?.type === 'census.submitted' && String(data.programId) === String(programId)) {
+            loadHistoricalCensuses(programId);
+          }
+        } catch {}
+      };
+    } catch {}
+    return () => {
+      try { es?.close(); } catch {}
+    };
   }, [programId, activeTab]);
 
   const handleStatusChange = (residentId: number, status: 'DYS' | 'NON_DYS') => {
@@ -142,51 +212,99 @@ export default function ResidentialCensusPage() {
     ));
   };
 
-  const handleSave = async () => {
-    // Calculate counts
-    const dysCount = entries.filter(e => e.status === 'DYS').length;
-    const nonDysCount = entries.filter(e => e.status === 'NON_DYS').length;
-    
-    const census: Census = {
-      date,
-      shift,
-      conductedBy,
-      entries,
-      totalResidents: entries.length,
-      dysCount,
-      nonDysCount,
-      saved: true
-    };
-    
-    // TODO: Send to backend API
-    console.log('Saving census:', census);
-    
-    alert('Census saved and sent to archive successfully!');
+  const handleSubmit = async () => {
+    if (!programId) {
+      addToast('No program selected', 'error');
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        censusDate: date,
+        shift,
+        sendEmail: true,
+        entries: entries.map((e) => ({
+          residentId: e.residentId,
+          residentName: e.residentName,
+          status: e.status,
+          comments: e.comments,
+        })),
+      };
+
+      const res = await fetch(`/api/programs/${programId}/census`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status === 409) {
+        addToast('Census already exists for this date and shift', 'warning');
+        return;
+      }
+      if (!res.ok) {
+        addToast('Failed to submit census', 'error');
+        return;
+      }
+
+      addToast('Submitted and email sent', 'success');
+
+      // Switch to archive and refresh
+      setActiveTab('historical');
+      await loadHistoricalCensuses(programId);
+    } catch {
+      addToast('Failed to submit census', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleSendEmail = async () => {
-    // Calculate counts
-    const dysCount = entries.filter(e => e.status === 'DYS').length;
-    const nonDysCount = entries.filter(e => e.status === 'NON_DYS').length;
-    
-    const census: Census = {
-      date,
-      shift,
-      conductedBy,
-      entries,
-      totalResidents: entries.length,
-      dysCount,
-      nonDysCount,
-      saved: true
-    };
-    
-    // TODO: Send to backend API (save + email)
-    console.log('Saving and sending census email:', census);
-    
-    alert('Census saved and email sent to administrators!');
-  };
-
-  const handleViewCensus = (census: Census) => {
+  const handleViewCensus = async (census: Census) => {
+    if (!programId || !census.id) {
+      setSelectedCensus(census);
+      setShowModal(true);
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/programs/${programId}/census/${census.id}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.ok) {
+        const c = await res.json();
+        const detailed: Census = {
+          id: c.id,
+          date: c.censusDate,
+          shift: c.shift,
+          conductedBy: c.conductedBy,
+          entries: (c.entries || []).map((e: any) => ({
+            residentId: e.residentId,
+            residentName: e.residentName,
+            status: e.status,
+            comments: e.comments || '',
+          })),
+          totalResidents: c.totalResidents || 0,
+          dysCount: c.dysCount || 0,
+          nonDysCount: c.nonDysCount || 0,
+          saved: true,
+          createdAt: c.createdAt,
+        };
+        setSelectedCensus(detailed);
+        setShowModal(true);
+        return;
+      }
+    } catch {}
     setSelectedCensus(census);
     setShowModal(true);
   };
@@ -294,18 +412,12 @@ export default function ResidentialCensusPage() {
               
               <div className="flex items-end gap-3">
                 <button
-                  onClick={handleSave}
-                  className="px-6 py-2.5 rounded-lg font-medium bg-success text-white hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className={`h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-opacity-90 transition-all inline-flex items-center justify-center gap-2 shadow-sm whitespace-nowrap ${submitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <i className="fa-solid fa-save"></i>
-                  <span>Save to Archive</span>
-                </button>
-                <button
-                  onClick={handleSendEmail}
-                  className="px-6 py-2.5 rounded-lg font-medium bg-primary text-white hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <i className="fa-solid fa-paper-plane"></i>
-                  <span>Save & Send Email</span>
+                  <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+                  <span>Submit</span>
                 </button>
               </div>
             </div>
@@ -333,12 +445,17 @@ export default function ResidentialCensusPage() {
                 <thead className="bg-bg-subtle border-b border-bd">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-font-base">Resident</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-font-base">Youth ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-font-base">Resident ID</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-font-base">Status</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-font-base">Comments</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-bd">
+                  {loadingResidents && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-sm text-font-detail">Loading residents...</td>
+                    </tr>
+                  )}
                   {residents.map((resident, index) => {
                     const entry = entries.find(e => e.residentId === resident.id);
                     return (
@@ -347,7 +464,7 @@ export default function ResidentialCensusPage() {
                           {resident.firstName} {resident.lastName}
                         </td>
                         <td className="px-4 py-3 text-sm text-font-detail">
-                          {resident.youthId || 'N/A'}
+                          {resident.residentId || 'N/A'}
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -545,6 +662,7 @@ export default function ResidentialCensusPage() {
           </div>
         </div>
       )}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

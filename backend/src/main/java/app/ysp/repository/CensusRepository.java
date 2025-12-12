@@ -10,11 +10,11 @@ import java.util.Optional;
 
 @Repository
 public interface CensusRepository extends JpaRepository<Census, Long> {
-    List<Census> findByProgramIdOrderByCensusDateDescCreatedAtDesc(Long programId);
-    
-    Optional<Census> findByProgramIdAndCensusDateAndShift(Long programId, LocalDate censusDate, String shift);
-    
-    boolean existsByProgramIdAndCensusDateAndShift(Long programId, LocalDate censusDate, String shift);
-    
-    List<Census> findByProgramIdAndCensusDateBetween(Long programId, LocalDate startDate, LocalDate endDate);
+    List<Census> findByProgram_IdOrderByCensusDateDescCreatedAtDesc(Long programId);
+
+    Optional<Census> findByProgram_IdAndCensusDateAndShift(Long programId, LocalDate censusDate, String shift);
+
+    boolean existsByProgram_IdAndCensusDateAndShift(Long programId, LocalDate censusDate, String shift);
+
+    List<Census> findByProgram_IdAndCensusDateBetween(Long programId, LocalDate startDate, LocalDate endDate);
 }

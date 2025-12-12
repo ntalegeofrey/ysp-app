@@ -15,9 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +30,7 @@ public class CensusService {
     private final ProgramAssignmentRepository assignmentRepository;
     private final MailService mailService;
     private final TemplateEngine templateEngine;
+    private final SseHub sseHub;
 
     public CensusService(
             CensusRepository censusRepository,
@@ -39,7 +40,8 @@ public class CensusService {
             ProgramResidentRepository residentRepository,
             ProgramAssignmentRepository assignmentRepository,
             MailService mailService,
-            TemplateEngine templateEngine) {
+            TemplateEngine templateEngine,
+            SseHub sseHub) {
         this.censusRepository = censusRepository;
         this.censusEntryRepository = censusEntryRepository;
         this.programRepository = programRepository;
@@ -48,13 +50,14 @@ public class CensusService {
         this.assignmentRepository = assignmentRepository;
         this.mailService = mailService;
         this.templateEngine = templateEngine;
+        this.sseHub = sseHub;
     }
 
     /**
      * Get all censuses for a program
      */
     public List<CensusResponse> getCensuses(Long programId) {
-        List<Census> censuses = censusRepository.findByProgramIdOrderByCensusDateDescCreatedAtDesc(programId);
+        List<Census> censuses = censusRepository.findByProgram_IdOrderByCensusDateDescCreatedAtDesc(programId);
         return censuses.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -80,7 +83,7 @@ public class CensusService {
     @Transactional
     public CensusResponse saveCensus(Long programId, Long staffId, CensusRequest request) {
         // Check for duplicates
-        if (censusRepository.existsByProgramIdAndCensusDateAndShift(
+        if (censusRepository.existsByProgram_IdAndCensusDateAndShift(
                 programId, request.getCensusDate(), request.getShift())) {
             throw new RuntimeException("Census already exists for this date and shift");
         }
@@ -108,7 +111,16 @@ public class CensusService {
         census.setCensusDate(request.getCensusDate());
         census.setShift(request.getShift());
         census.setConductedBy(staff);
-        census.setConductorName(staff.getFirstName() + " " + staff.getLastName());
+        String conductorName = staff.getFullName();
+        if (conductorName == null || conductorName.isBlank()) {
+            String first = staff.getFirstName() == null ? "" : staff.getFirstName();
+            String last = staff.getLastName() == null ? "" : staff.getLastName();
+            conductorName = (first + " " + last).trim();
+        }
+        if (conductorName == null || conductorName.isBlank()) {
+            conductorName = staff.getEmail();
+        }
+        census.setConductorName(conductorName);
         census.setTotalResidents(request.getEntries().size());
         census.setDysCount(dysCount);
         census.setNonDysCount(nonDysCount);
@@ -139,6 +151,15 @@ public class CensusService {
                 System.err.println("[WARN] Failed to send census notification email: " + e.getMessage());
             }
         }
+
+        // Broadcast SSE event for real-time archive updates
+        try {
+            sseHub.broadcast(Map.of(
+                    "type", "census.submitted",
+                    "programId", programId,
+                    "censusId", savedCensus.getId()
+            ));
+        } catch (Exception ignored) {}
 
         return mapToResponseWithEntries(savedCensus);
     }
