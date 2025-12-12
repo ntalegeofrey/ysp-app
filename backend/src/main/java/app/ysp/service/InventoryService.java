@@ -432,45 +432,59 @@ public class InventoryService {
     @Transactional
     public InventoryRequisitionResponse updateRequisitionStatus(Long programId, Long requisitionId,
                                                                  String newStatus, String remarks, Long staffId) {
-        InventoryRequisition requisition = requisitionRepository.findByIdAndProgramId(requisitionId, programId)
-                .orElseThrow(() -> new RuntimeException("Requisition not found"));
-        
-        User staff = userRepository.findById(staffId)
-                .orElseThrow(() -> new RuntimeException("Staff not found"));
-        
-        Program program = programRepository.findById(programId)
-                .orElseThrow(() -> new RuntimeException("Program not found"));
-        
-        // Validate status
-        if (!newStatus.matches("UNDER_REVIEW|APPROVED|DECLINED")) {
-            throw new RuntimeException("Invalid status. Must be UNDER_REVIEW, APPROVED, or DECLINED");
-        }
-        
-        String oldStatus = requisition.getStatus();
-        requisition.setStatus(newStatus);
-        requisition.setReviewedBy(staff);
-        requisition.setReviewedByName(staff.getFirstName() + " " + staff.getLastName());
-        requisition.setReviewDate(Instant.now());
-        if (remarks != null && !remarks.isBlank()) {
-            requisition.setReviewNotes(remarks);
-        }
-        
-        requisition = requisitionRepository.save(requisition);
-        
-        // Send email notifications to PD and AsstPD
-        sendStatusChangeEmails(program, requisition, oldStatus, newStatus, staff, remarks);
-        
-        // Broadcast SSE
         try {
-            sseHub.broadcast(Map.of(
-                "type", "inventory.requisition_status_updated",
-                "programId", programId,
-                "requisitionId", requisition.getId(),
-                "status", requisition.getStatus()
-            ));
-        } catch (Exception ignored) {}
-        
-        return mapRequisitionToResponse(requisition);
+            System.out.println("[INFO] Updating requisition status: reqId=" + requisitionId + ", status=" + newStatus);
+            
+            InventoryRequisition requisition = requisitionRepository.findByIdAndProgramId(requisitionId, programId)
+                    .orElseThrow(() -> new RuntimeException("Requisition not found"));
+            
+            User staff = userRepository.findById(staffId)
+                    .orElseThrow(() -> new RuntimeException("Staff not found"));
+            
+            Program program = programRepository.findById(programId)
+                    .orElseThrow(() -> new RuntimeException("Program not found"));
+            
+            // Validate status
+            if (!newStatus.matches("UNDER_REVIEW|APPROVED|DECLINED")) {
+                throw new RuntimeException("Invalid status. Must be UNDER_REVIEW, APPROVED, or DECLINED");
+            }
+            
+            String oldStatus = requisition.getStatus();
+            requisition.setStatus(newStatus);
+            requisition.setReviewedBy(staff);
+            requisition.setReviewedByName(staff.getFirstName() + " " + staff.getLastName());
+            requisition.setReviewDate(Instant.now());
+            if (remarks != null && !remarks.isBlank()) {
+                requisition.setReviewNotes(remarks);
+            }
+            
+            requisition = requisitionRepository.save(requisition);
+            System.out.println("[INFO] Requisition saved successfully with status: " + newStatus);
+            
+            // Send email notifications to PD and AsstPD (non-blocking)
+            try {
+                sendStatusChangeEmails(program, requisition, oldStatus, newStatus, staff, remarks);
+            } catch (Exception e) {
+                System.err.println("[WARN] Failed to send status change emails: " + e.getMessage());
+            }
+            
+            // Broadcast SSE
+            try {
+                sseHub.broadcast(Map.of(
+                    "type", "inventory.requisition_status_updated",
+                    "programId", programId,
+                    "requisitionId", requisition.getId(),
+                    "status", requisition.getStatus()
+                ));
+            } catch (Exception ignored) {}
+            
+            return mapRequisitionToResponse(requisition);
+            
+        } catch (Exception e) {
+            System.err.println("[ERROR] Failed to update requisition status: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to update requisition status: " + e.getMessage(), e);
+        }
     }
     
     // ========== STATS & DASHBOARD ==========
@@ -846,13 +860,17 @@ public class InventoryService {
             // Collect PD and AsstPD emails using ProgramAssignment
             java.util.Set<String> recipients = new java.util.HashSet<>();
             
-            java.util.List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
-            for (ProgramAssignment pa : assignments) {
-                if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
-                String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
-                if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
-                    recipients.add(pa.getUserEmail());
+            try {
+                java.util.List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
+                for (ProgramAssignment pa : assignments) {
+                    if (pa.getUserEmail() == null || pa.getUserEmail().isBlank()) continue;
+                    String role = pa.getRoleType() != null ? pa.getRoleType().toUpperCase() : "";
+                    if ("PROGRAM_DIRECTOR".equals(role) || "ASSISTANT_DIRECTOR".equals(role)) {
+                        recipients.add(pa.getUserEmail());
+                    }
                 }
+            } catch (Exception e) {
+                System.err.println("[WARN] Could not fetch program assignments: " + e.getMessage());
             }
             
             // Fallback to program entity fields
