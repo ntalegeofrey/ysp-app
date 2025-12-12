@@ -633,7 +633,12 @@ export default function InventoryPage() {
   // Load audit by date
   const loadAuditByDate = async () => {
     const audit = savedAudits.find(a => a.date === selectedAuditDate);
-    if (!audit) return;
+    if (!audit) {
+      addToast('Audit not found', 'error');
+      return;
+    }
+    
+    console.log('Loading audit:', audit);
     
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -644,12 +649,31 @@ export default function InventoryPage() {
         }
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setAuditItems(data.items);
+        console.log('Audit data:', data);
+        
+        // Map the items to match the expected format for display
+        const mappedItems = data.items.map((item: any) => ({
+          id: item.id,
+          itemName: item.itemName,
+          category: item.category,
+          location: item.location,
+          currentQuantity: item.currentQuantity,
+          physicalCount: item.physicalCount,
+          notes: item.notes || ''
+        }));
+        
+        setAuditItems(mappedItems);
         setAuditDate(data.date);
         setAuditInProgress(false); // View only mode
-        addToast('Audit loaded successfully', 'success');
+        addToast(`Audit from ${data.date} loaded successfully`, 'success');
+      } else {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        addToast(`Failed to load audit: ${response.status}`, 'error');
       }
     } catch (error) {
       console.error('Error loading audit:', error);
