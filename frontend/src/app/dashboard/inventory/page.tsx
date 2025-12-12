@@ -632,9 +632,9 @@ export default function InventoryPage() {
     }
   };
   
-  // Load audit by date
-  const loadAuditByDate = async () => {
-    const audit = savedAudits.find(a => a.date === selectedAuditDate);
+  // Load audit by date or by audit object
+  const loadAuditByDate = async (auditToLoad?: any) => {
+    const audit = auditToLoad || savedAudits.find(a => a.date === selectedAuditDate);
     if (!audit) {
       addToast('Audit not found', 'error');
       return;
@@ -1990,8 +1990,22 @@ export default function InventoryPage() {
                   <div className="ml-auto flex items-center space-x-2">
                     <select
                       value={selectedAuditDate}
-                      onChange={(e) => setSelectedAuditDate(e.target.value)}
-                      className="border border-bd rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => {
+                        const selectedDate = e.target.value;
+                        setSelectedAuditDate(selectedDate);
+                        if (selectedDate) {
+                          // Auto-load the audit when selected
+                          const audit = savedAudits.find(a => a.date === selectedDate);
+                          if (audit) {
+                            loadAuditByDate(audit); // Pass audit directly
+                          }
+                        } else {
+                          // Reset audit items when "View Past Audits" is selected
+                          setAuditItems([]);
+                          setAuditDate('');
+                        }
+                      }}
+                      className="border border-bd rounded-lg px-3 py-2 text-sm min-w-[200px]"
                     >
                       <option value="">View Past Audits</option>
                       {savedAudits.map((audit, idx) => (
@@ -2003,9 +2017,9 @@ export default function InventoryPage() {
                     {selectedAuditDate && (
                       <button
                         onClick={loadAuditByDate}
-                        className="bg-secondary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                        className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
                       >
-                        Load
+                        <i className="fa-solid fa-refresh mr-1"></i>Reload
                       </button>
                     )}
                   </div>
