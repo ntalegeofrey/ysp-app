@@ -243,16 +243,39 @@ public class InventoryController {
     // ========== HELPER METHODS ==========
     
     /**
-     * Extract staff ID from authentication by email lookup
+     * Extract staff ID from authentication (matching working pattern from OffsiteMovementController)
      */
     private Long getStaffIdFromAuth(Authentication authentication) {
-        if (authentication == null || authentication.getName() == null) {
+        if (authentication == null || authentication.getPrincipal() == null) {
             throw new RuntimeException("Authentication required");
         }
         
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .map(User::getId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        try {
+            // Try to get ID from principal if it's a Map
+            if (authentication.getPrincipal() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> principal = (Map<String, Object>) authentication.getPrincipal();
+                Object idObj = principal.get("id");
+                if (idObj instanceof Number) {
+                    return ((Number) idObj).longValue();
+                } else if (idObj instanceof String) {
+                    return Long.parseLong((String) idObj);
+                }
+            }
+            
+            // If not in principal, authentication.getName() returns email - look up user
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            return user.getId();
+        } catch (NumberFormatException e) {
+            // If we get a number format exception, try to look up by email
+            String email = authentication.getName();
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            return user.getId();
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to extract staff ID from authentication", e);
+        }
     }
 }
