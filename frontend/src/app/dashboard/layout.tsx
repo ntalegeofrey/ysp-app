@@ -30,7 +30,7 @@ const menuGroups = [
     label: 'Operations',
     items: [
       { icon: 'fa-calendar-days', label: 'Schedule', href: '/dashboard/schedule', roles: ['admin', 'manager', 'staff', 'supervisor'] },
-      { icon: 'fa-users', label: 'Staff Management', href: '/dashboard/staff-management', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/staff-management/edit-schedule', title: 'Create/Edit Schedule', breadcrumb: 'Schedule Builder' } ] },
+      { icon: 'fa-calendar-days', label: 'Staff Schedule', href: '/dashboard/staff-schedule', roles: ['admin', 'manager', 'staff', 'supervisor'] },
       { icon: 'fa-clipboard-check', label: 'Residential Census', href: '/dashboard/residential-census', roles: ['admin', 'manager', 'supervisor'] },
       { icon: 'fa-boxes-stacked', label: 'Inventory Management', href: '/dashboard/inventory', roles: ['admin', 'manager'], subPages: [ { path: '/dashboard/inventory/refill-request', title: 'Inventory Refill Request', breadcrumb: 'Create Refill Request' }, { path: '/dashboard/inventory/reorganize', title: 'Storage Reorganization', breadcrumb: 'Plan Reorganization' } ] },
       { icon: 'fa-route', label: 'Off-Site Movements', href: '/dashboard/offsite-movements', roles: ['admin', 'manager', 'staff'] },
