@@ -5,7 +5,6 @@ import app.ysp.dto.*;
 import app.ysp.repo.UserRepository;
 import app.ysp.service.InventoryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -177,7 +176,6 @@ public class InventoryController {
      * Only accessible by ADMIN or ADMINISTRATOR roles
      */
     @PatchMapping("/requisitions/{requisitionId}/status")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InventoryRequisitionResponse> updateRequisitionStatus(
             @PathVariable Long programId,
             @PathVariable Long requisitionId,
@@ -229,7 +227,6 @@ public class InventoryController {
      * Save audit
      */
     @PostMapping("/audits")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> saveAudit(
             @PathVariable Long programId,
             @RequestBody Map<String, Object> request,
