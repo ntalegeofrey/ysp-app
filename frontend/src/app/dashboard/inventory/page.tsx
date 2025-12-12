@@ -1473,9 +1473,18 @@ export default function InventoryPage() {
                   <tbody>
                     {requisitions.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-font-detail">
-                          <i className="fa-solid fa-inbox text-4xl text-font-detail mb-3"></i>
-                          <p>No requisitions found</p>
+                        <td colSpan={9} className="p-12 text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-16 h-16 bg-bg-subtle rounded-full flex items-center justify-center mb-4">
+                              <i className="fa-solid fa-inbox text-3xl text-font-detail"></i>
+                            </div>
+                            <p className="text-font-base font-medium mb-1">No Requisitions Found</p>
+                            <p className="text-sm text-font-detail">
+                              {requisitionFilters.status || requisitionFilters.category || requisitionFilters.searchTerm 
+                                ? 'Try adjusting your filters to see more results' 
+                                : 'Create a new requisition to get started'}
+                            </p>
+                          </div>
                         </td>
                       </tr>
                     ) : (
