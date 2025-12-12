@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/programs/{programId}/census")
+@RequestMapping("/programs/{programId}/census")
 public class CensusController {
     private final CensusService censusService;
     private final UserRepository userRepository;
