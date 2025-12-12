@@ -390,11 +390,13 @@ export default function InventoryPage() {
     }
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const response = await fetch(`/api/programs/${programId}/inventory/requisitions/${requisitionId}/status`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           status: newStatus,
@@ -518,11 +520,13 @@ export default function InventoryPage() {
     }
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const response = await fetch(`/api/programs/${programId}/inventory/audits`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           date: auditDate,
