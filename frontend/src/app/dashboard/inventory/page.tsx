@@ -1438,8 +1438,6 @@ export default function InventoryPage() {
                       <option value="UNDER_REVIEW">Under Review</option>
                       <option value="APPROVED">Approved</option>
                       <option value="DECLINED">Declined</option>
-                      <option value="REJECTED">Rejected</option>
-                      <option value="FULFILLED">Fulfilled</option>
                     </select>
                     <select 
                       value={requisitionFilters.category}
