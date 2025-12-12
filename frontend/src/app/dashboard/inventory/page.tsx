@@ -88,6 +88,16 @@ export default function InventoryPage() {
   const [savedAudits, setSavedAudits] = useState<any[]>([]);
   const [selectedAuditDate, setSelectedAuditDate] = useState('');
   
+  // Stats state
+  const [stats, setStats] = useState<any>({
+    totalItems: 0,
+    lowStockCount: 0,
+    criticalStockCount: 0,
+    outOfStockCount: 0,
+    lowStockItems: [],
+    criticalItems: []
+  });
+  
   // Load current user
   useEffect(() => {
     try {
@@ -149,11 +159,34 @@ export default function InventoryPage() {
     }
   };
   
+  // Fetch inventory stats
+  const fetchStats = async () => {
+    if (!programId) return;
+    
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const response = await fetch(`/api/programs/${programId}/inventory/stats`, {
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+  
   // Load data on mount and tab change
   useEffect(() => {
     if (programId && activeTab === 'overview') {
       fetchTransactions();
       fetchInventoryItems(); // Also fetch for recently added section
+      fetchStats();
     } else if (programId && activeTab === 'checkout') {
       fetchInventoryItems();
     }
@@ -198,7 +231,9 @@ export default function InventoryPage() {
       // Refresh data if on overview tab
       if (activeTab === 'overview') {
         fetchTransactions();
+        fetchStats();
       }
+      fetchInventoryItems();
     } catch (error: any) {
       console.error('Error adding item:', error);
       addToast('Failed to send. Please try again.', 'error');
@@ -243,8 +278,9 @@ export default function InventoryPage() {
         [item.id]: { quantity: 1 }
       }));
       
-      // Refresh items
+      // Refresh items and stats
       fetchInventoryItems();
+      fetchStats();
       
     } catch (error: any) {
       console.error('Error checking out item:', error);
@@ -431,8 +467,12 @@ export default function InventoryPage() {
     if (!programId) return;
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const response = await fetch(`/api/programs/${programId}/inventory/audits`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
       });
       
       if (response.ok) {
@@ -558,8 +598,12 @@ export default function InventoryPage() {
     if (!audit) return;
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const response = await fetch(`/api/programs/${programId}/inventory/audits/${audit.id}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
       });
       
       if (response.ok) {
@@ -567,6 +611,7 @@ export default function InventoryPage() {
         setAuditItems(data.items);
         setAuditDate(data.date);
         setAuditInProgress(false); // View only mode
+        addToast('Audit loaded successfully', 'success');
       }
     } catch (error) {
       console.error('Error loading audit:', error);
@@ -655,11 +700,11 @@ export default function InventoryPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-font-detail text-sm font-medium">Total Items</p>
-                      <p className="text-3xl font-bold text-success mt-1">2,847</p>
-                      <p className="text-xs text-success mt-1">↑ 2.5% from last month</p>
+                      <p className="text-3xl font-bold text-green-600 mt-1">{stats.totalItems || 0}</p>
+                      <p className="text-xs text-font-detail mt-1">Items in inventory</p>
                     </div>
-                    <div className="bg-success bg-opacity-10 p-3 rounded-xl">
-                      <i className="fa-solid fa-boxes-stacked text-success text-xl"></i>
+                    <div className="bg-green-100 p-3 rounded-xl">
+                      <i className="fa-solid fa-boxes-stacked text-green-600 text-xl"></i>
                     </div>
                   </div>
                 </div>
@@ -667,11 +712,11 @@ export default function InventoryPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-font-detail text-sm font-medium">Low Stock Alerts</p>
-                      <p className="text-3xl font-bold text-warning mt-1">23</p>
-                      <p className="text-xs text-warning mt-1">Requires attention</p>
+                      <p className="text-3xl font-bold text-yellow-600 mt-1">{stats.lowStockCount || 0}</p>
+                      <p className="text-xs text-yellow-600 mt-1">{stats.lowStockCount > 0 ? 'Requires attention' : 'All good'}</p>
                     </div>
-                    <div className="bg-warning bg-opacity-10 p-3 rounded-xl">
-                      <i className="fa-solid fa-exclamation-triangle text-warning text-xl"></i>
+                    <div className="bg-yellow-100 p-3 rounded-xl">
+                      <i className="fa-solid fa-exclamation-triangle text-yellow-600 text-xl"></i>
                     </div>
                   </div>
                 </div>
@@ -679,25 +724,23 @@ export default function InventoryPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-font-detail text-sm font-medium">Critical Items</p>
-                      <p className="text-3xl font-bold text-error mt-1">5</p>
-                      <p className="text-xs text-error mt-1">Immediate action needed</p>
+                      <p className="text-3xl font-bold text-red-600 mt-1">{stats.criticalStockCount || 0}</p>
+                      <p className="text-xs text-red-600 mt-1">{stats.criticalStockCount > 0 ? 'Immediate action needed' : 'None'}</p>
                     </div>
-                    <div className="bg-error bg-opacity-10 p-3 rounded-xl">
-                      <i className="fa-solid fa-times-circle text-error text-xl"></i>
+                    <div className="bg-red-100 p-3 rounded-xl">
+                      <i className="fa-solid fa-times-circle text-red-600 text-xl"></i>
                     </div>
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-bd shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-font-detail text-sm font-medium">Storage Utilization</p>
-                      <p className="text-3xl font-bold text-primary mt-1">78%</p>
-                      <div className="w-full bg-primary-lightest rounded-full h-2 mt-2">
-                        <div className="bg-primary h-2 rounded-full" style={{ width: '78%' }}></div>
-                      </div>
+                      <p className="text-font-detail text-sm font-medium">Out of Stock</p>
+                      <p className="text-3xl font-bold text-gray-600 mt-1">{stats.outOfStockCount || 0}</p>
+                      <p className="text-xs text-font-detail mt-1">{stats.outOfStockCount > 0 ? 'Need restock' : 'All stocked'}</p>
                     </div>
-                    <div className="bg-primary bg-opacity-10 p-3 rounded-xl">
-                      <i className="fa-solid fa-warehouse text-primary text-xl"></i>
+                    <div className="bg-gray-100 p-3 rounded-xl">
+                      <i className="fa-solid fa-box-open text-gray-600 text-xl"></i>
                     </div>
                   </div>
                 </div>
@@ -707,40 +750,53 @@ export default function InventoryPage() {
               <div className="bg-white rounded-xl border border-bd shadow-sm">
                 <div className="p-6 border-b border-bd">
                   <h3 className="text-xl font-semibold text-font-base flex items-center">
-                    <i className="fa-solid fa-bell text-error mr-3"></i>Priority Alerts
+                    <i className="fa-solid fa-bell text-red-600 mr-3"></i>Priority Alerts
                   </h3>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div className="bg-error-lightest border-l-4 border-error rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-semibold text-error">Critical Stock Level</h4>
-                        <p className="text-sm text-font-detail mt-1">Toiletries - Toothpaste (Colgate)</p>
-                        <p className="text-sm text-font-detail">Current: 2 units | Required: 15+ units</p>
-                      </div>
-                      <button onClick={() => router.push('/dashboard/inventory/refill-request')} className="bg-error text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90">Request Refill</button>
+                  {stats.criticalItems?.length === 0 && stats.lowStockItems?.length === 0 ? (
+                    <div className="text-center py-8">
+                      <i className="fa-solid fa-check-circle text-green-600 text-5xl mb-3"></i>
+                      <p className="text-font-detail">No alerts at this time. All inventory levels are healthy!</p>
                     </div>
-                  </div>
-                  <div className="bg-highlight-lightest border-l-4 border-highlight rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-semibold text-warning">Low Stock Warning</h4>
-                        <p className="text-sm text-font-detail mt-1">Food - Breakfast Cereal</p>
-                        <p className="text-sm text-font-detail">Current: 8 units | Minimum: 20 units</p>
-                      </div>
-                      <button onClick={() => router.push('/dashboard/inventory/refill-request')} className="bg-highlight text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90">Request Refill</button>
-                    </div>
-                  </div>
-                  <div className="bg-warning bg-opacity-10 border border-warning rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-warning">Storage Capacity</h4>
-                        <p className="text-sm text-font-detail mt-1">Clothing Storage - Zone C</p>
-                        <p className="text-sm text-font-detail">Current: 95% full | Recommended: 85%</p>
-                      </div>
-                      <button onClick={() => router.push('/dashboard/inventory/reorganize')} className="bg-warning text-white px-3 py-1 rounded text-sm hover:bg-opacity-90">Reorganize</button>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      {stats.criticalItems?.map((item: any) => (
+                        <div key={item.id} className="bg-red-50 border-l-4 border-red-600 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-semibold text-red-600">Critical Stock Level</h4>
+                              <p className="text-sm text-font-detail mt-1">{item.category} - {item.itemName}</p>
+                              <p className="text-sm text-font-detail">Current: {item.currentQuantity} {item.unitOfMeasurement} | Min: {item.minimumQuantity} {item.unitOfMeasurement}</p>
+                            </div>
+                            <button 
+                              onClick={() => setActiveTab('requisition')} 
+                              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700"
+                            >
+                              Request Refill
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {stats.lowStockItems?.map((item: any) => (
+                        <div key={item.id} className="bg-yellow-50 border-l-4 border-yellow-600 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-semibold text-yellow-700">Low Stock Warning</h4>
+                              <p className="text-sm text-font-detail mt-1">{item.category} - {item.itemName}</p>
+                              <p className="text-sm text-font-detail">Current: {item.currentQuantity} {item.unitOfMeasurement} | Min: {item.minimumQuantity} {item.unitOfMeasurement}</p>
+                            </div>
+                            <button 
+                              onClick={() => setActiveTab('requisition')} 
+                              className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700"
+                            >
+                              Request Refill
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1666,12 +1722,12 @@ export default function InventoryPage() {
                       requisitions.map((req) => {
                         const isAdmin = currentUserRole.toUpperCase() === 'ADMIN' || currentUserRole.toUpperCase() === 'ADMINISTRATOR';
                         const statusColors: Record<string, string> = {
-                          PENDING: 'bg-warning text-white',
-                          UNDER_REVIEW: 'bg-info text-white',
-                          APPROVED: 'bg-success text-white',
-                          DECLINED: 'bg-error text-white',
-                          REJECTED: 'bg-error text-white',
-                          FULFILLED: 'bg-success text-white'
+                          PENDING: 'bg-yellow-500 text-white',
+                          UNDER_REVIEW: 'bg-blue-500 text-white',
+                          APPROVED: 'bg-green-500 text-white',
+                          DECLINED: 'bg-red-500 text-white',
+                          REJECTED: 'bg-red-600 text-white',
+                          FULFILLED: 'bg-green-600 text-white'
                         };
                         const priorityColors: Record<string, string> = {
                           URGENT: 'bg-warning text-white',
@@ -1708,27 +1764,58 @@ export default function InventoryPage() {
                                   </button>
                                   {openActionMenu === req.id && (
                                     <div className="absolute right-0 mt-2 w-48 bg-white border border-bd rounded-lg shadow-lg z-10 action-menu-container">
-                                      <button
-                                        onClick={() => updateRequisitionStatus(req.id, 'UNDER_REVIEW')}
-                                        className="w-full text-left px-4 py-2 hover:bg-info-lightest text-info text-sm flex items-center"
-                                      >
-                                        <i className="fa-solid fa-search mr-2"></i>
-                                        Mark Under Review
-                                      </button>
-                                      <button
-                                        onClick={() => updateRequisitionStatus(req.id, 'APPROVED')}
-                                        className="w-full text-left px-4 py-2 hover:bg-success-lightest text-success text-sm flex items-center"
-                                      >
-                                        <i className="fa-solid fa-check mr-2"></i>
-                                        Approve
-                                      </button>
-                                      <button
-                                        onClick={() => updateRequisitionStatus(req.id, 'DECLINED')}
-                                        className="w-full text-left px-4 py-2 hover:bg-error-lightest text-error text-sm flex items-center"
-                                      >
-                                        <i className="fa-solid fa-times mr-2"></i>
-                                        Decline
-                                      </button>
+                                      {req.status === 'PENDING' && (
+                                        <>
+                                          <button
+                                            onClick={() => updateRequisitionStatus(req.id, 'UNDER_REVIEW')}
+                                            className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-600 text-sm flex items-center"
+                                          >
+                                            <i className="fa-solid fa-search mr-2"></i>
+                                            Mark Under Review
+                                          </button>
+                                          <button
+                                            onClick={() => updateRequisitionStatus(req.id, 'APPROVED')}
+                                            className="w-full text-left px-4 py-2 hover:bg-green-50 text-green-600 text-sm flex items-center"
+                                          >
+                                            <i className="fa-solid fa-check mr-2"></i>
+                                            Approve
+                                          </button>
+                                          <button
+                                            onClick={() => updateRequisitionStatus(req.id, 'DECLINED')}
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm flex items-center"
+                                          >
+                                            <i className="fa-solid fa-times mr-2"></i>
+                                            Decline
+                                          </button>
+                                        </>
+                                      )}
+                                      {req.status === 'UNDER_REVIEW' && (
+                                        <>
+                                          <button
+                                            onClick={() => updateRequisitionStatus(req.id, 'APPROVED')}
+                                            className="w-full text-left px-4 py-2 hover:bg-green-50 text-green-600 text-sm flex items-center"
+                                          >
+                                            <i className="fa-solid fa-check mr-2"></i>
+                                            Approve
+                                          </button>
+                                          <button
+                                            onClick={() => updateRequisitionStatus(req.id, 'DECLINED')}
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm flex items-center"
+                                          >
+                                            <i className="fa-solid fa-times mr-2"></i>
+                                            Decline
+                                          </button>
+                                        </>
+                                      )}
+                                      {(req.status === 'APPROVED' || req.status === 'DECLINED') && (
+                                        <button
+                                          onClick={() => updateRequisitionStatus(req.id, 'UNDER_REVIEW')}
+                                          className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-600 text-sm flex items-center"
+                                        >
+                                          <i className="fa-solid fa-undo mr-2"></i>
+                                          Return to Review
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
