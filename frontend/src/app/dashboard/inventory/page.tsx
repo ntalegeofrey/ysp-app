@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/hooks/useToast';
 import ToastContainer from '@/app/components/Toast';
 import * as inventoryApi from '@/app/utils/inventoryApi';
+import { generateInventoryAuditHTML } from '../pdfReports';
 
 // Type definitions for requisition form
 interface RequisitionItem {
@@ -685,7 +686,40 @@ export default function InventoryPage() {
   
   // Print audit
   const printAudit = () => {
-    window.print();
+    if (!auditDate || auditItems.length === 0) {
+      addToast('No audit data to print', 'warning');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      addToast('Please allow popups to print the report', 'warning');
+      return;
+    }
+
+    try {
+      const selectedProgram = localStorage.getItem('selectedProgram');
+      const programName = selectedProgram ? JSON.parse(selectedProgram).name : 'Program Name';
+
+      const html = generateInventoryAuditHTML({
+        auditDate,
+        programName,
+        auditedBy: currentStaff,
+        items: auditItems
+      });
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } catch (error) {
+      console.error('Print error:', error);
+      addToast('Failed to generate print preview', 'error');
+      printWindow.close();
+    }
   };
   
   // Format date for display
