@@ -1056,11 +1056,67 @@ public class InventoryService {
             auditItemRepository.save(auditItem);
         }
         
+        // Send email notification to PDS and ASPD
+        try {
+            sendAuditNotificationEmail(program, savedAudit, staff, discrepancies);
+        } catch (Exception e) {
+            System.err.println("[WARN] Failed to send audit notification email: " + e.getMessage());
+        }
+        
         Map<String, Object> result = new HashMap<>();
         result.put("id", savedAudit.getId());
         result.put("date", savedAudit.getAuditDate().toString());
         result.put("success", true);
         
         return result;
+    }
+    
+    /**
+     * Send email notification to PDS and ASPD when audit is submitted
+     */
+    private void sendAuditNotificationEmail(Program program, InventoryAudit audit, User auditor, int discrepancies) {
+        // Get PDS and ASPD users for this program
+        List<String> recipients = new java.util.ArrayList<>();
+        
+        // Find PDS and ASPD assignments - use correct method name and field names
+        List<ProgramAssignment> assignments = assignmentRepository.findByProgram_Id(program.getId());
+        for (ProgramAssignment assignment : assignments) {
+            String roleType = assignment.getRoleType();
+            // Check for PDS (Program Director Supervisor) or ASPD (Assistant Program Director)
+            if (roleType != null && 
+                (roleType.equalsIgnoreCase("PDS") || 
+                 roleType.equalsIgnoreCase("ASPD") ||
+                 roleType.equalsIgnoreCase("PROGRAM_DIRECTOR") ||
+                 roleType.equalsIgnoreCase("ASSISTANT_DIRECTOR"))) {
+                String email = assignment.getUserEmail();
+                if (email != null && !email.isBlank()) {
+                    recipients.add(email);
+                }
+            }
+        }
+        
+        if (recipients.isEmpty()) {
+            System.out.println("[INFO] No PDS/ASPD/Directors found for program " + program.getId() + ", skipping audit notification");
+            return;
+        }
+        
+        // Build email content
+        String subject = String.format("Inventory Audit Submitted - %s", program.getName());
+        
+        Context context = new Context();
+        context.setVariable("programName", program.getName());
+        context.setVariable("auditorName", auditor.getFirstName() + " " + auditor.getLastName());
+        context.setVariable("auditDate", audit.getAuditDate().toString());
+        context.setVariable("totalItems", audit.getTotalItemsAudited());
+        context.setVariable("discrepancies", discrepancies);
+        context.setVariable("hasDiscrepancies", discrepancies > 0);
+        
+        String html = templateEngine.process("audit-notification", context);
+        
+        // Send to all PDS, ASPD, and Directors
+        for (String email : recipients) {
+            mailService.sendRawHtml(email, subject, html);
+            System.out.println("[INFO] Sent audit notification email to: " + email);
+        }
     }
 }

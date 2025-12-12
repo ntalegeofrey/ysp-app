@@ -1969,18 +1969,33 @@ export default function InventoryPage() {
                       <i className="fa-solid fa-play mr-2"></i>Start Audit
                     </button>
                   ) : (
-                    <button
-                      onClick={saveAudit}
-                      className="bg-success text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
-                    >
-                      <i className="fa-solid fa-save mr-2"></i>Save Audit
-                    </button>
+                    <>
+                      <button
+                        onClick={saveAudit}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+                      >
+                        <i className="fa-solid fa-save mr-2"></i>Save Audit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to cancel this audit? All unsaved changes will be lost.')) {
+                            setAuditInProgress(false);
+                            setAuditItems([]);
+                            setAuditDate('');
+                            addToast('Audit cancelled', 'info');
+                          }
+                        }}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700"
+                      >
+                        <i className="fa-solid fa-times mr-2"></i>Cancel Audit
+                      </button>
+                    </>
                   )}
                   
-                  {auditItems.length > 0 && (
+                  {auditItems.length > 0 && !auditInProgress && (
                     <button
                       onClick={printAudit}
-                      className="bg-info text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
                     >
                       <i className="fa-solid fa-print mr-2"></i>Print
                     </button>
@@ -2014,14 +2029,6 @@ export default function InventoryPage() {
                         </option>
                       ))}
                     </select>
-                    {selectedAuditDate && (
-                      <button
-                        onClick={loadAuditByDate}
-                        className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-                      >
-                        <i className="fa-solid fa-refresh mr-1"></i>Reload
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
