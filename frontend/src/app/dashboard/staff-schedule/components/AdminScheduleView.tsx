@@ -4,10 +4,10 @@ import { useState } from 'react';
 import CalendarGrid from './CalendarGrid';
 import RequestsQueue from './RequestsQueue';
 import StaffRoster from './StaffRoster';
-import Reports from './Reports';
+import OvertimeArchive from './OvertimeArchive';
 
 export default function AdminScheduleView() {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'requests' | 'staff' | 'reports'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'requests' | 'staff' | 'overtime'>('schedule');
 
   const stats = {
     totalScheduled: 98,
@@ -117,15 +117,15 @@ export default function AdminScheduleView() {
             Staff Roster
           </button>
           <button
-            onClick={() => setActiveTab('reports')}
+            onClick={() => setActiveTab('overtime')}
             className={`flex items-center px-3 py-3 text-sm font-medium border-b-2 transition-all ${
-              activeTab === 'reports'
+              activeTab === 'overtime'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-font-detail hover:text-font-base'
             }`}
           >
-            <i className={`fa-solid fa-chart-bar mr-2 ${activeTab === 'reports' ? 'text-primary' : 'text-font-detail'}`}></i>
-            Reports
+            <i className={`fa-solid fa-clock-rotate-left mr-2 ${activeTab === 'overtime' ? 'text-primary' : 'text-font-detail'}`}></i>
+            Overtime Archive
           </button>
         </nav>
       </div>
@@ -134,7 +134,7 @@ export default function AdminScheduleView() {
         {activeTab === 'schedule' && <CalendarGrid isAdmin={true} />}
         {activeTab === 'requests' && <RequestsQueue />}
         {activeTab === 'staff' && <StaffRoster />}
-        {activeTab === 'reports' && <Reports />}
+        {activeTab === 'overtime' && <OvertimeArchive />}
       </div>
     </div>
   );

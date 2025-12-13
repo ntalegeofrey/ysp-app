@@ -15,7 +15,7 @@ export default function StaffScheduleView() {
   const myStats = {
     shiftsThisWeek: 4,
     otHoursMonth: 12,
-    leaveAvailable: 15,
+    nextShift: 'Mon 7AM',
     pendingRequests: 1,
   };
 
@@ -73,10 +73,10 @@ export default function StaffScheduleView() {
         <div className="bg-white border border-bd rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-success">{myStats.leaveAvailable} days</p>
-              <p className="text-xs text-font-detail mt-1">Leave Available</p>
+              <p className="text-lg font-bold text-primary">{myStats.nextShift}</p>
+              <p className="text-xs text-font-detail mt-1">Next Shift</p>
             </div>
-            <i className="fa-solid fa-umbrella-beach text-success text-xl"></i>
+            <i className="fa-solid fa-calendar-check text-primary text-xl"></i>
           </div>
         </div>
 
