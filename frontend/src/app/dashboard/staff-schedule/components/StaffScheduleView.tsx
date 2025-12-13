@@ -4,11 +4,13 @@ import { useState } from 'react';
 import CalendarGrid from './CalendarGrid';
 import RequestOvertimeModal from './RequestOvertimeModal';
 import RequestTimeOffModal from './RequestTimeOffModal';
+import CallOutModal from './CallOutModal';
 
 export default function StaffScheduleView() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'schedule' | 'requests'>('dashboard');
   const [showOTModal, setShowOTModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showCallOutModal, setShowCallOutModal] = useState(false);
 
   const myStats = {
     shiftsThisWeek: 4,
@@ -104,9 +106,12 @@ export default function StaffScheduleView() {
           <i className="fa-solid fa-calendar-xmark mr-2"></i>
           Request Time Off
         </button>
-        <button className="bg-error text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm">
-          <i className="fa-solid fa-phone mr-2"></i>
-          Call In Emergency
+        <button 
+          onClick={() => setShowCallOutModal(true)}
+          className="bg-error text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm"
+        >
+          <i className="fa-solid fa-phone-slash mr-2"></i>
+          Log Call Out
         </button>
       </div>
 
@@ -322,6 +327,7 @@ export default function StaffScheduleView() {
 
       {showOTModal && <RequestOvertimeModal onClose={() => setShowOTModal(false)} />}
       {showLeaveModal && <RequestTimeOffModal onClose={() => setShowLeaveModal(false)} />}
+      {showCallOutModal && <CallOutModal onClose={() => setShowCallOutModal(false)} />}
     </div>
   );
 }
