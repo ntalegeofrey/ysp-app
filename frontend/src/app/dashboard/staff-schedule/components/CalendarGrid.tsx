@@ -5,11 +5,11 @@ import DayDetailModal from './DayDetailModal';
 
 interface CalendarGridProps {
   isAdmin: boolean;
-  onOpenCreateSchedule?: () => void;
 }
 
-export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: CalendarGridProps) {
+export default function CalendarGrid({ isAdmin }: CalendarGridProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDateUnscheduled, setSelectedDateUnscheduled] = useState(false);
   const [currentYear, setCurrentYear] = useState(2024);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(10); // 10 = November (0-indexed)
 
@@ -81,8 +81,9 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
     return 'border-bd bg-white';
   };
 
-  const handleDayClick = (date: number) => {
+  const handleDayClick = (date: number, isUnscheduled: boolean = false) => {
     setSelectedDate(`${monthNames[currentMonthIndex]} ${date}, ${currentYear}`);
+    setSelectedDateUnscheduled(isUnscheduled);
   };
 
   const goToPreviousMonth = () => {
@@ -133,19 +134,10 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                 </button>
               </div>
               {isAdmin && (
-                <>
-                  <button 
-                    onClick={onOpenCreateSchedule}
-                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light text-sm"
-                  >
-                    <i className="fa-solid fa-plus mr-2"></i>
-                    Create Schedule
-                  </button>
-                  <button className="bg-success text-white px-4 py-2 rounded-lg hover:bg-primary-alt text-sm">
-                    <i className="fa-solid fa-print mr-2"></i>
-                    Print
-                  </button>
-                </>
+                <button className="bg-success text-white px-4 py-2 rounded-lg hover:bg-primary-alt text-sm">
+                  <i className="fa-solid fa-print mr-2"></i>
+                  Print
+                </button>
               )}
             </div>
           </div>
@@ -205,7 +197,7 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                       </div>
                       {isAdmin && (
                         <button
-                          onClick={() => handleDayClick(dayData.date)}
+                          onClick={() => handleDayClick(dayData.date, true)}
                           className="w-full bg-primary text-white px-3 py-2 rounded text-xs hover:bg-primary-light transition-colors"
                         >
                           <i className="fa-solid fa-plus mr-1"></i>
@@ -308,7 +300,11 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
         <DayDetailModal
           date={selectedDate}
           isAdmin={isAdmin}
-          onClose={() => setSelectedDate(null)}
+          isUnscheduled={selectedDateUnscheduled}
+          onClose={() => {
+            setSelectedDate(null);
+            setSelectedDateUnscheduled(false);
+          }}
         />
       )}
     </div>

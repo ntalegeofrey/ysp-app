@@ -5,11 +5,9 @@ import CalendarGrid from './CalendarGrid';
 import RequestsQueue from './RequestsQueue';
 import StaffRoster from './StaffRoster';
 import Reports from './Reports';
-import CreateScheduleDrawer from './CreateScheduleDrawer';
 
 export default function AdminScheduleView() {
   const [activeTab, setActiveTab] = useState<'schedule' | 'requests' | 'staff' | 'reports'>('schedule');
-  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
 
   const stats = {
     totalScheduled: 98,
@@ -133,13 +131,11 @@ export default function AdminScheduleView() {
       </div>
 
       <div>
-        {activeTab === 'schedule' && <CalendarGrid isAdmin={true} onOpenCreateSchedule={() => setShowCreateDrawer(true)} />}
+        {activeTab === 'schedule' && <CalendarGrid isAdmin={true} />}
         {activeTab === 'requests' && <RequestsQueue />}
         {activeTab === 'staff' && <StaffRoster />}
         {activeTab === 'reports' && <Reports />}
       </div>
-
-      {showCreateDrawer && <CreateScheduleDrawer onClose={() => setShowCreateDrawer(false)} />}
     </div>
   );
 }
