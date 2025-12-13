@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DayDetailModal from './DayDetailModal';
 
 interface CalendarGridProps {
@@ -10,17 +10,51 @@ interface CalendarGridProps {
 
 export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: CalendarGridProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState('November 2024');
+  const [currentYear, setCurrentYear] = useState(2024);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(10); // 10 = November (0-indexed)
 
-  const calendarData = [
-    { date: 17, day: 'Sun', dayShift: 'Fully Staffed', daySuper: 'Davis, L.', dayStaff: ['Wilson M.', 'Rodriguez A.', '+5 more'], eveShift: 'Fully Staffed', eveSuper: 'Thompson, K.', eveStaff: ['Garcia M.', '+3 more'], nightShift: 'Fully Staffed', nightSuper: 'Roberts, T.', nightStaff: ['Evans N.', '+2 more'] },
-    { date: 18, day: 'Mon', dayShift: 'Fully Staffed', daySuper: 'Davis, L.', dayStaff: ['Wilson M.', 'Rodriguez A.', '+5 more'], eveShift: 'Fully Staffed', eveSuper: 'Thompson, K.', eveStaff: ['Garcia M.', '+3 more'], nightShift: 'Fully Staffed', nightSuper: 'Roberts, T.', nightStaff: ['Evans N.', '+2 more'] },
-    { date: 19, day: 'Tue', dayShift: 'Fully Staffed', daySuper: 'Wilson, M.', dayStaff: ['Rodriguez A.', 'Johnson M. (Training)', '+5 more'], eveShift: 'Needs Coverage', eveSuper: 'Anderson, J.', eveStaff: ['Garcia L.', 'Smith T.', '1 OT Open'], nightShift: 'Critical', nightSuper: 'Brown, P.', nightStaff: ['Miller J.', 'Davis P.', '1 Mandatory OT'] },
-    { date: 20, day: 'Wed', dayShift: 'Fully Staffed', daySuper: 'Davis, L.', dayStaff: ['Wilson M.', 'Rodriguez A.', '+5 more'], eveShift: 'Fully Staffed', eveSuper: 'Martinez, R.', eveStaff: ['Garcia L.', 'Rodriguez M. (OT)', '+3 more'], nightShift: 'Fully Staffed', nightSuper: 'Roberts, T.', nightStaff: ['Evans N.', '+2 more'] },
-    { date: 21, day: 'Thu', dayShift: 'Fully Staffed', daySuper: 'Rodriguez, A.', dayStaff: ['Thompson K.', 'Brown P.', '+5 more'], eveShift: 'Fully Staffed', eveSuper: 'Garcia, L.', eveStaff: ['Smith T.', '+4 more'], nightShift: 'Fully Staffed', nightSuper: 'Davis, P.', nightStaff: ['Miller J.', '+2 more'] },
-    { date: 22, day: 'Fri', dayShift: 'Needs Coverage', daySuper: 'Davis, L.', dayStaff: ['Wilson M.', 'Rodriguez A.', '1 OT Open'], eveShift: 'Needs Coverage', eveSuper: 'Martinez, R.', eveStaff: ['Garcia L.', 'Smith T.', '1 OT Open'], nightShift: 'Needs Coverage', nightSuper: 'Thompson, K.', nightStaff: ['Miller J.', 'Davis P.', '1 OT Open'] },
-    { date: 23, day: 'Sat', dayShift: 'Fully Staffed', daySuper: 'Davis, L.', dayStaff: ['Wilson M.', '+5 more'], eveShift: 'Fully Staffed', eveSuper: 'Martinez, R.', eveStaff: ['Garcia M.', '+3 more'], nightShift: 'Fully Staffed', nightSuper: 'Brown, P.', nightStaff: ['Evans N.', '+2 more'] },
-  ];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const generateCalendarDays = useMemo(() => {
+    const daysInMonth = getDaysInMonth(currentYear, currentMonthIndex);
+    const firstDay = getFirstDayOfMonth(currentYear, currentMonthIndex);
+    const days = [];
+
+    // Add empty cells for days before the first of the month
+    for (let i = 0; i < firstDay; i++) {
+      days.push({ isEmpty: true, date: 0 });
+    }
+
+    // Add all days of the month with static data
+    for (let date = 1; date <= daysInMonth; date++) {
+      const dayOfWeek = (firstDay + date - 1) % 7;
+      days.push({
+        isEmpty: false,
+        date,
+        day: dayNames[dayOfWeek],
+        dayShift: date % 7 === 2 || date % 11 === 0 ? 'Needs Coverage' : date % 13 === 0 ? 'Critical' : 'Fully Staffed',
+        daySuper: ['Davis, L.', 'Wilson, M.', 'Rodriguez, A.', 'Martinez, R.'][date % 4],
+        dayStaff: date % 5 === 0 ? ['Wilson M.', 'Rodriguez A.', 'Johnson M. (Training)', '+5 more'] : ['Wilson M.', 'Rodriguez A.', '+5 more'],
+        eveShift: date % 9 === 0 ? 'Needs Coverage' : date % 17 === 0 ? 'Critical' : 'Fully Staffed',
+        eveSuper: ['Thompson, K.', 'Anderson, J.', 'Garcia, L.', 'Martinez, R.'][date % 4],
+        eveStaff: date % 7 === 0 ? ['Garcia L.', 'Smith T.', '1 OT Open'] : ['Garcia M.', '+3 more'],
+        nightShift: date % 15 === 0 ? 'Critical' : date % 8 === 0 ? 'Needs Coverage' : 'Fully Staffed',
+        nightSuper: ['Roberts, T.', 'Brown, P.', 'Davis, P.', 'Thompson, K.'][date % 4],
+        nightStaff: date % 15 === 0 ? ['Miller J.', 'Davis P.', '1 Mandatory OT'] : date % 8 === 0 ? ['Miller J.', '1 OT Open'] : ['Evans N.', '+2 more'],
+      });
+    }
+
+    return days;
+  }, [currentYear, currentMonthIndex]);
 
   const getShiftStatusColor = (status: string) => {
     if (status === 'Fully Staffed') return 'border-success bg-primary-alt-lightest';
@@ -30,7 +64,25 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
   };
 
   const handleDayClick = (date: number) => {
-    setSelectedDate(`November ${date}, 2024`);
+    setSelectedDate(`${monthNames[currentMonthIndex]} ${date}, ${currentYear}`);
+  };
+
+  const goToPreviousMonth = () => {
+    if (currentMonthIndex === 0) {
+      setCurrentMonthIndex(11);
+      setCurrentYear(currentYear - 1);
+    } else {
+      setCurrentMonthIndex(currentMonthIndex - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (currentMonthIndex === 11) {
+      setCurrentMonthIndex(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonthIndex(currentMonthIndex + 1);
+    }
   };
 
   return (
@@ -46,13 +98,19 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
             </div>
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <button className="p-2 text-font-detail hover:text-primary rounded-lg">
+                <button 
+                  onClick={goToPreviousMonth}
+                  className="p-2 text-font-detail hover:text-primary rounded-lg"
+                >
                   <i className="fa-solid fa-chevron-left"></i>
                 </button>
                 <div className="px-4 py-2 bg-primary-lightest rounded-lg text-sm font-medium text-font-base">
-                  {currentMonth}
+                  {monthNames[currentMonthIndex]} {currentYear}
                 </div>
-                <button className="p-2 text-font-detail hover:text-primary rounded-lg">
+                <button 
+                  onClick={goToNextMonth}
+                  className="p-2 text-font-detail hover:text-primary rounded-lg"
+                >
                   <i className="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -106,7 +164,12 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
               </div>
             ))}
 
-            {calendarData.map((dayData) => (
+            {generateCalendarDays.map((dayData, idx) => {
+              if (dayData.isEmpty) {
+                return <div key={`empty-${idx}`} className="min-h-[180px]"></div>;
+              }
+              
+              return (
               <div
                 key={dayData.date}
                 className="border border-bd rounded-lg p-2 cursor-pointer hover:shadow-md transition-shadow bg-white min-h-[180px]"
@@ -117,13 +180,13 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                   <div className="text-xs text-font-detail">{dayData.day}</div>
                 </div>
 
-                <div className={`mb-2 p-1 border-l-2 ${getShiftStatusColor(dayData.dayShift)} rounded text-xs`}>
+                <div className={`mb-2 p-1 border-l-2 ${getShiftStatusColor(dayData.dayShift || '')} rounded text-xs`}>
                   <div className="font-semibold text-font-base">DAY</div>
                   <div className="flex items-center text-primary">
                     <span className="w-2 h-2 bg-primary rounded-full mr-1"></span>
                     <span className="truncate">{dayData.daySuper}</span>
                   </div>
-                  {dayData.dayStaff.map((staff, idx) => (
+                  {dayData.dayStaff?.map((staff: string, idx: number) => (
                     <div key={idx} className="flex items-center text-font-detail">
                       <span className="w-2 h-2 bg-font-base rounded-full mr-1"></span>
                       <span className="truncate">{staff}</span>
@@ -131,13 +194,13 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                   ))}
                 </div>
 
-                <div className={`mb-2 p-1 border-l-2 ${getShiftStatusColor(dayData.eveShift)} rounded text-xs`}>
+                <div className={`mb-2 p-1 border-l-2 ${getShiftStatusColor(dayData.eveShift || '')} rounded text-xs`}>
                   <div className="font-semibold text-font-base">EVE</div>
                   <div className="flex items-center text-primary">
                     <span className="w-2 h-2 bg-primary rounded-full mr-1"></span>
                     <span className="truncate">{dayData.eveSuper}</span>
                   </div>
-                  {dayData.eveStaff.map((staff, idx) => (
+                  {dayData.eveStaff?.map((staff: string, idx: number) => (
                     <div key={idx} className="flex items-center text-font-detail">
                       {staff.includes('OT') ? (
                         <>
@@ -159,13 +222,13 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                   ))}
                 </div>
 
-                <div className={`p-1 border-l-2 ${getShiftStatusColor(dayData.nightShift)} rounded text-xs`}>
+                <div className={`p-1 border-l-2 ${getShiftStatusColor(dayData.nightShift || '')} rounded text-xs`}>
                   <div className="font-semibold text-font-base">NIGHT</div>
                   <div className="flex items-center text-primary">
                     <span className="w-2 h-2 bg-primary rounded-full mr-1"></span>
                     <span className="truncate">{dayData.nightSuper}</span>
                   </div>
-                  {dayData.nightStaff.map((staff, idx) => (
+                  {dayData.nightStaff?.map((staff: string, idx: number) => (
                     <div key={idx} className="flex items-center text-font-detail">
                       {staff.includes('Mandatory') ? (
                         <>
@@ -187,7 +250,8 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
