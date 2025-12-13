@@ -5,12 +5,14 @@ import CalendarGrid from './CalendarGrid';
 import RequestOvertimeModal from './RequestOvertimeModal';
 import RequestTimeOffModal from './RequestTimeOffModal';
 import CallOutModal from './CallOutModal';
+import MandatoryForceModal from './MandatoryForceModal';
 
 export default function StaffScheduleView() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'schedule' | 'requests'>('dashboard');
   const [showOTModal, setShowOTModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showCallOutModal, setShowCallOutModal] = useState(false);
+  const [showMandatoryForceModal, setShowMandatoryForceModal] = useState(false);
 
   const myStats = {
     shiftsThisWeek: 4,
@@ -112,6 +114,13 @@ export default function StaffScheduleView() {
         >
           <i className="fa-solid fa-phone-slash mr-2"></i>
           Log Call Out
+        </button>
+        <button 
+          onClick={() => setShowMandatoryForceModal(true)}
+          className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 text-sm"
+        >
+          <i className="fa-solid fa-exclamation-triangle mr-2"></i>
+          Log Mandatory Force
         </button>
       </div>
 
@@ -328,6 +337,7 @@ export default function StaffScheduleView() {
       {showOTModal && <RequestOvertimeModal onClose={() => setShowOTModal(false)} />}
       {showLeaveModal && <RequestTimeOffModal onClose={() => setShowLeaveModal(false)} />}
       {showCallOutModal && <CallOutModal onClose={() => setShowCallOutModal(false)} />}
+      {showMandatoryForceModal && <MandatoryForceModal onClose={() => setShowMandatoryForceModal(false)} />}
     </div>
   );
 }
