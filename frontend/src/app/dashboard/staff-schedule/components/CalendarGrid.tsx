@@ -28,6 +28,8 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
     const daysInMonth = getDaysInMonth(currentYear, currentMonthIndex);
     const firstDay = getFirstDayOfMonth(currentYear, currentMonthIndex);
     const days = [];
+    const today = new Date();
+    const currentDate = new Date(currentYear, currentMonthIndex, 1);
 
     // Add empty cells for days before the first of the month
     for (let i = 0; i < firstDay; i++) {
@@ -37,20 +39,36 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
     // Add all days of the month with static data
     for (let date = 1; date <= daysInMonth; date++) {
       const dayOfWeek = (firstDay + date - 1) % 7;
-      days.push({
-        isEmpty: false,
-        date,
-        day: dayNames[dayOfWeek],
-        dayShift: date % 7 === 2 || date % 11 === 0 ? 'Needs Coverage' : date % 13 === 0 ? 'Critical' : 'Fully Staffed',
-        daySuper: ['Davis, L.', 'Wilson, M.', 'Rodriguez, A.', 'Martinez, R.'][date % 4],
-        dayStaff: date % 5 === 0 ? ['Wilson M.', 'Rodriguez A.', 'Johnson M. (Training)', '+5 more'] : ['Wilson M.', 'Rodriguez A.', '+5 more'],
-        eveShift: date % 9 === 0 ? 'Needs Coverage' : date % 17 === 0 ? 'Critical' : 'Fully Staffed',
-        eveSuper: ['Thompson, K.', 'Anderson, J.', 'Garcia, L.', 'Martinez, R.'][date % 4],
-        eveStaff: date % 7 === 0 ? ['Garcia L.', 'Smith T.', '1 OT Open'] : ['Garcia M.', '+3 more'],
-        nightShift: date % 15 === 0 ? 'Critical' : date % 8 === 0 ? 'Needs Coverage' : 'Fully Staffed',
-        nightSuper: ['Roberts, T.', 'Brown, P.', 'Davis, P.', 'Thompson, K.'][date % 4],
-        nightStaff: date % 15 === 0 ? ['Miller J.', 'Davis P.', '1 Mandatory OT'] : date % 8 === 0 ? ['Miller J.', '1 OT Open'] : ['Evans N.', '+2 more'],
-      });
+      const dayDate = new Date(currentYear, currentMonthIndex, date);
+      
+      // Mark future months or specific dates as unscheduled
+      const isFutureMonth = dayDate > new Date(2024, 10, 30); // After Nov 30, 2024
+      const isUnscheduled = isFutureMonth || (currentYear === 2024 && currentMonthIndex === 10 && (date === 1 || date === 2 || date === 25 || date === 26));
+      
+      if (isUnscheduled) {
+        days.push({
+          isEmpty: false,
+          date,
+          day: dayNames[dayOfWeek],
+          isUnscheduled: true,
+        });
+      } else {
+        days.push({
+          isEmpty: false,
+          date,
+          day: dayNames[dayOfWeek],
+          isUnscheduled: false,
+          dayShift: date % 7 === 2 || date % 11 === 0 ? 'Needs Coverage' : date % 13 === 0 ? 'Critical' : 'Fully Staffed',
+          daySuper: ['Davis, L.', 'Wilson, M.', 'Rodriguez, A.', 'Martinez, R.'][date % 4],
+          dayStaff: date % 5 === 0 ? ['Wilson M.', 'Rodriguez A.', 'Johnson M. (Training)', '+5 more'] : ['Wilson M.', 'Rodriguez A.', '+5 more'],
+          eveShift: date % 9 === 0 ? 'Needs Coverage' : date % 17 === 0 ? 'Critical' : 'Fully Staffed',
+          eveSuper: ['Thompson, K.', 'Anderson, J.', 'Garcia, L.', 'Martinez, R.'][date % 4],
+          eveStaff: date % 7 === 0 ? ['Garcia L.', 'Smith T.', '1 OT Open'] : ['Garcia M.', '+3 more'],
+          nightShift: date % 15 === 0 ? 'Critical' : date % 8 === 0 ? 'Needs Coverage' : 'Fully Staffed',
+          nightSuper: ['Roberts, T.', 'Brown, P.', 'Davis, P.', 'Thompson, K.'][date % 4],
+          nightStaff: date % 15 === 0 ? ['Miller J.', 'Davis P.', '1 Mandatory OT'] : date % 8 === 0 ? ['Miller J.', '1 OT Open'] : ['Evans N.', '+2 more'],
+        });
+      }
     }
 
     return days;
@@ -167,6 +185,36 @@ export default function CalendarGrid({ isAdmin, onOpenCreateSchedule }: Calendar
             {generateCalendarDays.map((dayData, idx) => {
               if (dayData.isEmpty) {
                 return <div key={`empty-${idx}`} className="min-h-[180px]"></div>;
+              }
+
+              if (dayData.isUnscheduled) {
+                return (
+                  <div
+                    key={dayData.date}
+                    className="border-2 border-dashed border-bd-input rounded-lg p-3 bg-bg-subtle min-h-[180px] flex flex-col"
+                  >
+                    <div className="text-center mb-3">
+                      <div className="text-lg font-bold text-font-heading">{dayData.date}</div>
+                      <div className="text-xs text-font-detail">{dayData.day}</div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-3">
+                      <i className="fa-solid fa-calendar-xmark text-font-detail text-3xl opacity-30"></i>
+                      <div className="text-xs text-font-detail text-center">
+                        No schedule created
+                      </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDayClick(dayData.date)}
+                          className="w-full bg-primary text-white px-3 py-2 rounded text-xs hover:bg-primary-light transition-colors"
+                        >
+                          <i className="fa-solid fa-plus mr-1"></i>
+                          Schedule Day
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
               }
               
               return (
